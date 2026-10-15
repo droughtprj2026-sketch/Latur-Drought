@@ -1,0 +1,27 @@
+<PAMDataset>
+  <PAMRasterBand band="1">
+    <Description>rainfall_mm</Description>
+    <Histograms>
+      <HistItem>
+        <HistMin>0</HistMin>
+        <HistMax>10.25644302368164</HistMax>
+        <BucketCount>256</BucketCount>
+        <IncludeOutOfRange>1</IncludeOutOfRange>
+        <Approximate>0</Approximate>
+        <HistCounts>302|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|0|1|0|2|0|0|0|1|5|0|3|0|0|3|4|4|2|2|1|1|1|0|1|0|0|0|1|0|0|0|1|1|0|0|1|0|1|0|0|1|0|0|0|0|1|1|0|2|1|0|0|0|0|0|0|0|0|0|1|1|0|1|1|0|0|0|1|0|0|0|0|0|1|1|0|1|1|0|1|0|0|0|1|0|0|0|0|2|0|0|2|1|1|1|0|2|0|1|2|0|0|1|0|0|2|0|0|1|0|2|0|0|0|1|0|0|0|2|1|1|0|0|0|0|0|0|0|0|1|1|0|0|1</HistCounts>
+      </HistItem>
+    </Histograms>
+    <Metadata>
+      <MDI key="STATISTICS_MINIMUM">0</MDI>
+      <MDI key="STATISTICS_MAXIMUM">10.256443023682</MDI>
+      <MDI key="STATISTICS_MEAN">1.4835186129793</MDI>
+      <MDI key="STATISTICS_STDDEV">2.9993361322886</MDI>
+      <MDI key="STATISTICS_MEDIAN">0.000000</MDI>
+      <MDI key="STATISTICS_COUNT">381.000000</MDI>
+      <MDI key="STATISTICS_SKIPFACTORX">1</MDI>
+      <MDI key="STATISTICS_SKIPFACTORY">1</MDI>
+      <MDI key="STATISTICS_EXCLUDEDVALUES"></MDI>
+      <MDI key="STATISTICS_COVARIANCES">8.996017234451978</MDI>
+    </Metadata>
+  </PAMRasterBand>
+</PAMDataset>

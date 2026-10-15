@@ -1,0 +1,26 @@
+# Large geospatial rasters (Do NOT commit GeoTIFFs to Git)
+*.tif
+*.tiff
+*.TIF
+*.TIFF
+*.ovr
+*.crdownload
+
+# Zip archives (large satellite downloads and backups)
+*.zip
+
+# Python caches and virtual environments
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+
+# Temporary directories used during tile downloads
+_tiles/
+/content/
+
+# IDE / System files
+.DS_Store
+Thumbs.db
