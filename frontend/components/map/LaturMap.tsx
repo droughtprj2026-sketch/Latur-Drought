@@ -7,8 +7,9 @@ import {
 } from "react-leaflet";
 import type { Feature, FeatureCollection } from "geojson";
 import type { Layer, PathOptions, LeafletMouseEvent } from "leaflet";
-import { getIndexGeoJSON, getStatus, type IndexName } from "@/lib/api";
+import { getIndexGeoJSON, getVillageIndices, getStatus, type IndexName } from "@/lib/api";
 import { classifyValue, colorForValue, D_CODES, D_COLORS } from "@/lib/classify";
+import L from "leaflet";
 import { BASEMAPS } from "./basemaps";
 import { BasemapSwitcher } from "./BasemapSwitcher";
 import { BoundaryLayers } from "./BoundaryLayers";
@@ -130,13 +131,30 @@ export default function LaturMap({
     };
     resolve().then((e) => {
       setEffective(e);
-      return getIndexGeoJSON(index, e.y, e.m);
+      return getVillageIndices(index, e.y, e.m);
     }).then(setPixels).catch((e) => setErr(String(e)));
   }, [index, year, month, latest]);
 
   const styleFor = (f?: Feature): PathOptions => {
     const v = f?.properties?.value as number | undefined;
     return { color: "#111", weight: 0.15, fillColor: colorForValue(v, index), fillOpacity: 0.82 };
+  };
+
+  const pointToLayer = (f: Feature, latlng: L.LatLng) => {
+    const L = require("leaflet");
+    const p = f.properties || {};
+    const score = p.score as number | undefined;
+    const v = p.value as number | undefined;
+    const cdiClass = p.cdi_class || p.CDI_class || p.composite_drought_class || "";
+    const color = classColor(cdiClass);
+    const radius = score != null && score >= 0 ? 4 + score * 6 : 5;
+    return L.circleMarker(latlng, {
+      radius,
+      fillColor: color,
+      color: "#222",
+      weight: 1,
+      fillOpacity: 0.85,
+    });
   };
 
   /** Build a rich popup showing ALL indices for the clicked village. */
@@ -209,8 +227,13 @@ export default function LaturMap({
         </LayersControl>
 
         {pixels && (
-          <GeoJSON key={`${index}-${effective.y}-${effective.m}-${tehsil}-${village}`}
-                   data={pixels} style={styleFor} onEachFeature={onEach} />
+          <GeoJSON
+            key={`${index}-${effective.y}-${effective.m}-${tehsil}-${village}`}
+            data={pixels}
+            pointToLayer={pointToLayer}
+            style={styleFor}
+            onEachFeature={onEach}
+          />
         )}
 
         {selectedVillage && (
