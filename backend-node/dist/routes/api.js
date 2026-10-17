@@ -20,6 +20,46 @@ catch (err) {
     console.error("Failed to open SQLite database:", err);
 }
 export const apiRouter = Router();
+const TEHSIL_GEOJSON_PATH = path.resolve(__dirname, "../../../frontend/public/data/latur_tehsils.geojson");
+const tehsilPolygonMap = new Map();
+try {
+    if (fs.existsSync(TEHSIL_GEOJSON_PATH)) {
+        const raw = JSON.parse(fs.readFileSync(TEHSIL_GEOJSON_PATH, "utf-8"));
+        for (const f of raw.features || []) {
+            const name = f.properties?.TEHSIL || f.properties?.name;
+            if (name) {
+                tehsilPolygonMap.set(String(name).trim().toLowerCase(), f.geometry);
+            }
+        }
+    }
+}
+catch (e) {
+    console.error("Failed to load tehsil polygons:", e);
+}
+function parseGeometry(geomStr, fallbackName) {
+    if (fallbackName && tehsilPolygonMap.has(fallbackName.trim().toLowerCase())) {
+        return tehsilPolygonMap.get(fallbackName.trim().toLowerCase());
+    }
+    if (!geomStr)
+        return null;
+    const trimmed = geomStr.trim();
+    if (trimmed.startsWith("{")) {
+        try {
+            return JSON.parse(trimmed);
+        }
+        catch {
+            // ignore
+        }
+    }
+    const pointMatch = trimmed.match(/POINT\s*\(\s*([-\d.]+)\s+([-\d.]+)\s*\)/i);
+    if (pointMatch && pointMatch[1] && pointMatch[2]) {
+        return {
+            type: "Point",
+            coordinates: [parseFloat(pointMatch[1]), parseFloat(pointMatch[2])],
+        };
+    }
+    return null;
+}
 const VALID_INDICES = new Set([
     "spi1", "spi3", "spi6", "spi12",
     "ndvi", "evi", "pci", "vci", "vhi", "cdi", "cdi_class"
@@ -88,7 +128,7 @@ apiRouter.get("/tehsils", (_req, res) => {
     const features = rows.map((r) => ({
         type: "Feature",
         properties: { TEHSIL: r.name, name: r.name },
-        geometry: JSON.parse(r.geom),
+        geometry: parseGeometry(r.geom, r.name),
     }));
     res.setHeader("Content-Type", "application/geo+json");
     res.json({
@@ -112,7 +152,7 @@ apiRouter.get("/villages", (req, res) => {
     const rows = db.prepare(sql).all(...params);
     res.json(rows.map((r) => r.village));
 });
-// GET /api/v1/indices/:name/:year/:month
+// GET /api/v1/indices/:name/:year/:month  (tehsil-level polygons)
 apiRouter.get("/indices/:name/:year/:month", (req, res) => {
     const name = String(req.params.name ?? "").toLowerCase();
     if (!VALID_INDICES.has(name)) {
@@ -152,11 +192,59 @@ apiRouter.get("/indices/:name/:year/:month", (req, res) => {
                 value: info.val,
                 class: info.dclass,
             },
-            geometry: JSON.parse(t.geom),
+            geometry: parseGeometry(t.geom, t.name),
         };
     });
     res.setHeader("Content-Type", "application/geo+json");
     res.setHeader("Cache-Control", "public, max-age=86400");
+    res.json({
+        type: "FeatureCollection",
+        features,
+    });
+});
+// GET /api/v1/village-indices/:name/:year/:month  (village-level points)
+apiRouter.get("/village-indices/:name/:year/:month", (req, res) => {
+    const name = String(req.params.name ?? "").toLowerCase();
+    if (!VALID_INDICES.has(name)) {
+        return res.status(400).json({ error: { code: "BAD_INDEX", message: `unknown index: ${name}` } });
+    }
+    const year = parseInt(req.params.year ?? "", 10);
+    const month = parseInt(req.params.month ?? "", 10);
+    if (isNaN(year) || isNaN(month) || month < 1 || month > 12) {
+        return res.status(400).json({ error: { code: "BAD_DATE", message: "Invalid year or month" } });
+    }
+    if (!db) {
+        return res.status(503).json({ error: { code: "DB_UNAVAILABLE", message: "Database not loaded" } });
+    }
+    const period = `${year}-${String(month).padStart(2, "0")}`;
+    const col = getIndexColumn(name);
+    const rows = db.prepare(`SELECT village, tehsil, lon, lat, ${col} AS val, composite_drought_class AS dclass, composite_drought_score AS score
+     FROM master_row
+     WHERE observation_period = ? AND village != '' AND lon IS NOT NULL AND lat IS NOT NULL`).all(period);
+    const features = rows.map((r) => {
+        const isNum = r.val !== null && r.val !== "" && !isNaN(Number(r.val));
+        const scoreNum = r.score !== null && r.score !== "" && !isNaN(Number(r.score));
+        return {
+            type: "Feature",
+            properties: {
+                VILLAGE: r.village,
+                TEHSIL: r.tehsil,
+                name: r.village,
+                index: name,
+                period,
+                value: isNum ? Number(r.val) : null,
+                class: isNum ? (r.dclass || "None") : "ND",
+                score: scoreNum ? Number(r.score) : null,
+                cdi_class: r.dclass || "ND",
+            },
+            geometry: {
+                type: "Point",
+                coordinates: [Number(r.lon), Number(r.lat)],
+            },
+        };
+    });
+    res.setHeader("Content-Type", "application/geo+json");
+    res.setHeader("Cache-Control", "public, max-age=300");
     res.json({
         type: "FeatureCollection",
         features,

@@ -1,0 +1,41 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "period": "2022-06",
+        "district": "Latur",
+        "SPI": 0.542154574132492,
+        "NDVI": 0.14169005694071568,
+        "EVI": 0.8620274909592299,
+        "VCI": 43.1608575660657,
+        "VHI": 43.1608575660657,
+        "PCI": 31.987110265007804,
+        "CDI": 0.1782,
+        "CDI_class": "None",
+        "CDI_label": "No drought / Normal",
+        "formula_version": "cdi-v2026.10",
+        "rain_mm_mean": 169.05043418074004,
+        "composite_formula_version": "cdi-v2026.10",
+        "weights": {
+          "SPI": 0.3,
+          "VHI": 0.2,
+          "VCI": 0.15,
+          "NDVI": 0.15,
+          "EVI": 0.1,
+          "PCI": 0.1
+        },
+        "min_inputs": 3,
+        "spi_accumulation": "SPI-3"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          76.5604,
+          18.4088
+        ]
+      }
+    }
+  ]
+}

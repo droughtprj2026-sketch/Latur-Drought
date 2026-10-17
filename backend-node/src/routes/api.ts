@@ -25,6 +25,45 @@ try {
 
 export const apiRouter = Router();
 
+const TEHSIL_GEOJSON_PATH = path.resolve(__dirname, "../../../frontend/public/data/latur_tehsils.geojson");
+const tehsilPolygonMap = new Map<string, any>();
+try {
+  if (fs.existsSync(TEHSIL_GEOJSON_PATH)) {
+    const raw = JSON.parse(fs.readFileSync(TEHSIL_GEOJSON_PATH, "utf-8"));
+    for (const f of raw.features || []) {
+      const name = f.properties?.TEHSIL || f.properties?.name;
+      if (name) {
+        tehsilPolygonMap.set(String(name).trim().toLowerCase(), f.geometry);
+      }
+    }
+  }
+} catch (e) {
+  console.error("Failed to load tehsil polygons:", e);
+}
+
+function parseGeometry(geomStr: string | null | undefined, fallbackName?: string): any {
+  if (fallbackName && tehsilPolygonMap.has(fallbackName.trim().toLowerCase())) {
+    return tehsilPolygonMap.get(fallbackName.trim().toLowerCase());
+  }
+  if (!geomStr) return null;
+  const trimmed = geomStr.trim();
+  if (trimmed.startsWith("{")) {
+    try {
+      return JSON.parse(trimmed);
+    } catch {
+      // ignore
+    }
+  }
+  const pointMatch = trimmed.match(/POINT\s*\(\s*([-\d.]+)\s+([-\d.]+)\s*\)/i);
+  if (pointMatch && pointMatch[1] && pointMatch[2]) {
+    return {
+      type: "Point",
+      coordinates: [parseFloat(pointMatch[1]), parseFloat(pointMatch[2])],
+    };
+  }
+  return null;
+}
+
 const VALID_INDICES = new Set([
   "spi1", "spi3", "spi6", "spi12",
   "ndvi", "evi", "pci", "vci", "vhi", "cdi", "cdi_class"
@@ -99,7 +138,7 @@ apiRouter.get("/tehsils", (_req: Request, res: Response) => {
   const features = rows.map((r) => ({
     type: "Feature",
     properties: { TEHSIL: r.name, name: r.name },
-    geometry: JSON.parse(r.geom),
+    geometry: parseGeometry(r.geom, r.name),
   }));
 
   res.setHeader("Content-Type", "application/geo+json");
@@ -173,7 +212,7 @@ apiRouter.get("/indices/:name/:year/:month", (req: Request, res: Response) => {
         value: info.val,
         class: info.dclass,
       },
-      geometry: JSON.parse(t.geom),
+      geometry: parseGeometry(t.geom, t.name),
     };
   });
 

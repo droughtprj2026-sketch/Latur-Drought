@@ -141,10 +141,8 @@ export default function LaturMap({
   };
 
   const pointToLayer = (f: Feature, latlng: L.LatLng) => {
-    const L = require("leaflet");
     const p = f.properties || {};
     const score = p.score as number | undefined;
-    const v = p.value as number | undefined;
     const cdiClass = p.cdi_class || p.CDI_class || p.composite_drought_class || "";
     const color = classColor(cdiClass);
     const radius = score != null && score >= 0 ? 4 + score * 6 : 5;

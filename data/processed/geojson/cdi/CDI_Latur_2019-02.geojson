@@ -1,0 +1,41 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "period": "2019-02",
+        "district": "Latur",
+        "SPI": -0.1875373291272345,
+        "NDVI": 0.16120609267859454,
+        "EVI": 0.9396337129352268,
+        "VCI": 21.8803738507104,
+        "VHI": 21.8803738507104,
+        "PCI": 18.952909582883738,
+        "CDI": 0.2729,
+        "CDI_class": "D0",
+        "CDI_label": "D0 \u2014 Abnormally dry / Mild",
+        "formula_version": "cdi-v2026.10",
+        "rain_mm_mean": 3.238550573493404,
+        "composite_formula_version": "cdi-v2026.10",
+        "weights": {
+          "SPI": 0.3,
+          "VHI": 0.2,
+          "VCI": 0.15,
+          "NDVI": 0.15,
+          "EVI": 0.1,
+          "PCI": 0.1
+        },
+        "min_inputs": 3,
+        "spi_accumulation": "SPI-3"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          76.5604,
+          18.4088
+        ]
+      }
+    }
+  ]
+}

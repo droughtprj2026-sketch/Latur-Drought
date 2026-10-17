@@ -447,7 +447,10 @@ def main():
     centroid_lookup = {}
     for feat in gj["features"]:
         props = feat.get("properties", {})
-        vid = props.get("id") or props.get("village_idx")
+        # Match by village name (case-insensitive)
+        vname = (props.get("VILLAGE") or props.get("village") or props.get("name") or "").strip()
+        if not vname:
+            continue
         geom = feat.get("geometry", {})
         coords = geom.get("coordinates", [])
         if geom["type"] == "Polygon":
@@ -457,13 +460,12 @@ def main():
         else:
             continue
         arr = np.asarray(ring, dtype="float64")
-        if vid is not None:
-            centroid_lookup[int(vid)] = {
-                "lon": float(arr[:, 0].mean()),
-                "lat": float(arr[:, 1].mean()),
-            }
-    df["lon"] = df["village_idx"].apply(lambda v: centroid_lookup.get(int(v), {}).get("lon") if pd.notna(v) else None)
-    df["lat"] = df["village_idx"].apply(lambda v: centroid_lookup.get(int(v), {}).get("lat") if pd.notna(v) else None)
+        centroid_lookup[vname.lower()] = {
+            "lon": float(arr[:, 0].mean()),
+            "lat": float(arr[:, 1].mean()),
+        }
+    df["lon"] = df["village"].apply(lambda v: centroid_lookup.get(str(v).lower(), {}).get("lon") if pd.notna(v) else None)
+    df["lat"] = df["village"].apply(lambda v: centroid_lookup.get(str(v).lower(), {}).get("lat") if pd.notna(v) else None)
 
     # 6. Load into SQLite
     load_into_sqlite(df, latest_df)

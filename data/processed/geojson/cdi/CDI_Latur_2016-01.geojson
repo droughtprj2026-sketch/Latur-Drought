@@ -1,0 +1,41 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "period": "2016-01",
+        "district": "Latur",
+        "SPI": null,
+        "NDVI": 0.16073224931803648,
+        "EVI": 0.9431179597644923,
+        "VCI": 17.24413817216647,
+        "VHI": 17.24413817216647,
+        "PCI": 25.54825730517939,
+        "CDI": 0.3563,
+        "CDI_class": "D1",
+        "CDI_label": "D1 \u2014 Moderate drought",
+        "formula_version": "cdi-v2026.10",
+        "rain_mm_mean": 3.9855948301770585,
+        "composite_formula_version": "cdi-v2026.10",
+        "weights": {
+          "SPI": 0.3,
+          "VHI": 0.2,
+          "VCI": 0.15,
+          "NDVI": 0.15,
+          "EVI": 0.1,
+          "PCI": 0.1
+        },
+        "min_inputs": 3,
+        "spi_accumulation": "SPI-3"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          76.5604,
+          18.4088
+        ]
+      }
+    }
+  ]
+}
