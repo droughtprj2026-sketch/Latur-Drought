@@ -1,26 +1,71 @@
-# Large geospatial rasters (Do NOT commit GeoTIFFs to Git)
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Raw data (large, external)
+data/raw/
+data/processed/*/
+!data/processed/.gitkeep
+!data/processed/json/manifest.json
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+*.log
+.pnpm-store/
+
+# Go
+backend-go/bin/
+backend-go/tmp/
+*.exe
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.ipynb_checkpoints/
+*.egg-info/
+
+# OS / editor
+#.DS_Store
+#Thumbs.db
+#.vscode/
+#.idea/
+*.swp
+
+# Supabase local
+supabase/.branches
+supabase/.temp
+
+# Chrome partial downloads (these drift in with the Sentinel data)
+*.crdownload
+~$*.xlsx
+
+# GDAL sidecars that occasionally leak into git
+*.aux.xml
+*.ovr
+
+# Raster imagery (TIFF) & Raw archives
 *.tif
 *.tiff
 *.TIF
 *.TIFF
-*.ovr
-*.crdownload
-
-# Zip archives (large satellite downloads and backups)
+*.tfw
 *.zip
+output/sentinel_Raw_Composites/
+output/CHIRPS_Rainfall/
+output/indices/rasters/
+output/spi/geotiff_*/
 
-# Python caches and virtual environments
-__pycache__/
-*.py[cod]
-*$py.class
-.venv/
-venv/
-env/
+# Database
+*.db
+*.db-wal
+*.db-shm
 
-# Temporary directories used during tile downloads
-_tiles/
-/content/
+# Agent tool caches & configurations
+.opencode/
+.antigravity/
 
-# IDE / System files
-.DS_Store
-Thumbs.db
+

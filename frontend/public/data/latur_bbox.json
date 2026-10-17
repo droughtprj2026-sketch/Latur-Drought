@@ -1,0 +1,14 @@
+{
+  "type": "Feature",
+  "properties": { "name": "Latur district (approximate bbox)" },
+  "geometry": {
+    "type": "Polygon",
+    "coordinates": [[
+      [76.00, 17.80],
+      [77.20, 17.80],
+      [77.20, 18.90],
+      [76.00, 18.90],
+      [76.00, 17.80]
+    ]]
+  }
+}

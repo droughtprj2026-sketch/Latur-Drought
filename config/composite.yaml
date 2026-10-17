@@ -1,0 +1,54 @@
+# Composite / Multi-Index Drought Score (CDI) configuration.
+#
+# This file is the single source of truth for how the composite drought
+# score is computed and classified. The pipeline reads it on every run;
+# edit values here, not in code.
+#
+# Every component is first normalized to a 0..1 drought-intensity scale
+# (1 = most drought-stressed), then combined with the weights below.
+# A missing input for a given polygon-period is EXCLUDED from both the
+# numerator AND the denominator — never substituted with zero.
+# If fewer than `min_inputs` components are available, the composite
+# for that polygon-period is marked UNAVAILABLE (class = "pending").
+
+formula_version: "cdi-v2026.10"
+
+min_inputs: 3                       # polygons with fewer available indices → unavailable
+
+weights:
+  SPI:  0.30
+  VHI:  0.20
+  VCI:  0.15
+  NDVI: 0.15
+  EVI:  0.10
+  PCI:  0.10
+
+# How each raw index is turned into a 0..1 drought-intensity signal.
+#
+#   neg_clip — SPI; S = clip(-x / 3, 0, 1)   (x = -3 → S=1 ; x >= 0 → S=0)
+#   robust_z — per (polygon, calendar month) robust standardised anomaly:
+#              z = (x - median) / (1.4826 * MAD); S = clip(-z / 3, 0, 1).
+#              A normal month (z~0) => S~0 (None/D0); only deficits score.
+#              This replaces the old 1-(x-lo)/(hi-lo) min-max, which forced
+#              ~half of all months into D1+ by construction.
+normalisation:
+  SPI:  { method: neg_clip }
+  NDVI: { method: robust_z }
+  EVI:  { method: robust_z }
+  PCI:  { method: robust_z }
+  VCI:  { method: robust_z }
+  VHI:  { method: robust_z }
+
+# Which SPI accumulation feeds the composite. "SPI-3" is the agricultural
+# default; change to SPI-1 for faster response or SPI-6 for slower.
+spi_accumulation: "SPI-3"
+
+# Class thresholds applied to the composite score (0..1). Must align with
+# the US-DM / IMD D0..D4 scale used across the dashboard.
+thresholds:
+  - { max: 0.20, code: "None", label: "No drought / Normal" }
+  - { max: 0.35, code: "D0",   label: "Abnormally dry / Mild" }
+  - { max: 0.50, code: "D1",   label: "Moderate drought" }
+  - { max: 0.65, code: "D2",   label: "Severe drought" }
+  - { max: 0.80, code: "D3",   label: "Extreme drought" }
+  - { max: 1.01, code: "D4",   label: "Exceptional drought" }

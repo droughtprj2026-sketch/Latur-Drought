@@ -1,0 +1,37 @@
+{
+  "generated_at": "2026-10-16T23:26:29+05:30",
+  "monitoring_status": "degraded",
+  "sentinel2": {
+    "latest_observation_date": "2026-10-15",
+    "latest_period_id": "2026-10",
+    "cloud_percentage": null,
+    "last_successful_update": "2026-10-16T19:22:49+05:30",
+    "status": "success"
+  },
+  "chirps": {
+    "latest_observation_date": null,
+    "latest_period_id": null,
+    "last_successful_update": null,
+    "status": null,
+    "qc": null
+  },
+  "composite": {
+    "formula_version": "cdi-v2026.10",
+    "weights": {
+      "SPI": 0.3,
+      "VHI": 0.2,
+      "VCI": 0.15,
+      "NDVI": 0.15,
+      "EVI": 0.1,
+      "PCI": 0.1
+    },
+    "min_inputs": 3,
+    "spi_reference": "1991-2020"
+  },
+  "region": {
+    "district": "Latur",
+    "state": "Maharashtra",
+    "centroid_lat": 18.4088,
+    "centroid_lon": 76.5604
+  }
+}

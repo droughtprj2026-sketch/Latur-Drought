@@ -1,0 +1,21 @@
+# SPI scientific configuration.
+# Documented, consistent reference climatology for the whole project.
+
+reference_period:
+  start: "1991-01"
+  end:   "2020-12"
+  # Prefer a 30-year reference. The 2016+ CHIRPS fetched by chirps_gee.py
+  # is only the near-real-time slice; the fitting routine should merge in
+  # the historical CHIRPS backfill under data/raw/chirps_1991_2015/ before
+  # calibration.
+
+distribution:
+  method: "gamma"                   # McKee et al. 1993 / Thom 1958 MLE
+  zero_correction: "stagge"         # H(0) = q/2 (Stagge et al. 2015)
+  min_nonzero: 3                    # months with nonzero rain needed per calendar month
+
+accumulations: [1, 3, 6, 12]        # SPI windows exposed to the dashboard
+
+quality_control:
+  max_fraction_missing: 0.10        # a calendar month with >10% missing years → fit refused
+  mark_unavailable_rather_than_fit: true

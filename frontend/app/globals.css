@@ -1,0 +1,30 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Leaflet needs its own CSS; import once at the app root. */
+@import "leaflet/dist/leaflet.css";
+
+:root {
+  --background: #ffffff;
+  --foreground: #0f172a;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0b1220;
+    --foreground: #e5e7eb;
+  }
+}
+
+html, body {
+  background: var(--background);
+  color: var(--foreground);
+  min-height: 100%;
+}
+
+.leaflet-container {
+  width: 100%;
+  height: 100%;
+  background: transparent;
+}
