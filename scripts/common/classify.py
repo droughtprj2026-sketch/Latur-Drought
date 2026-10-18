@@ -120,5 +120,124 @@ def label_for_cdi(value: float | None) -> str:
     return "D4 — Exceptional drought"
 
 
+# ---------------------------------------------------------------------
+# Centralized Drought Classification Lookup Table
+# ---------------------------------------------------------------------
+# Near-real-time pipelines need to decide drought / non-drought / wet
+# instantly from a CDI score without recomputing thresholds each time.
+# This table is built once from config/composite.yaml and shared by
+# pipeline_gee.py, run_realtime_pipeline_sync.py, and sync_dashboard_data.py.
+# Severity bands:
+#   score < 0.20  -> no_drought   (None)
+#   0.20-0.35     -> drought      (D0 - abnormally dry / mild)
+#   0.35-0.50     -> drought      (D1 - moderate)
+#   0.50-0.65     -> drought      (D2 - severe)
+#   0.65-0.80     -> drought      (D3 - extreme)
+#   0.80+         -> drought      (D4 - exceptional)
+# Wet conditions are signalled by a strongly positive SPI anomaly
+# (SPI >= +1.0) even when CDI is low; that is a separate input.
+# ---------------------------------------------------------------------
+
+DROUGHT_SEVERITY_MAP = {
+    "None":  "no_drought",
+    "D0":    "drought",
+    "D1":    "drought",
+    "D2":    "drought",
+    "D3":    "drought",
+    "D4":    "drought",
+    "ND":    "no_data",
+}
+
+
+def build_drought_lookup_table() -> list[dict]:
+    """
+    Build the centralized drought classification lookup table from
+    config/composite.yaml thresholds.
+
+    Returns a list of entries, each with:
+      min_score, max_score, code, label, severity, color
+    where severity is one of: "no_drought", "drought", "no_data".
+    """
+    cfg = _load_composite_cfg()
+    thresholds = cfg["thresholds"]
+    weights = cfg["weights"]
+
+    lookup = []
+    prev_max = 0.0
+    for t in thresholds:
+        code = t["code"]
+        max_score = t["max"]
+        label = t["label"]
+        entry = {
+            "min_score": round(prev_max, 4),
+            "max_score": round(max_score, 4),
+            "code": code,
+            "label": label,
+            "severity": DROUGHT_SEVERITY_MAP.get(code, "no_data"),
+            "weights": weights,
+            "formula_version": cfg.get("formula_version", "cdi-v2026.10"),
+        }
+        lookup.append(entry)
+        prev_max = max_score
+
+    return lookup
+
+
+def classify_drought(cdi_score: float | None) -> dict:
+    """
+    Classify a CDI score into the full drought status using the lookup table.
+
+    Returns:
+      {"code": str, "label": str, "severity": str, "min_score": float, "max_score": float}
+    """
+    if cdi_score is None or (isinstance(cdi_score, float) and np.isnan(cdi_score)):
+        return {
+            "code": "ND",
+            "label": "No data",
+            "severity": "no_data",
+            "min_score": None,
+            "max_score": None,
+        }
+
+    for entry in build_drought_lookup_table():
+        if entry["min_score"] <= cdi_score < entry["max_score"]:
+            return {
+                "code": entry["code"],
+                "label": entry["label"],
+                "severity": entry["severity"],
+                "min_score": entry["min_score"],
+                "max_score": entry["max_score"],
+            }
+
+    # Score at or above the highest threshold
+    last = build_drought_lookup_table()[-1]
+    return {
+        "code": last["code"],
+        "label": last["label"],
+        "severity": last["severity"],
+        "min_score": last["min_score"],
+        "max_score": last["max_score"],
+    }
+
+
+def is_drought(cdi_score: float | None) -> bool:
+    """Return True if the CDI score indicates any drought (D0-D4)."""
+    result = classify_drought(cdi_score)
+    return result["severity"] == "drought"
+
+
+def is_no_drought(cdi_score: float | None) -> bool:
+    """Return True if the CDI score indicates no drought / normal."""
+    result = classify_drought(cdi_score)
+    return result["severity"] == "no_drought"
+
+
+def is_wet_from_spi(spi_value: float | None, spi_wet_threshold: float = 1.0) -> bool:
+    """Return True if SPI indicates wet conditions (strong positive anomaly)."""
+    if spi_value is None or (isinstance(spi_value, float) and np.isnan(spi_value)):
+        return False
+    return spi_value >= spi_wet_threshold
+
+
 # Legacy aliases kept so older scripts still import cleanly.
 code_for_value = code_for_spi

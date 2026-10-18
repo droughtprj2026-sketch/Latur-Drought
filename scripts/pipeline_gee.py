@@ -48,7 +48,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
-from common.classify import CDI_WEIGHTS, MONTHS, classify_spi  # noqa: E402
+from common.classify import MONTHS, classify_drought, code_for_cdi  # noqa: E402
 
 ROOT = HERE.parent
 OUT = Path(os.environ.get("OUTPUT_DIR", ROOT / "data" / "processed"))
@@ -300,8 +300,9 @@ def main():
                    "tehsil": p.get("TEHSIL") or p.get("name") or p.get("NAME") or ""}
             for ind in ("NDVI", "EVI", "NDMI"):
                 row[ind] = p.get(ind)
-                if row[ind] is not None:
-                    row[f"{ind}_class"] = classify_spi(float(row[ind]))
+            # NDVI/EVI/NDMI are raw spectral inputs; their drought class is
+            # derived later by the composite CDI lookup table, not by the
+            # SPI classifier. Do not classify them here.
             zonal_rows.append(row)
 
         # Per-pixel export is optional and slow; comment out for faster runs.
