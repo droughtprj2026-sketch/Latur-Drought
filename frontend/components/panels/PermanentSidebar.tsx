@@ -25,6 +25,12 @@ interface Props {
   selectedPeriod: string;
   onSelectTehsil: (t: string) => void;
   onSelectVillageByName: (name: string) => void;
+  stats?: {
+    total: number;
+    droughtCount: number;
+    d2PlusCount: number;
+    avgCdi: number;
+  };
 }
 
 interface TimeseriesPoint {
@@ -90,6 +96,7 @@ export function PermanentSidebar({
   selectedPeriod,
   onSelectTehsil,
   onSelectVillageByName,
+  stats,
 }: Props) {
   const [tab, setTab] = useState<"overview" | "comparisons" | "rankings" | "heatmap">("overview");
   const [chartSubMode, setChartSubMode] = useState<"spi_multiscale" | "cdi_trajectory" | "climatology_envelope">("spi_multiscale");
@@ -532,7 +539,7 @@ export function PermanentSidebar({
                 </span>
               </div>
               <p className="text-[11px] text-rose-950 leading-relaxed font-medium">
-                District under active Maharashtra Drought Relief notification. <strong>490 monitored villages (51%)</strong> in verified drought stress; <strong>228 revenue villages</strong> facing Critical (D2–D4) agricultural and hydrological deficit.
+                District status for {selectedPeriod}: <strong>{stats?.droughtCount ?? 490} monitored villages ({Math.round(((stats?.droughtCount ?? 490) / (stats?.total || 954)) * 100)}%)</strong> in verified drought stress; <strong>{stats?.d2PlusCount ?? 228} revenue villages</strong> facing Critical (D2–D4) agricultural and hydrological deficit.
               </p>
             </div>
 
@@ -819,6 +826,17 @@ export function PermanentSidebar({
                       <ReferenceLine y={-1.5} stroke="#dc2626" strokeDasharray="3 3" label={{ value: "Sev. Drought (-1.5)", fill: "#dc2626", fontSize: 9 }} />
                       <ReferenceLine y={-2.0} stroke="#7f1d1d" strokeDasharray="3 3" label={{ value: "Extr. Drought (-2.0)", fill: "#7f1d1d", fontSize: 9 }} />
 
+                      {/* Active Scrubber Timeline Marker */}
+                      {selectedPeriod && (
+                        <ReferenceLine
+                          x={selectedPeriod}
+                          stroke="#f59e0b"
+                          strokeWidth={2}
+                          strokeDasharray="3 3"
+                          label={{ value: `Selected (${selectedPeriod})`, fill: "#b45309", fontSize: 9, position: "insideTopRight" }}
+                        />
+                      )}
+
                       <Line type="monotone" dataKey="spi1" stroke="#06b6d4" strokeWidth={1.2} dot={false} name="SPI-1 (1-Mo)" />
                       <Line type="monotone" dataKey="spi3" stroke="#2563eb" strokeWidth={2.0} dot={false} name="SPI-3 (3-Mo)" />
                       <Line type="monotone" dataKey="spi6" stroke="#4f46e5" strokeWidth={1.5} dot={false} name="SPI-6 (6-Mo)" />
@@ -879,6 +897,17 @@ export function PermanentSidebar({
                       <Tooltip contentStyle={{ backgroundColor: "#ffffff", borderColor: "#e2e8f0", fontSize: "11px", borderRadius: "8px" }} />
                       <Legend wrapperStyle={{ fontSize: "11px" }} />
                       <ReferenceLine yAxisId="cdi" y={0.5} stroke="#ef4444" strokeDasharray="3 3" label={{ value: "D2 Severe", fill: "#ef4444", fontSize: 9 }} />
+                      {/* Active Scrubber Timeline Marker */}
+                      {selectedPeriod && (
+                        <ReferenceLine
+                          yAxisId="cdi"
+                          x={selectedPeriod}
+                          stroke="#f59e0b"
+                          strokeWidth={2}
+                          strokeDasharray="3 3"
+                          label={{ value: `Active (${selectedPeriod})`, fill: "#b45309", fontSize: 9, position: "insideTopRight" }}
+                        />
+                      )}
                       <Bar yAxisId="rain" dataKey="rain" fill="#93c5fd" name="Rain (mm)" opacity={0.7} />
                       <Line yAxisId="cdi" type="monotone" dataKey="cdi" stroke="#d97706" strokeWidth={2.2} dot={false} name="CDI Score" />
                     </ComposedChart>
@@ -1012,12 +1041,16 @@ export function PermanentSidebar({
                             else { bg = "#f87171"; text = "#450a0a"; }
                           }
 
+                          const isCurrent = dateKey === selectedPeriod;
+
                           return (
                             <td
                               key={m}
                               style={{ backgroundColor: bg, color: text }}
-                              className="h-5 text-center font-mono text-[9px] rounded-xs font-semibold"
-                              title={`${dateKey}: ${val != null ? val.toFixed(2) : "No data"}`}
+                              className={`h-5 text-center font-mono text-[9px] rounded-xs font-semibold transition-all ${
+                                isCurrent ? "ring-2 ring-amber-600 font-black scale-110 z-10 relative shadow-sm" : ""
+                              }`}
+                              title={`${dateKey}: ${val != null ? val.toFixed(2) : "No data"}${isCurrent ? " (Active Selected Period)" : ""}`}
                             >
                               {val != null ? val.toFixed(1) : "—"}
                             </td>

@@ -304,18 +304,117 @@ export async function GET(
     return NextResponse.json({ error: "Tehsil GeoJSON missing" }, { status: 404 });
   }
 
-  // 6. Villages GeoJSON
-  if (route === "villages" || route.startsWith("village-indices")) {
-    const data = getVillagesGeojson();
-    if (data) {
-      return NextResponse.json(data, {
+  // 6. Villages GeoJSON & Period-specific Indices
+  if (route === "villages" || route.startsWith("village-indices") || route.startsWith("indices")) {
+    const rawGeo = getVillagesGeojson();
+    if (!rawGeo) {
+      return NextResponse.json({ error: "Village GeoJSON missing" }, { status: 404 });
+    }
+
+    // Parse requested index and period from slug or query params
+    // e.g. /api/v1/indices/cdi/2018/5 or /api/v1/village-indices/ndvi/2021/09
+    let reqIndex = "cdi";
+    let reqPeriod = "";
+
+    if (slug[0] === "indices" || slug[0] === "village-indices") {
+      reqIndex = (slug[1] || "cdi").toLowerCase();
+      if (slug[2] && slug[3]) {
+        const y = slug[2];
+        const m = slug[3].padStart(2, "0");
+        reqPeriod = `${y}-${m}`;
+      }
+    } else if (searchParams.get("period")) {
+      reqPeriod = searchParams.get("period") || "";
+      reqIndex = (searchParams.get("index") || "cdi").toLowerCase();
+    }
+
+    if (!reqPeriod) {
+      return NextResponse.json(rawGeo, {
         headers: { "Cache-Control": "public, max-age=3600" },
       });
     }
-    return NextResponse.json({ error: "Village GeoJSON missing" }, { status: 404 });
+
+    // Hydrate features with real observation values for reqPeriod
+    const cache = getVillageTimeseries();
+    if (!cache) {
+      return NextResponse.json(rawGeo);
+    }
+
+    const hydratedFeatures = (rawGeo.features || []).map((f: any) => {
+      const p = { ...(f.properties || {}) };
+      const t = (p.tehsil || p.TEHSIL || "").trim().toLowerCase();
+      const v = (p.village || p.VILLAGE || p.name || "").trim().toLowerCase();
+      const key = `${t}::${v}`;
+      const pts = cache[key];
+
+      let match: any = null;
+      if (Array.isArray(pts)) {
+        match = pts.find((x: any) => (x.p || x.date) === reqPeriod);
+      }
+      if (!match) {
+        for (const [k, vPts] of Object.entries(cache)) {
+          const [tPart, vPart] = k.split("::");
+          if (tPart === t && (vPart === v || vPart.includes(v) || v.includes(vPart))) {
+            if (Array.isArray(vPts)) {
+              match = vPts.find((x: any) => (x.p || x.date) === reqPeriod);
+              if (match) break;
+            }
+          }
+        }
+      }
+
+      if (match) {
+        p.CDI = match.cdi;
+        p.CDI_class = match.cls;
+        p.class = match.cls;
+        p.NDVI = match.ndvi;
+        p.VHI = match.vhi;
+        p.VCI = match.vci;
+        p.EVI = match.evi;
+        p.PCI = match.pci;
+        p.Rain_mm = match.rain;
+        p.SPI1 = match.spi1;
+        p.SPI3 = match.spi3;
+        p.SPI6 = match.spi6;
+        p.SPI12 = match.spi12;
+
+        let val: any = undefined;
+        if (reqIndex === "cdi") val = match.cdi;
+        else if (reqIndex === "ndvi") val = match.ndvi;
+        else if (reqIndex === "vhi") val = match.vhi;
+        else if (reqIndex === "vci") val = match.vci;
+        else if (reqIndex === "evi") val = match.evi;
+        else if (reqIndex === "pci") val = match.pci;
+        else if (reqIndex === "rain") val = match.rain;
+        else if (reqIndex === "spi1") val = match.spi1;
+        else if (reqIndex === "spi3") val = match.spi3;
+        else if (reqIndex === "spi6") val = match.spi6;
+        else if (reqIndex === "spi12") val = match.spi12;
+
+        p.value = val;
+        p[reqIndex] = val;
+      } else {
+        p.value = null;
+        p[reqIndex] = null;
+      }
+
+      return {
+        ...f,
+        properties: p,
+      };
+    });
+
+    return NextResponse.json({
+      type: "FeatureCollection",
+      period: reqPeriod,
+      index: reqIndex,
+      features: hydratedFeatures,
+    }, {
+      headers: { "Cache-Control": "public, max-age=1800" },
+    });
   }
 
-  // 6b. Village Timeseries
+  // 6b. Village or Tehsil Timeseries
   if (route === "timeseries") {
     const tehsil = String(searchParams.get("tehsil") ?? "").trim().toLowerCase();
     const village = String(searchParams.get("village") ?? "").trim().toLowerCase();
@@ -331,6 +430,85 @@ export async function GET(
           return NextResponse.json(pts);
         }
       }
+    } else if (cache && tehsil && (!village || village === "all")) {
+      // Aggregate all villages in this tehsil across each observation period
+      const periodMap: Record<string, {
+        p: string;
+        cdiSum: number; cdiN: number;
+        ndviSum: number; ndviN: number;
+        vhiSum: number; vhiN: number;
+        vciSum: number; vciN: number;
+        rainSum: number; rainN: number;
+        spi1Sum: number; spi1N: number;
+        spi3Sum: number; spi3N: number;
+        spi6Sum: number; spi6N: number;
+        spi12Sum: number; spi12N: number;
+      }> = {};
+
+      for (const [k, pts] of Object.entries(cache)) {
+        if (!Array.isArray(pts)) continue;
+        const [t] = k.split("::");
+        if (t && t.toLowerCase() === tehsil) {
+          for (const pt of pts) {
+            const p = pt.p || pt.date;
+            if (!p) continue;
+            if (!periodMap[p]) {
+              periodMap[p] = {
+                p,
+                cdiSum: 0, cdiN: 0,
+                ndviSum: 0, ndviN: 0,
+                vhiSum: 0, vhiN: 0,
+                vciSum: 0, vciN: 0,
+                rainSum: 0, rainN: 0,
+                spi1Sum: 0, spi1N: 0,
+                spi3Sum: 0, spi3N: 0,
+                spi6Sum: 0, spi6N: 0,
+                spi12Sum: 0, spi12N: 0,
+              };
+            }
+            const rec = periodMap[p];
+            if (pt.cdi != null && !isNaN(pt.cdi)) { rec.cdiSum += pt.cdi; rec.cdiN++; }
+            if (pt.ndvi != null && !isNaN(pt.ndvi)) { rec.ndviSum += pt.ndvi; rec.ndviN++; }
+            if (pt.vhi != null && !isNaN(pt.vhi)) { rec.vhiSum += pt.vhi; rec.vhiN++; }
+            if (pt.vci != null && !isNaN(pt.vci)) { rec.vciSum += pt.vci; rec.vciN++; }
+            if (pt.rain != null && !isNaN(pt.rain)) { rec.rainSum += pt.rain; rec.rainN++; }
+            if (pt.spi1 != null && !isNaN(pt.spi1)) { rec.spi1Sum += pt.spi1; rec.spi1N++; }
+            if (pt.spi3 != null && !isNaN(pt.spi3)) { rec.spi3Sum += pt.spi3; rec.spi3N++; }
+            if (pt.spi6 != null && !isNaN(pt.spi6)) { rec.spi6Sum += pt.spi6; rec.spi6N++; }
+            if (pt.spi12 != null && !isNaN(pt.spi12)) { rec.spi12Sum += pt.spi12; rec.spi12N++; }
+          }
+        }
+      }
+
+      const aggregated = Object.values(periodMap)
+        .sort((a, b) => a.p.localeCompare(b.p))
+        .map((r) => {
+          const cdi = r.cdiN > 0 ? Number((r.cdiSum / r.cdiN).toFixed(3)) : null;
+          let cls = "None";
+          if (cdi != null) {
+            if (cdi >= 0.8) cls = "D4";
+            else if (cdi >= 0.6) cls = "D3";
+            else if (cdi >= 0.4) cls = "D2";
+            else if (cdi >= 0.2) cls = "D1";
+            else if (cdi >= 0.1) cls = "D0";
+          }
+          return {
+            p: r.p,
+            date: r.p,
+            cdi,
+            cls,
+            ndvi: r.ndviN > 0 ? Number((r.ndviSum / r.ndviN).toFixed(3)) : null,
+            vhi: r.vhiN > 0 ? Number((r.vhiSum / r.vhiN).toFixed(1)) : null,
+            vci: r.vciN > 0 ? Number((r.vciSum / r.vciN).toFixed(1)) : null,
+            rain: r.rainN > 0 ? Number((r.rainSum / r.rainN).toFixed(1)) : null,
+            spi1: r.spi1N > 0 ? Number((r.spi1Sum / r.spi1N).toFixed(2)) : null,
+            spi3: r.spi3N > 0 ? Number((r.spi3Sum / r.spi3N).toFixed(2)) : null,
+            spi6: r.spi6N > 0 ? Number((r.spi6Sum / r.spi6N).toFixed(2)) : null,
+            spi12: r.spi12N > 0 ? Number((r.spi12Sum / r.spi12N).toFixed(2)) : null,
+          };
+        });
+
+      return NextResponse.json(aggregated);
     }
     return NextResponse.json([]);
   }
@@ -341,10 +519,67 @@ export async function GET(
     return NextResponse.json(data);
   }
 
-  // 8. Tehsil Analytics
+const TEHSIL_CANONICAL_MAP: Record<string, string> = {
+  "ahmadpur": "Ahmadpur",
+  "ausa": "Ausa",
+  "chakur": "Chakur",
+  "deoni": "Deoni",
+  "jalkot": "Jalkot",
+  "latur": "Latur",
+  "nilanga": "Nilanga",
+  "renapur": "Renapur",
+  "shirur-anantpal": "Shirur-Anantpal",
+  "shiruranantpal": "Shirur-Anantpal",
+  "udgir": "Udgir",
+};
+
+let tehsilMatrixCache: Record<string, Record<string, number>> | null = null;
+
+function getTehsilMatrix(): Record<string, Record<string, number>> {
+  if (tehsilMatrixCache !== null) return tehsilMatrixCache;
+  const cache = getVillageTimeseries();
+  if (!cache) return {};
+
+  const agg: Record<string, Record<string, { sum: number; count: number }>> = {};
+
+  for (const [k, pts] of Object.entries(cache)) {
+    if (!Array.isArray(pts)) continue;
+    const [rawT] = k.split("::");
+    const canon = TEHSIL_CANONICAL_MAP[rawT?.toLowerCase()] || (rawT ? rawT.charAt(0).toUpperCase() + rawT.slice(1) : "");
+    if (!canon) continue;
+    if (!agg[canon]) agg[canon] = {};
+
+    for (const pt of pts) {
+      const p = pt.p || pt.date;
+      if (!p || pt.cdi == null || isNaN(pt.cdi)) continue;
+      if (!agg[canon][p]) agg[canon][p] = { sum: 0, count: 0 };
+      agg[canon][p].sum += pt.cdi;
+      agg[canon][p].count++;
+    }
+  }
+
+  const result: Record<string, Record<string, number>> = {};
+  for (const [t, pMap] of Object.entries(agg)) {
+    result[t] = {};
+    for (const [p, { sum, count }] of Object.entries(pMap)) {
+      result[t][p] = Number((sum / count).toFixed(3));
+    }
+  }
+
+  tehsilMatrixCache = result;
+  return result;
+}
+
+  // 8. Tehsil Analytics & Monthly Matrix
   if (route === "tehsil-analytics") {
     const data = getTehsilAnalytics() || {};
-    return NextResponse.json(data);
+    const matrix = getTehsilMatrix();
+    return NextResponse.json({ ...data, monthly_matrix: matrix });
+  }
+
+  if (route === "tehsil-matrix") {
+    const matrix = getTehsilMatrix();
+    return NextResponse.json(matrix);
   }
 
   // 9. Stats endpoint for period + tehsil aggregation

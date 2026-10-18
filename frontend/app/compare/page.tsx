@@ -47,18 +47,24 @@ export default function ComparePage() {
 
         {/* Quick Presets */}
         <div className="flex items-center gap-1.5 text-xs font-semibold">
-          <span className="text-slate-400 mr-1 text-[11px]">Presets:</span>
+          <span className="text-slate-400 mr-1 text-[11px]">Benchmarks:</span>
           <button
-            onClick={() => setPreset(2018, 5, 2020, 9)}
-            className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 shadow-2xs"
+            onClick={() => setPreset(2016, 5, 2020, 9)}
+            className="px-2.5 py-1 rounded-lg border border-rose-200 bg-rose-50 text-rose-800 hover:bg-rose-100 shadow-2xs transition-colors"
           >
-            '18 Drought vs '20 Monsoon
+            '16 Crisis vs '20 Monsoon
           </button>
           <button
-            onClick={() => setPreset(2024, 5, 2026, 10)}
-            className="px-2.5 py-1 rounded-lg border border-amber-200 bg-amber-50 text-amber-900 shadow-2xs"
+            onClick={() => setPreset(2018, 5, 2021, 9)}
+            className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 shadow-2xs transition-colors"
           >
-            '24 El Niño vs '26 Current
+            '18 Drought vs '21 Bumper
+          </button>
+          <button
+            onClick={() => setPreset(2023, 8, 2026, 10)}
+            className="px-2.5 py-1 rounded-lg border border-amber-200 bg-amber-50 text-amber-900 hover:bg-amber-100 shadow-2xs transition-colors"
+          >
+            '23 Deficit vs '26 Current
           </button>
         </div>
       </div>

@@ -508,6 +508,7 @@ export default function HomePage() {
               setSelectedVillage(null);
             }}
             onSelectVillageByName={handleSelectVillageByName}
+            stats={stats}
           />
         </div>
       </div>

@@ -45,8 +45,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <Link href="/animation" className="hover:text-amber-700 transition-colors">
                 Timelapse
               </Link>
-              <Link href="/upload" className="hover:text-amber-700 transition-colors">
-                Upload AOI
+              <Link href="/about" className="hover:text-amber-700 transition-colors">
+                Project Overview
               </Link>
               <Link href="/sources" className="hover:text-amber-700 transition-colors">
                 Sources

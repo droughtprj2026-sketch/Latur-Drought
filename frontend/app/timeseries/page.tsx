@@ -78,16 +78,22 @@ export default function TimeseriesObservatoryPage() {
   const [availableVillages, setAvailableVillages] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Load timeseries and analytics datasets via API (fresh data on every load)
+  const [customSeries, setCustomSeries] = useState<any[] | null>(null);
+  const [baselinesData, setBaselinesData] = useState<any>(null);
+  const [corrX, setCorrX] = useState<string>("spi3");
+  const [corrY, setCorrY] = useState<string>("ndvi");
+
+  // Load timeseries, baselines, and analytics datasets via API
   useEffect(() => {
     Promise.all([
       fetch("/api/v1/district-timeseries").then((r) => r.json()).catch(() => ({ series: [] })),
       fetch("/api/v1/tehsil-analytics").then((r) => r.json()).catch(() => ({})),
-      // villages_by_tehsil is a static boundary mapping - keep as static file
       fetch("/data/villages_by_tehsil.json").then((r) => r.json()).catch(() => ({})),
-    ]).then(([dm, ta, vbt]) => {
+      fetch("/api/v1/baselines").then((r) => r.json()).catch(() => ({})),
+    ]).then(([dm, ta, vbt, bData]) => {
       setDistrictSeries(dm?.series || []);
       setTehsilAnalytics(ta || {});
+      setBaselinesData(bData || {});
       setLoading(false);
     });
   }, []);
@@ -109,51 +115,46 @@ export default function TimeseriesObservatoryPage() {
     }
   }, [selectedTehsil]);
 
-  // Lazy-load village timeseries when village is picked
+  // Fetch dynamic timeseries whenever selectedTehsil or selectedVillage changes
   useEffect(() => {
-    if (selectedVillage && Object.keys(villageTimeseries).length === 0) {
-      fetch("/data/village_timeseries.json")
-        .then((r) => r.json())
-        .then((cache) => setVillageTimeseries(cache))
-        .catch(() => null);
+    if (selectedTehsil === "All Latur (District Mean)") {
+      setCustomSeries(null);
+      return;
     }
-  }, [selectedVillage, villageTimeseries]);
+    const t = selectedTehsil.trim();
+    const v = selectedVillage.trim();
+    const url = v
+      ? `/api/v1/timeseries?tehsil=${encodeURIComponent(t)}&village=${encodeURIComponent(v)}`
+      : `/api/v1/timeseries?tehsil=${encodeURIComponent(t)}`;
+
+    fetch(url)
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setCustomSeries(data);
+        } else {
+          setCustomSeries(null);
+        }
+      })
+      .catch(() => setCustomSeries(null));
+  }, [selectedTehsil, selectedVillage]);
 
   // Compute active timeseries data points
   const activeData: TimeseriesRow[] = useMemo(() => {
-    if (selectedVillage && selectedTehsil !== "All Latur (District Mean)") {
-      const key = `${selectedTehsil.toLowerCase()}::${selectedVillage.toLowerCase()}`;
-      const pts = villageTimeseries[key];
-      if (pts && pts.length > 0) {
-        return pts.map((p) => ({
-          date: p.p,
-          spi1: p.spi1,
-          spi3: p.spi3,
-          spi6: p.spi6,
-          spi12: p.spi12,
-          ndvi: p.ndvi,
-          vci: p.vci,
-          vhi: p.vhi,
-          cdi: p.cdi,
-          rain: p.rain,
-          cls: p.cls,
-        }));
-      }
-    }
-
-    if (selectedTehsil !== "All Latur (District Mean)" && tehsilAnalytics[selectedTehsil]?.series) {
-      return tehsilAnalytics[selectedTehsil].series.map((p: any) => ({
-        date: p.date,
-        spi1: p.SPI1,
-        spi3: p.SPI3,
-        spi6: p.SPI6,
-        spi12: p.SPI12,
-        ndvi: p.NDVI,
-        vci: p.VCI,
-        vhi: p.VHI,
-        cdi: p.composite_drought_score,
-        rain: p.Rain_mm,
-        cls: p.composite_drought_class,
+    if (customSeries && customSeries.length > 0) {
+      return customSeries.map((p) => ({
+        date: p.p || p.date,
+        spi1: p.spi1 ?? p.SPI1 ?? null,
+        spi3: p.spi3 ?? p.SPI3 ?? null,
+        spi6: p.spi6 ?? p.SPI6 ?? null,
+        spi12: p.spi12 ?? p.SPI12 ?? null,
+        ndvi: p.ndvi ?? p.NDVI ?? null,
+        vci: p.vci ?? p.VCI ?? null,
+        vhi: p.vhi ?? p.VHI ?? null,
+        vhi_scaled: p.vhi != null ? p.vhi / 100 : (p.VHI != null ? p.VHI / 100 : null),
+        cdi: p.cdi ?? p.composite_drought_score ?? null,
+        rain: p.rain ?? p.Rain_mm ?? 0,
+        cls: p.cls ?? p.composite_drought_class ?? "None",
       }));
     }
 
@@ -166,28 +167,36 @@ export default function TimeseriesObservatoryPage() {
       ndvi: p.NDVI,
       vci: p.VCI,
       vhi: p.VHI,
+      vhi_scaled: p.VHI != null ? p.VHI / 100 : null,
       cdi: p.composite_drought_score,
       rain: p.Rain_mm,
       cls: p.composite_drought_class,
     }));
-  }, [selectedTehsil, selectedVillage, villageTimeseries, tehsilAnalytics, districtSeries]);
+  }, [customSeries, districtSeries]);
 
-  // Compute Pearson correlation between SPI-3 and NDVI
+  const tehsilMatrix: Record<string, Record<string, number>> = useMemo(() => {
+    return tehsilAnalytics?.monthly_matrix || {};
+  }, [tehsilAnalytics]);
+
+  // Compute Pearson correlation between selected corrX and corrY
   const correlationStats = useMemo(() => {
-    const validPairs = activeData.filter(
-      (d: TimeseriesRow): d is TimeseriesRow & { spi3: number; ndvi: number } =>
-        d.spi3 != null && d.ndvi != null && !isNaN(d.spi3) && !isNaN(d.ndvi)
-    );
-    if (validPairs.length < 5) return { r: 0, r2: 0, pairs: [] };
+    const validPairs = activeData.filter((d: any) => {
+      const vx = d[corrX];
+      const vy = d[corrY];
+      return vx != null && vy != null && !isNaN(vx) && !isNaN(vy);
+    });
+    if (validPairs.length < 5) return { r: 0, r2: 0, m: 0, b: 0, pairs: [] };
 
     const n = validPairs.length;
     let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0, sumY2 = 0;
     for (const p of validPairs) {
-      sumX += p.spi3;
-      sumY += p.ndvi;
-      sumXY += p.spi3 * p.ndvi;
-      sumX2 += p.spi3 * p.spi3;
-      sumY2 += p.ndvi * p.ndvi;
+      const vx = Number((p as any)[corrX]);
+      const vy = Number((p as any)[corrY]);
+      sumX += vx;
+      sumY += vy;
+      sumXY += vx * vy;
+      sumX2 += vx * vx;
+      sumY2 += vy * vy;
     }
     const num = n * sumXY - sumX * sumY;
     const den = Math.sqrt((n * sumX2 - sumX * sumX) * (n * sumY2 - sumY * sumY));
@@ -198,14 +207,84 @@ export default function TimeseriesObservatoryPage() {
     const m = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX || 1);
     const b = (sumY - m * sumX) / n;
 
-    const pairs = validPairs.map((p) => ({
-      x: Number(p.spi3.toFixed(2)),
-      y: Number(p.ndvi.toFixed(3)),
+    const pairs = validPairs.map((p: any) => ({
+      x: Number(Number(p[corrX]).toFixed(2)),
+      y: Number(Number(p[corrY]).toFixed(3)),
       date: p.date,
-      trend: Number((m * p.spi3 + b).toFixed(3)),
+      trend: Number((m * Number(p[corrX]) + b).toFixed(3)),
     }));
 
-    return { r: Number(r.toFixed(3)), r2: Number(r2.toFixed(3)), m: Number(m.toFixed(3)), b: Number(b.toFixed(3)), pairs };
+    return {
+      r: Number(r.toFixed(3)),
+      r2: Number(r2.toFixed(3)),
+      m: Number(m.toFixed(3)),
+      b: Number(b.toFixed(3)),
+      pairs,
+    };
+  }, [activeData, corrX, corrY]);
+
+  // Dynamic Climatological Baselines (10-Year Empirical μ, σ and Z-Scores)
+  const dynamicBaselines = useMemo(() => {
+    const monthNames = [
+      "January", "February", "March", "April", "May", "June",
+      "July", "August", "September", "October", "November", "December"
+    ];
+    const phenology = [
+      "Rabi maturity / Grain filling",
+      "Rabi harvest / Dry period",
+      "Post-harvest fallow",
+      "Peak summer heat stress",
+      "Pre-monsoon land preparation",
+      "Kharif sowing / Monsoon onset",
+      "Kharif vegetative growth",
+      "Peak vegetative greenness",
+      "Kharif pod formation / Flowering",
+      "Kharif harvest / Rabi sowing",
+      "Rabi early emergence",
+      "Rabi vegetative growth"
+    ];
+
+    return monthNames.map((name, i) => {
+      const mNum = String(i + 1).padStart(2, "0");
+      const monthObs = activeData.filter((d: any) => d.date && d.date.endsWith(`-${mNum}`));
+      
+      const ndviVals = monthObs.map((d: any) => Number(d.ndvi)).filter((v: number) => !isNaN(v) && v > 0);
+      const rainVals = monthObs.map((d: any) => Number(d.rain)).filter((v: number) => !isNaN(v) && v >= 0);
+      const vciVals = monthObs.map((d: any) => Number(d.vci)).filter((v: number) => !isNaN(v) && v >= 0);
+
+      const calcStats = (vals: number[]) => {
+        if (!vals.length) return { mean: 0, std: 0 };
+        const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
+        const variance = vals.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / vals.length;
+        return { mean, std: Math.sqrt(variance) };
+      };
+
+      const ndviStats = calcStats(ndviVals);
+      const rainStats = calcStats(rainVals);
+      const vciStats = calcStats(vciVals);
+
+      const latestObs = monthObs.length ? monthObs[monthObs.length - 1] : null;
+      let zScoreNdvi: number | null = null;
+      if (latestObs && latestObs.ndvi != null && ndviStats.std > 0) {
+        zScoreNdvi = (Number(latestObs.ndvi) - ndviStats.mean) / ndviStats.std;
+      }
+
+      return {
+        m: name,
+        monthNum: mNum,
+        pheno: phenology[i],
+        count: monthObs.length,
+        ndvi_mean: ndviStats.mean > 0 ? ndviStats.mean.toFixed(3) : "—",
+        ndvi_std: ndviStats.std > 0 ? ndviStats.std.toFixed(3) : "—",
+        rain_mean: rainStats.mean > 0 ? `${rainStats.mean.toFixed(1)} mm` : "—",
+        rain_std: rainStats.std > 0 ? `±${rainStats.std.toFixed(1)}` : "—",
+        vci_mean: vciStats.mean > 0 ? `${(vciStats.mean * (vciStats.mean <= 1 ? 100 : 1)).toFixed(1)}%` : "—",
+        latestYear: latestObs?.date?.split("-")[0] ?? "—",
+        latestNdvi: latestObs?.ndvi != null ? Number(latestObs.ndvi).toFixed(3) : "—",
+        latestRain: latestObs?.rain != null ? `${Number(latestObs.rain).toFixed(1)} mm` : "—",
+        zScore: zScoreNdvi != null ? Number(zScoreNdvi.toFixed(2)) : null,
+      };
+    });
   }, [activeData]);
 
   // Download CSV of current series
@@ -426,17 +505,21 @@ export default function TimeseriesObservatoryPage() {
                 <CartesianGrid strokeDasharray="3 3" opacity={0.25} />
                 <XAxis dataKey="date" tick={{ fontSize: 10 }} interval={5} />
                 <YAxis yAxisId="L" orientation="left" domain={[0, 450]} tick={{ fontSize: 10 }} label={{ value: "Rain (mm)", angle: -90, position: "insideLeft", fontSize: 10 }} />
-                <YAxis yAxisId="R" orientation="right" domain={[0, 1]} tick={{ fontSize: 10 }} label={{ value: "NDVI / VHI", angle: 90, position: "insideRight", fontSize: 10 }} />
+                <YAxis yAxisId="R" orientation="right" domain={[0, 1]} tick={{ fontSize: 10 }} label={{ value: "NDVI / VHI (0..1)", angle: 90, position: "insideRight", fontSize: 10 }} />
                 <Tooltip
                   formatter={(v: any, name: string) => [
-                    v != null ? Number(v).toFixed(2) : "—",
+                    name.includes("VHI") && v != null
+                      ? `${(Number(v) * 100).toFixed(1)}%`
+                      : v != null
+                      ? Number(v).toFixed(3)
+                      : "—",
                     name,
                   ]}
                 />
                 <Legend verticalAlign="top" height={30} />
                 <Bar yAxisId="L" dataKey="rain" name="Rainfall (mm)" fill="#0284c7" opacity={0.35} />
                 <Line yAxisId="R" type="monotone" dataKey="ndvi" name="NDVI (Canopy Biomass)" stroke="#059669" strokeWidth={2.5} dot={false} />
-                <Line yAxisId="R" type="monotone" dataKey="vhi" name="VHI (Vegetation Health)" stroke="#d97706" strokeWidth={2} dot={false} />
+                <Line yAxisId="R" type="monotone" dataKey="vhi_scaled" name="VHI (Vegetation Health %)" stroke="#d97706" strokeWidth={2} dot={false} />
               </ComposedChart>
             </ResponsiveContainer>
           </div>
@@ -479,27 +562,41 @@ export default function TimeseriesObservatoryPage() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {TEHSILS.filter((t) => !t.includes("All")).map((tName) => {
-                  const tSeries = tehsilAnalytics[tName]?.series || [];
-                  const seriesMap = new Map(tSeries.map((p: any) => [p.date, p.composite_drought_score]));
+                  const tMap = tehsilMatrix[tName] || {};
+                  const isSelected = selectedTehsil === tName;
                   return (
-                    <tr key={tName} className="hover:bg-slate-50">
-                      <td className="p-2 font-bold text-slate-900 sticky left-0 bg-white z-10 whitespace-nowrap shadow-xs">
-                        {tName}
+                    <tr key={tName} className={`hover:bg-amber-50/40 transition-colors ${isSelected ? "bg-amber-50/70" : ""}`}>
+                      <td
+                        onClick={() => {
+                          setSelectedTehsil(tName);
+                          setSelectedVillage("");
+                        }}
+                        className="p-2 font-bold text-slate-900 sticky left-0 bg-white z-10 whitespace-nowrap shadow-xs cursor-pointer hover:text-amber-700"
+                        title={`Click to filter timeseries to ${tName} Tehsil`}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-amber-600" />}
+                          <span>{tName}</span>
+                        </div>
                       </td>
                       {districtSeries.map((s) => {
-                        const val = seriesMap.get(s.date);
-                        const cdiVal = val != null ? Number(val) : null;
+                        const rawVal = tMap[s.date];
+                        const cdiVal = rawVal != null ? Number(rawVal) : null;
                         const bg = colorForValue(cdiVal, "cdi");
                         const isDark = cdiVal != null && cdiVal > 0.5;
                         return (
                           <td
                             key={s.date}
-                            className="p-0.5 text-center font-mono cursor-pointer transition-transform hover:scale-125"
+                            onClick={() => {
+                              setSelectedTehsil(tName);
+                              setSelectedVillage("");
+                            }}
+                            className="p-0.5 text-center font-mono cursor-pointer transition-transform hover:scale-125 hover:z-20 relative"
                             style={{ background: bg, color: isDark ? "#fff" : "#1e293b" }}
-                            title={`${tName} · ${s.date}: CDI = ${cdiVal != null ? cdiVal.toFixed(2) : "—"}`}
+                            title={`${tName} · ${s.date}: CDI = ${cdiVal != null ? cdiVal.toFixed(3) : "ND (No Data)"}`}
                           >
-                            <span className="block w-full h-5 leading-5 text-[9px]">
-                              {cdiVal != null && cdiVal >= 0.35 ? cdiVal.toFixed(1) : ""}
+                            <span className="block w-full h-5 leading-5 text-[9px] font-semibold">
+                              {cdiVal != null && cdiVal >= 0.20 ? cdiVal.toFixed(1) : ""}
                             </span>
                           </td>
                         );
@@ -518,23 +615,60 @@ export default function TimeseriesObservatoryPage() {
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
-              <h2 className="text-base font-black text-slate-900">
-                Statistical Correlation: SPI-3 vs Satellite Vegetation (NDVI)
-              </h2>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Evaluates meteorological drought propagation into vegetative stress. Linear regression: y = {correlationStats.m}x + {correlationStats.b}.
+              <div className="flex items-center gap-2 mb-1">
+                <h2 className="text-base font-black text-slate-900">
+                  Statistical Correlation: {corrX.toUpperCase()} vs {corrY.toUpperCase()}
+                </h2>
+                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-900">
+                  {selectedTehsil}
+                </span>
+              </div>
+              <p className="text-xs text-slate-500">
+                Linear regression: y = {correlationStats.m}x + {correlationStats.b}. Evaluates physiological and hydrological lag dynamics.
               </p>
             </div>
-            <div className="flex items-center gap-3">
-              <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-2 text-right">
-                <div className="text-[10px] uppercase font-bold text-amber-800">Pearson r Correlation</div>
-                <div className="text-lg font-black font-mono text-amber-900">
-                  r = {correlationStats.r} <span className="text-xs font-semibold">({correlationStats.r > 0.5 ? "Strong Positive" : "Moderate"})</span>
+
+            {/* Metric Selectors */}
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-xl border border-slate-200">
+                <span className="text-[10px] uppercase font-bold text-slate-500">X-Axis:</span>
+                <select
+                  value={corrX}
+                  onChange={(e) => setCorrX(e.target.value)}
+                  className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer"
+                >
+                  <option value="spi3">SPI-3 (Agri Root-Zone)</option>
+                  <option value="spi1">SPI-1 (Meteorological)</option>
+                  <option value="spi6">SPI-6 (Seasonal)</option>
+                  <option value="spi12">SPI-12 (Hydrological)</option>
+                  <option value="rain">CHIRPS Rain (mm)</option>
+                </select>
+              </div>
+
+              <div className="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-xl border border-slate-200">
+                <span className="text-[10px] uppercase font-bold text-slate-500">Y-Axis:</span>
+                <select
+                  value={corrY}
+                  onChange={(e) => setCorrY(e.target.value)}
+                  className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer"
+                >
+                  <option value="ndvi">NDVI (Canopy Biomass)</option>
+                  <option value="vhi">VHI (Vegetation Health)</option>
+                  <option value="vci">VCI (Condition Index)</option>
+                  <option value="cdi">CDI (Drought Score)</option>
+                </select>
+              </div>
+
+              <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-1 text-right">
+                <div className="text-[9px] uppercase font-bold text-amber-800">Pearson r</div>
+                <div className="text-sm font-black font-mono text-amber-900">
+                  r = {correlationStats.r}
                 </div>
               </div>
-              <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-2 text-right">
-                <div className="text-[10px] uppercase font-bold text-blue-800">Goodness of Fit (R²)</div>
-                <div className="text-lg font-black font-mono text-blue-900">
+
+              <div className="bg-blue-50 border border-blue-200 rounded-xl px-3 py-1 text-right">
+                <div className="text-[9px] uppercase font-bold text-blue-800">R² Fit</div>
+                <div className="text-sm font-black font-mono text-blue-900">
                   R² = {correlationStats.r2}
                 </div>
               </div>
@@ -548,18 +682,16 @@ export default function TimeseriesObservatoryPage() {
                 <XAxis
                   type="number"
                   dataKey="x"
-                  name="SPI-3"
-                  domain={[-3.0, 3.0]}
+                  name={corrX.toUpperCase()}
                   tick={{ fontSize: 10 }}
-                  label={{ value: "SPI-3 (Precipitation Standardized Departure)", position: "bottom", offset: 0, fontSize: 11 }}
+                  label={{ value: `${corrX.toUpperCase()} Departure`, position: "bottom", offset: 0, fontSize: 11 }}
                 />
                 <YAxis
                   type="number"
                   dataKey="y"
-                  name="NDVI"
-                  domain={[0, 0.7]}
+                  name={corrY.toUpperCase()}
                   tick={{ fontSize: 10 }}
-                  label={{ value: "NDVI (Green Biomass)", angle: -90, position: "insideLeft", fontSize: 11 }}
+                  label={{ value: corrY.toUpperCase(), angle: -90, position: "insideLeft", fontSize: 11 }}
                 />
                 <ZAxis range={[50, 50]} />
                 <Tooltip
@@ -576,13 +708,18 @@ export default function TimeseriesObservatoryPage() {
       {/* TAB 5: Climatological Baselines & Z-Scores */}
       {activeTab === "baselines" && (
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs space-y-4">
-          <div>
-            <h2 className="text-base font-black text-slate-900">
-              Climatological Normals Reference Table (10-Year Baseline: 2016–2026)
-            </h2>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Empirical mean (μ) and standard deviation (σ) per calendar month across Latur district. Drought index values are standardized departures: Z = (Observed - μ) / σ.
-            </p>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 className="text-base font-black text-slate-900">
+                Climatological Normals & Standardized Departures (2016–2026 Baseline)
+              </h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Empirical mean (μ) and standard deviation (σ) computed directly from the active series for {selectedVillage ? `${selectedVillage} village` : `${selectedTehsil} tehsil`}. Standardized Z-Score: Z = (Observed - μ) / σ.
+              </p>
+            </div>
+            <div className="text-xs font-bold text-amber-700 bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-200">
+              Active Scope: {selectedTehsil} {selectedVillage ? `→ ${selectedVillage}` : "(All Villages)"}
+            </div>
           </div>
 
           <div className="overflow-x-auto border border-slate-200 rounded-xl">
@@ -590,39 +727,44 @@ export default function TimeseriesObservatoryPage() {
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase text-[10px]">
                   <th className="p-3">Month</th>
-                  <th className="p-3">Normal NDVI (μ)</th>
-                  <th className="p-3">NDVI Variance (σ)</th>
-                  <th className="p-3">Normal Rain (mm)</th>
-                  <th className="p-3">Rain Variance (σ)</th>
-                  <th className="p-3">Normal VCI (%)</th>
+                  <th className="p-3">Normal NDVI (μ ± σ)</th>
+                  <th className="p-3">Normal Rain (μ ± σ)</th>
+                  <th className="p-3">Normal VCI (μ)</th>
+                  <th className="p-3">Latest Obs (NDVI)</th>
+                  <th className="p-3">Latest Obs (Rain)</th>
+                  <th className="p-3">NDVI Z-Score</th>
                   <th className="p-3">Agricultural Phenology</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-medium">
-                {[
-                  { m: "January", ndvi: "0.264", ndvi_s: "0.038", rain: "3.2 mm", rain_s: "4.8 mm", vci: "52.4%", pheno: "Rabi maturity / Grain filling" },
-                  { m: "February", ndvi: "0.218", ndvi_s: "0.031", rain: "2.1 mm", rain_s: "3.5 mm", vci: "48.1%", pheno: "Rabi harvest / Dry period" },
-                  { m: "March", ndvi: "0.185", ndvi_s: "0.024", rain: "6.4 mm", rain_s: "8.1 mm", vci: "44.2%", pheno: "Post-harvest fallow" },
-                  { m: "April", ndvi: "0.162", ndvi_s: "0.021", rain: "12.8 mm", rain_s: "14.2 mm", vci: "41.8%", pheno: "Peak summer heat stress" },
-                  { m: "May", ndvi: "0.149", ndvi_s: "0.026", rain: "24.5 mm", rain_s: "18.6 mm", vci: "39.5%", pheno: "Pre-monsoon land preparation" },
-                  { m: "June", ndvi: "0.198", ndvi_s: "0.042", rain: "142.6 mm", rain_s: "48.2 mm", vci: "51.2%", pheno: "Kharif sowing / Monsoon onset" },
-                  { m: "July", ndvi: "0.312", ndvi_s: "0.055", rain: "210.4 mm", rain_s: "62.4 mm", vci: "58.6%", pheno: "Kharif vegetative growth" },
-                  { m: "August", ndvi: "0.384", ndvi_s: "0.062", rain: "198.2 mm", rain_s: "58.1 mm", vci: "62.1%", pheno: "Peak vegetative greenness" },
-                  { m: "September", ndvi: "0.412", ndvi_s: "0.068", rain: "165.8 mm", rain_s: "54.2 mm", vci: "64.5%", pheno: "Kharif pod formation / Flowering" },
-                  { m: "October", ndvi: "0.393", ndvi_s: "0.070", rain: "126.1 mm", rain_s: "46.2 mm", vci: "61.8%", pheno: "Kharif harvest / Rabi sowing" },
-                  { m: "November", ndvi: "0.345", ndvi_s: "0.054", rain: "22.4 mm", rain_s: "19.8 mm", vci: "56.4%", pheno: "Rabi early emergence" },
-                  { m: "December", ndvi: "0.298", ndvi_s: "0.045", rain: "8.5 mm", rain_s: "9.2 mm", vci: "54.1%", pheno: "Rabi vegetative growth" },
-                ].map((row) => (
-                  <tr key={row.m} className="hover:bg-slate-50">
-                    <td className="p-3 font-bold text-slate-900">{row.m}</td>
-                    <td className="p-3 font-mono text-emerald-700">{row.ndvi}</td>
-                    <td className="p-3 font-mono text-slate-500">±{row.ndvi_s}</td>
-                    <td className="p-3 font-mono text-blue-700">{row.rain}</td>
-                    <td className="p-3 font-mono text-slate-500">±{row.rain_s}</td>
-                    <td className="p-3 font-mono text-amber-700">{row.vci}</td>
-                    <td className="p-3 text-slate-600">{row.pheno}</td>
-                  </tr>
-                ))}
+                {dynamicBaselines.map((row) => {
+                  const z = row.zScore;
+                  let zBadge = <span className="text-slate-400 font-mono">—</span>;
+                  if (z !== null) {
+                    if (z <= -1.5) {
+                      zBadge = <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 font-mono">Z = {z} (Severe Deficit)</span>;
+                    } else if (z <= -0.5) {
+                      zBadge = <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 font-mono">Z = {z} (Mild Deficit)</span>;
+                    } else if (z >= 1.0) {
+                      zBadge = <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 font-mono">Z = +{z} (Surplus/Vigor)</span>;
+                    } else {
+                      zBadge = <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 font-mono">Z = {z >= 0 ? `+${z}` : z} (Normal)</span>;
+                    }
+                  }
+
+                  return (
+                    <tr key={row.m} className="hover:bg-slate-50 transition-colors">
+                      <td className="p-3 font-bold text-slate-900">{row.m}</td>
+                      <td className="p-3 font-mono text-emerald-700">{row.ndvi_mean} <span className="text-slate-400 text-[10px]">±{row.ndvi_std}</span></td>
+                      <td className="p-3 font-mono text-blue-700">{row.rain_mean} <span className="text-slate-400 text-[10px]">{row.rain_std}</span></td>
+                      <td className="p-3 font-mono text-amber-700">{row.vci_mean}</td>
+                      <td className="p-3 font-mono text-slate-800">{row.latestNdvi} <span className="text-[10px] text-slate-400">({row.latestYear})</span></td>
+                      <td className="p-3 font-mono text-slate-800">{row.latestRain}</td>
+                      <td className="p-3">{zBadge}</td>
+                      <td className="p-3 text-slate-600 text-[11px]">{row.pheno}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
