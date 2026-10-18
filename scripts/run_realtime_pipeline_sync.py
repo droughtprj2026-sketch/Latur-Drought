@@ -343,22 +343,13 @@ def print_github_secrets_summary():
     print("-----------------------------------------------------------------")
 
 def main():
+    import scheduler
     parser = argparse.ArgumentParser(description="Real-Time GEE Drought Ingestion & Sync Pipeline")
-    parser.add_argument("--period", default=f"{date.today().year}-{date.today().month:02d}", help="Observation period YYYY-MM")
+    parser.add_argument("--period", default=None, help="Observation period YYYY-MM")
+    parser.add_argument("--force", action="store_true", default=False, help="Force recomputation")
     args = parser.parse_args()
 
-    print("=================================================================")
-    print(" LATUR REAL-TIME DROUGHT INGESTION & GITHUB/SUPABASE SYNC")
-    print(f" Execution Date: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC")
-    print(f" Target Period:  {args.period}")
-    print("=================================================================")
-
-    ee = init_earth_engine()
-    indices_result = compute_realtime_indices(ee, args.period)
-    update_local_geojson_and_timeseries(args.period, indices_result)
-    sync_to_supabase(args.period, indices_result)
-    print_github_secrets_summary()
-    print("\n[DONE] Pipeline execution completed successfully.")
+    scheduler.run_orchestration_cycle(period=args.period, force=args.force)
 
 if __name__ == "__main__":
     main()

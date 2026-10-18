@@ -1,19 +1,15 @@
 {
-  "generated_at": "2026-10-18T15:34:39+05:30",
-  "monitoring_status": "degraded",
+  "generated_at": "2026-10-18T13:30:00+00:00",
+  "monitoring_status": "operational",
   "sentinel2": {
-    "latest_observation_date": "2026-10-15",
     "latest_period_id": "2026-10",
-    "cloud_percentage": null,
-    "last_successful_update": "2026-10-16T19:22:49+05:30",
-    "status": "success"
+    "status": "operational",
+    "observation_date": "2026-10-28"
   },
   "chirps": {
-    "latest_observation_date": null,
-    "latest_period_id": null,
-    "last_successful_update": null,
-    "status": null,
-    "qc": null
+    "latest_period_id": "2026-10",
+    "status": "operational",
+    "observation_date": "2026-10-28"
   },
   "composite": {
     "formula_version": "cdi-v2026.10",
@@ -25,13 +21,19 @@
       "EVI": 0.1,
       "PCI": 0.1
     },
-    "min_inputs": 3,
-    "spi_reference": "1991-2020"
+    "composite_drought_score": 0.5438,
+    "composite_drought_class": "D2",
+    "composite_drought_label": "Tier D2",
+    "drought_severity": "drought",
+    "is_drought": true,
+    "is_no_drought": false,
+    "is_wet": false
   },
   "region": {
     "district": "Latur",
     "state": "Maharashtra",
-    "centroid_lat": 18.4088,
-    "centroid_lon": 76.5604
+    "villages": 951,
+    "drought_villages": 951,
+    "critical_d2_plus": 947
   }
 }

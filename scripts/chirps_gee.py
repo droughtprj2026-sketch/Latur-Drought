@@ -32,6 +32,10 @@ from common.classify import MONTHS, classify_spi  # noqa: E402
 ROOT = HERE.parent
 OUT = Path(os.environ.get("OUTPUT_DIR", ROOT / "data" / "processed"))
 DEFAULT_AOI = ROOT / "data" / "vector" / "latur_tehsils.geojson"
+if not DEFAULT_AOI.exists():
+    fallback_aoi = ROOT / "frontend" / "public" / "data" / "latur_tehsils.geojson"
+    if fallback_aoi.exists():
+        DEFAULT_AOI = fallback_aoi
 
 # CHIRPS GEE collection
 COLLECTION = "UCSB-CHG/CHIRPS/monthly"

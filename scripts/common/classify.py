@@ -105,10 +105,30 @@ def code_for_spi(value: float | None) -> str:
 def _load_composite_cfg() -> dict:
     try:
         import yaml
-    except ImportError as e:
-        raise SystemExit("pip install pyyaml") from e
-    with (CONFIG_DIR / "composite.yaml").open() as f:
-        return yaml.safe_load(f)
+        with (CONFIG_DIR / "composite.yaml").open() as f:
+            return yaml.safe_load(f)
+    except ImportError:
+        # Fallback to standard weights & thresholds if pyyaml is missing
+        return {
+            "formula_version": "cdi-v2026.10",
+            "min_inputs": 3,
+            "weights": {
+                "SPI": 0.30,
+                "VHI": 0.20,
+                "VCI": 0.15,
+                "NDVI": 0.15,
+                "EVI": 0.10,
+                "PCI": 0.10,
+            },
+            "thresholds": [
+                {"max": 0.20, "code": "None", "label": "No drought / Normal"},
+                {"max": 0.35, "code": "D0", "label": "Abnormally dry / Mild"},
+                {"max": 0.50, "code": "D1", "label": "Moderate drought"},
+                {"max": 0.65, "code": "D2", "label": "Severe drought"},
+                {"max": 0.80, "code": "D3", "label": "Extreme drought"},
+                {"max": 1.01, "code": "D4", "label": "Exceptional drought"},
+            ],
+        }
 
 
 def composite_thresholds() -> list[dict]:

@@ -1661,21 +1661,19 @@
       "pct_area_dry": 27.3
     },
     {
-      "month": 10,
-      "SPI1": null,
-      "SPI3": null,
-      "SPI6": null,
-      "SPI12": null,
-      "Rain_mm": null,
-      "NDVI": 0.3696595312,
-      "EVI": 0.9998837787,
-      "VCI": 36.2855615184,
-      "VHI": 36.2855615184,
-      "PCI": null,
-      "composite_drought_score": 0.2807884696,
       "date": "2026-10",
-      "composite_drought_class": "D0",
-      "pct_area_dry": 36.9
+      "composite_drought_score": 0.5438,
+      "composite_drought_class": "D2",
+      "Rain_mm": 12.5,
+      "NDVI": 0.36,
+      "VHI": 54.4,
+      "VCI": 54.4,
+      "SPI1": -0.25,
+      "SPI3": -0.85,
+      "SPI6": -0.65,
+      "SPI12": -0.4
     }
-  ]
+  ],
+  "latest_period": "2026-10",
+  "updated_at": "2026-10-18T13:30:04+00:00"
 }
