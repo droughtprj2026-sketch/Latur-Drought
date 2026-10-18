@@ -8,20 +8,21 @@ A full-stack platform that ingests Sentinel-2 + CHIRPS rasters, computes drought
 
 ```
 drought-monitoring/
-├── scripts/              ← Python processing pipeline
-│   ├── build_village_indices.py   (Stage 1: NDVI/EVI/VCI rasters + Stage 2: village zonal + CDI fusion)
-│   ├── latur_chirps_spi.py        (CHIRPS → SPI-1/3/6/12 per pixel)
-│   ├── composite_cdi.py           (Transparent weighted multi-index composite → CDI)
-│   ├── dashboard_master.py        (Builds data/ dashboard files + village GeoJSON)
-│   ├── build_baseline_drought.py  (Baseline/anomaly + SQLite drought.db)
-│   ├── scheduler.py               (Orchestrates pipeline runs)
-│   ├── run_realtime_pipeline_sync.py (Near-real-time GEE pipeline for GitHub Actions)
-│   ├── chirps_gee.py              (Near-real-time CHIRPS from GEE)
-│   ├── pipeline_gee.py            (Near-real-time Sentinel-2 from GEE + zonal stats)
-│   ├── common/classify.py         (Drought classification thresholds — single source of truth)
-│   ├── common/manifest.py         (Incremental processing manifests)
-│   ├── common/raster.py           (Raster scanning helpers)
-│   └── ...
+├── historical/           ← 10-Year historical baseline & calibration (2016–2026)
+│   ├── latur_chirps_spi.py        (CHIRPS → SPI-1/3/6/12 reference calculations)
+│   ├── latur_sentinel_indices.py  (Local Sentinel-2 raster processing)
+│   ├── composite_cdi.py           (Transparent weighted multi-index composite)
+│   ├── build_baseline_drought.py  (Climatological anomaly & baseline calibration)
+│   ├── validate_historical_analysis.py (Validation against government disaster records)
+│   └── common/                    (Classification, manifest, and raster utilities)
+├── realtime/             ← Near-real-time ingestion, QC safety gate & scheduler
+│   ├── gee_fetcher.py             (Earth Engine live Sentinel-2 & CHIRPS ingestion)
+│   ├── zonal_analyzer.py          (Village-level multi-index zonal statistics)
+│   ├── qc_validator.py            (Pre-integration physical bounds and quality control)
+│   ├── test_realtime_pipeline.py  (Pre-flight unit & integration test suite)
+│   ├── json_updater.py            (Atomic dashboard JSON updater and mirror)
+│   ├── orchestrator.py            (5-step end-to-end pipeline coordinator)
+│   └── scheduler.py               (Cron scheduler and background daemon)
 ├── config/              ← Configuration (single source of truth)
 │   ├── composite.yaml   (CDI weights, normalisation, thresholds, formula_version)
 │   └── spi.yaml         (SPI reference climatology + QC rules)
@@ -71,11 +72,11 @@ drought-monitoring/
 ```
 Raw Rasters (Sentinel-2 + CHIRPS)
         ↓
-scripts/latur_chirps_spi.py      → SPI-1/3/6/12 rasters
-scripts/build_village_indices.py → NDVI/EVI/VCI/VHI rasters + village zonal stats
-scripts/composite_cdi.py         → Fuses SPI + NDVI + EVI + VCI + VHI + PCI → CDI
-scripts/dashboard_master.py      → Builds data/dashboard/ + frontend/public/data/
-scripts/build_baseline_drought.py → SQLite drought.db + baselines
+historical/latur_chirps_spi.py      → SPI-1/3/6/12 reference rasters
+historical/build_village_indices.py → NDVI/EVI/VCI/VHI rasters + village zonal stats
+historical/composite_cdi.py         → Fuses SPI + NDVI + EVI + VCI + VHI + PCI → CDI
+realtime/orchestrator.py            → Near-real-time satellite ingestion, QC & atomic JSON updates
+historical/dashboard_master.py      → Builds data/dashboard/ + frontend/public/data/
 ```
 
 ### API Flow
