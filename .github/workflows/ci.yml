@@ -1,0 +1,45 @@
+name: CI Build & Validation
+
+on:
+  push:
+    branches:
+      - main
+      - operational
+  pull_request:
+    branches:
+      - main
+      - operational
+
+jobs:
+  validate:
+    name: Build & Validate Full-Stack Platform
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Validate Backend Node Gateway Build
+        run: |
+          cd backend-node
+          npm ci
+          npm run build
+
+      - name: Validate Frontend Next.js Production Build
+        run: |
+          cd frontend
+          npm ci
+          npm run build
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Check Python Pipeline Syntax
+        run: |
+          python -m compileall scripts/
