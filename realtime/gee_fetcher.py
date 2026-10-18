@@ -97,8 +97,41 @@ def fetch_chirps_precip(ee: Any | None, period_str: str) -> dict[str, float]:
         return {}
 
 
-def fetch_sentinel2_indices(ee: Any | None, period_str: str) -> dict[str, float]:
-    """Fetches Sentinel-2 L2A BOA reflectance and calculates mean NDVI & EVI."""
+def get_overpass_schedule() -> dict[str, Any]:
+    """Returns the astronomical and orbital overpass schedule for Sentinel-2 over Latur.
+    
+    Orbital Parameters:
+      - Location: Latur District, Maharashtra (18.40°N, 76.58°E)
+      - Orbit Type: Sun-synchronous, descending node
+      - Nominal Equatorial Crossing: 10:30 AM Mean Local Solar Time
+      - Latur Overpass Time: ~10:54 AM IST (05:24 UTC) ± 10 minutes
+      - Relative Orbits (Tracks): R062 (Main overpass), R105 (Western overlap)
+      - Constellation: Sentinel-2A + Sentinel-2B (phased 180° apart)
+      - Combined Revisit Frequency: ~2 to 5 days over Latur
+      - Earth Engine Ingestion Window: 6 to 12 hours post-acquisition (by ~21:00 UTC / 02:30 AM IST)
+      - Optimal Automated Sync Time: Mondays & Thursdays at 03:00 UTC (08:30 AM IST)
+    """
+    return {
+        "target_region": "Latur District, Maharashtra",
+        "coordinates": {"lat": 18.40, "lon": 76.58},
+        "satellites": ["Sentinel-2A", "Sentinel-2B"],
+        "sensor": "MSI (Multi-Spectral Instrument)",
+        "relative_orbits": ["R062", "R105"],
+        "overpass_time_utc": "05:24 UTC",
+        "overpass_time_ist": "10:54 AM IST (window: 10:45 AM - 11:05 AM)",
+        "revisit_interval_days": "2.5 - 5 days",
+        "primary_overpass_days": ["Monday", "Thursday"],
+        "recommended_sync_utc": "03:00 UTC",
+        "recommended_sync_ist": "08:30 AM IST",
+        "ingestion_lag_hours": "6 - 12 hours"
+    }
+
+
+def fetch_sentinel2_indices(ee: Any | None, period_str: str) -> dict[str, Any]:
+    """Fetches Sentinel-2 L2A BOA reflectance and calculates mean NDVI & EVI.
+    
+    Identifies the exact overpass timestamp of the most recent cloud-free acquisition.
+    """
     if ee is None:
         return {}
 
@@ -118,10 +151,29 @@ def fetch_sentinel2_indices(ee: Any | None, period_str: str) -> dict[str, float]
             .filterDate(start_date, end_date)
             .filterBounds(ee.Geometry.BBox(*LATUR_BBOX))
             .filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE", 30))
-            .map(mask_s2)
+            .sort("system:time_start", False)  # Most recent first
         )
 
-        composite = col.median()
+        count = col.size().getInfo()
+        latest_pass_info = {}
+        if count > 0:
+            first_img = col.first()
+            props = first_img.toDictionary(["system:time_start", "SPACECRAFT_NAME", "SENSING_ORBIT_NUMBER", "CLOUDY_PIXEL_PERCENTAGE"]).getInfo()
+            if props and "system:time_start" in props:
+                pass_ms = props["system:time_start"]
+                pass_dt = datetime.fromtimestamp(pass_ms / 1000.0, tz=timezone.utc)
+                latest_pass_info = {
+                    "satellite": props.get("SPACECRAFT_NAME", "Sentinel-2"),
+                    "overpass_datetime_utc": pass_dt.strftime("%Y-%m-%d %H:%M:%S UTC"),
+                    "overpass_date": pass_dt.strftime("%Y-%m-%d"),
+                    "overpass_time": pass_dt.strftime("%H:%M:%S UTC"),
+                    "orbit": props.get("SENSING_ORBIT_NUMBER"),
+                    "cloud_pct": round(float(props.get("CLOUDY_PIXEL_PERCENTAGE", 0.0)), 2)
+                }
+                print(f"  -> Latest Sentinel-2 overpass: {latest_pass_info['satellite']} on {latest_pass_info['overpass_datetime_utc']} (Orbit {latest_pass_info.get('orbit')}, Cloud: {latest_pass_info['cloud_pct']}%)")
+
+        masked_col = col.map(mask_s2)
+        composite = masked_col.median()
         nir = composite.select("B8").multiply(0.0001)
         red = composite.select("B4").multiply(0.0001)
         blue = composite.select("B2").multiply(0.0001)
@@ -145,10 +197,13 @@ def fetch_sentinel2_indices(ee: Any | None, period_str: str) -> dict[str, float]
             .getInfo()
         )
 
-        return {
+        res: dict[str, Any] = {
             "ndvi": round(float(reduced.get("ndvi", 0.35)), 4),
             "evi": round(float(reduced.get("evi", 0.25)), 4),
         }
+        if latest_pass_info:
+            res["overpass_info"] = latest_pass_info
+        return res
     except Exception as exc:
         print(f"  [!] GEE Sentinel-2 query warning: {exc}")
         return {}

@@ -92,9 +92,19 @@ def main():
     parser.add_argument("--daemon", action="store_true", default=False, help="Run continuously as background daemon")
     parser.add_argument("--interval-hours", type=float, default=6.0, help="Interval between runs in daemon mode")
     parser.add_argument("--period", type=str, default=None, help="Target observation period YYYY-MM")
-    parser.add_argument("--force", action="store_true", default=False, help="Force recomputation")
-    parser.add_argument("--dry-run", action="store_true", default=False, help="Run QC tests without writing")
+    parser.add_argument("--overpass-info", action="store_true", default=False, help="Display Sentinel-2 overpass days, tracks, and optimal sync window for Latur")
     args = parser.parse_args()
+
+    if args.overpass_info:
+        from gee_fetcher import get_overpass_schedule
+        info = get_overpass_schedule()
+        print("\n" + "=" * 70)
+        print(" SENTINEL-2 ORBITAL OVERPASS & INGESTION TIMETABLE FOR LATUR")
+        print("=" * 70)
+        for k, v in info.items():
+            print(f"  * {k.replace('_', ' ').title():<28}: {v}")
+        print("=" * 70 + "\n")
+        return
 
     if args.daemon:
         run_daemon(interval_hours=args.interval_hours, period=args.period, force=args.force)

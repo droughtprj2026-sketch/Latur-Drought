@@ -1,7 +1,7 @@
 {
   "system": "Latur Real-Time Drought Monitoring Platform",
   "study_horizon": "2016\u20132026",
-  "total_master_records": 94570,
+  "total_master_records": 53246,
   "benchmarks": [
     {
       "event": "2016 Jaldoot Water Train Crisis",
@@ -13,9 +13,9 @@
       "avg_ndvi": 0.05,
       "avg_rainfall_mm": 17.2,
       "avg_cdi": 0.353,
-      "total_villages": 954,
-      "villages_in_drought": 950,
-      "pct_in_drought": 99.6
+      "total_villages": 529,
+      "villages_in_drought": 528,
+      "pct_in_drought": 99.8
     },
     {
       "event": "2016 Peak Pre-Monsoon Heat Stress",
@@ -27,9 +27,9 @@
       "avg_ndvi": 0.036,
       "avg_rainfall_mm": 31.5,
       "avg_cdi": 0.343,
-      "total_villages": 954,
-      "villages_in_drought": 936,
-      "pct_in_drought": 98.1
+      "total_villages": 529,
+      "villages_in_drought": 523,
+      "pct_in_drought": 98.9
     },
     {
       "event": "2018 Maharashtra SDMA Declared Drought",
@@ -41,9 +41,9 @@
       "avg_ndvi": 0.12,
       "avg_rainfall_mm": 24.4,
       "avg_cdi": 0.204,
-      "total_villages": 954,
-      "villages_in_drought": 109,
-      "pct_in_drought": 11.4
+      "total_villages": 528,
+      "villages_in_drought": 84,
+      "pct_in_drought": 15.9
     },
     {
       "event": "2020 Bumper Monsoon Recovery",
@@ -55,9 +55,9 @@
       "avg_ndvi": 0.506,
       "avg_rainfall_mm": 308.4,
       "avg_cdi": 0.034,
-      "total_villages": 954,
-      "villages_in_drought": 1,
-      "pct_in_drought": 0.1
+      "total_villages": 528,
+      "villages_in_drought": 0,
+      "pct_in_drought": 0.0
     },
     {
       "event": "2023 August Dry Break (El Ni\u00f1o)",
@@ -69,9 +69,9 @@
       "avg_ndvi": 0.366,
       "avg_rainfall_mm": 45.8,
       "avg_cdi": 0.189,
-      "total_villages": 954,
-      "villages_in_drought": 67,
-      "pct_in_drought": 7.0
+      "total_villages": 528,
+      "villages_in_drought": 22,
+      "pct_in_drought": 4.2
     },
     {
       "event": "2026 Late Kharif Deficit",
@@ -83,14 +83,14 @@
       "avg_ndvi": 0.462,
       "avg_rainfall_mm": 76.0,
       "avg_cdi": 0.317,
-      "total_villages": 954,
-      "villages_in_drought": 951,
-      "pct_in_drought": 99.7
+      "total_villages": 528,
+      "villages_in_drought": 526,
+      "pct_in_drought": 99.6
     }
   ],
   "tehsil_coverage": {
     "Ahmadpur": {
-      "record_count": 12348,
+      "record_count": 12346,
       "village_count": 124,
       "periods_covered": 98,
       "sample_verified": [
@@ -112,7 +112,7 @@
       ]
     },
     "Ausa": {
-      "record_count": 13230,
+      "record_count": 13229,
       "village_count": 134,
       "periods_covered": 98,
       "sample_verified": [
@@ -139,7 +139,7 @@
       ]
     },
     "Chakur": {
-      "record_count": 8428,
+      "record_count": 8426,
       "village_count": 84,
       "periods_covered": 98,
       "sample_verified": [
@@ -161,7 +161,7 @@
       ]
     },
     "Deoni": {
-      "record_count": 5684,
+      "record_count": 5683,
       "village_count": 57,
       "periods_covered": 98,
       "sample_verified": [
@@ -183,7 +183,7 @@
       ]
     },
     "Jalkot": {
-      "record_count": 4704,
+      "record_count": 4703,
       "village_count": 47,
       "periods_covered": 98,
       "sample_verified": [
@@ -205,7 +205,7 @@
       ]
     },
     "Latur": {
-      "record_count": 11956,
+      "record_count": 7990,
       "village_count": 121,
       "periods_covered": 98,
       "sample_verified": [
@@ -232,7 +232,7 @@
       ]
     },
     "Nilanga": {
-      "record_count": 15484,
+      "record_count": 253,
       "village_count": 156,
       "periods_covered": 98,
       "sample_verified": [
@@ -254,19 +254,19 @@
       ]
     },
     "Renapur": {
-      "record_count": 7840,
+      "record_count": 176,
       "village_count": 79,
       "periods_covered": 98,
       "sample_verified": [
         {
           "village": "Renapur",
           "present": true,
-          "rows": 98
+          "rows": 1
         },
         {
           "village": "Pangaon",
           "present": true,
-          "rows": 98
+          "rows": 1
         },
         {
           "village": "Pohaner",
@@ -276,7 +276,7 @@
       ]
     },
     "Shirur-Anantpal": {
-      "record_count": 5096,
+      "record_count": 148,
       "village_count": 51,
       "periods_covered": 98,
       "sample_verified": [
@@ -288,7 +288,7 @@
         {
           "village": "Sakol",
           "present": true,
-          "rows": 98
+          "rows": 1
         },
         {
           "village": "Talegaon",
@@ -298,7 +298,7 @@
       ]
     },
     "Udgir": {
-      "record_count": 9702,
+      "record_count": 195,
       "village_count": 98,
       "periods_covered": 98,
       "sample_verified": [
@@ -310,12 +310,12 @@
         {
           "village": "Nalgir",
           "present": true,
-          "rows": 98
+          "rows": 1
         },
         {
           "village": "Her",
           "present": true,
-          "rows": 98
+          "rows": 1
         },
         {
           "village": "Devarjan",
@@ -326,57 +326,57 @@
     }
   },
   "accuracy_metrics": {
-    "total_eval_samples": 93492,
-    "true_positives": 8451,
-    "false_positives": 4463,
-    "false_negatives": 9338,
-    "true_negatives": 71240,
-    "hit_rate_pct": 47.51,
-    "specificity_pct": 94.1,
-    "false_alarm_ratio_pct": 34.56,
-    "critical_success_index": 0.3798,
-    "overall_accuracy_pct": 85.24
+    "total_eval_samples": 52179,
+    "true_positives": 4574,
+    "false_positives": 3413,
+    "false_negatives": 5387,
+    "true_negatives": 38805,
+    "hit_rate_pct": 45.92,
+    "specificity_pct": 91.92,
+    "false_alarm_ratio_pct": 42.73,
+    "critical_success_index": 0.342,
+    "overall_accuracy_pct": 83.13
   },
   "physical_correlations": [
     {
       "pair": "spi_1 vs monthly_rainfall_mm",
       "description": "Immediate precipitation vs 1-Month SPI",
-      "pearson_r": 0.3142,
+      "pearson_r": 0.3159,
       "p_value": 0.0,
       "significant_at_001": true,
-      "sample_size": 92064
+      "sample_size": 52419
     },
     {
       "pair": "spi_3 vs ndvi",
       "description": "Agricultural 3-Month SPI vs Canopy NDVI (Lagged)",
-      "pearson_r": 0.2523,
+      "pearson_r": 0.2259,
       "p_value": 0.0,
       "significant_at_001": true,
-      "sample_size": 74380
+      "sample_size": 42505
     },
     {
       "pair": "vci vs ndvi",
       "description": "Vegetation Condition Index vs NDVI",
-      "pearson_r": 0.4356,
+      "pearson_r": 0.4322,
       "p_value": 0.0,
       "significant_at_001": true,
-      "sample_size": 76346
+      "sample_size": 43099
     },
     {
       "pair": "composite_drought_score vs spi_3",
       "description": "Combined Drought Index vs Agricultural SPI-3",
-      "pearson_r": -0.6276,
+      "pearson_r": -0.624,
       "p_value": 0.0,
       "significant_at_001": true,
-      "sample_size": 91390
+      "sample_size": 51977
     },
     {
       "pair": "composite_drought_score vs vci",
       "description": "Combined Drought Index vs Vegetation Condition Index",
-      "pearson_r": -0.7267,
+      "pearson_r": -0.6884,
       "p_value": 0.0,
       "significant_at_001": true,
-      "sample_size": 76346
+      "sample_size": 43099
     }
   ],
   "cloud_masking_audit": [
