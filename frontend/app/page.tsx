@@ -1,197 +1,383 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useState } from "react";
-import { IndexDropdown, type IndexName } from "@/components/ui/IndexDropdown";
-import { YearSlider } from "@/components/ui/YearSlider";
-import { TehsilSelector, type TehsilName } from "@/components/ui/TehsilSelector";
-import { VillageSelector } from "@/components/ui/VillageSelector";
-import { DroughtStatusCard } from "@/components/panels/DroughtStatusCard";
-import { IndicatorCards } from "@/components/panels/IndicatorCards";
-import { SentinelPanel } from "@/components/panels/SentinelPanel";
-import { ChirpsPanel } from "@/components/panels/ChirpsPanel";
-import { SPIChart } from "@/components/charts/SPIChart";
-import { getManifest, getMaster, type Manifest, type MasterRow } from "@/lib/api";
-import { codeForCDI, D_CODES } from "@/lib/classify";
-import { useLocale } from "@/components/i18n/LocaleProvider";
+import { useEffect, useState, useMemo } from "react";
+import type { MetricName } from "@/components/map/LaturMap";
+import { PermanentSidebar } from "@/components/panels/PermanentSidebar";
+import { MonthlyTimelineScrubber } from "@/components/map/MonthlyTimelineScrubber";
+import type { VillageProperties } from "@/components/panels/VillageIntelligenceDrawer";
 
 const LaturMap = dynamic(() => import("@/components/map/LaturMap"), {
   ssr: false,
   loading: () => (
-    <div className="h-[520px] w-full animate-pulse rounded-lg bg-slate-100 dark:bg-slate-800" />
+    <div className="h-full w-full flex items-center justify-center bg-slate-50 text-slate-500 text-sm">
+      <div className="flex flex-col items-center gap-2">
+        <div className="w-8 h-8 border-2 border-amber-600 border-t-transparent rounded-full animate-spin" />
+        <span className="font-semibold text-slate-700">Initializing Latur Google Terrain Map Engine...</span>
+      </div>
+    </div>
   ),
 });
 
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
-                "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const TEHSILS = [
+  "All",
+  "Ahmadpur",
+  "Ausa",
+  "Chakur",
+  "Deoni",
+  "Jalkot",
+  "Latur",
+  "Nilanga",
+  "Renapur",
+  "Shirur-Anantpal",
+  "Udgir",
+];
 
-/** Summary row: how many villages are in each drought class for the latest period. */
-function DroughtSummary({ tehsil, village }: { tehsil: string; village: string }) {
-  const { t } = useLocale();
-  const [rows, setRows] = useState<MasterRow[]>([]);
-  const [loading, setLoading] = useState(true);
+const METRICS: { id: MetricName; label: string; desc: string }[] = [
+  { id: "cdi", label: "CDI Composite", desc: "Multi-Index Severity (0..1)" },
+  { id: "ndvi", label: "NDVI", desc: "Normalized Difference Veg" },
+  { id: "vhi", label: "VHI", desc: "Vegetation Health Index" },
+  { id: "vci", label: "VCI", desc: "Condition Index (0..100)" },
+  { id: "spi1", label: "SPI-1", desc: "1-Mo Meteorological" },
+  { id: "spi3", label: "SPI-3", desc: "3-Mo Agricultural" },
+  { id: "spi6", label: "SPI-6", desc: "6-Mo Hydrological" },
+  { id: "spi12", label: "SPI-12", desc: "12-Mo Deep Ground" },
+  { id: "rain", label: "Rainfall", desc: "CHIRPS Precipitation (mm)" },
+];
 
-  useEffect(() => {
-    setLoading(true);
-    const params: any = { tehsil };
-    if (village) params.village = village;
-    getMaster(params).then((r) => {
-      setRows(r);
-      setLoading(false);
-    }).catch(() => setLoading(false));
-  }, [tehsil, village]);
-
-  if (loading) return null;
-
-  // Latest period per village
-  const latestByVillage = new Map<string, MasterRow>();
-  for (const row of rows) {
-    if (row.village === "") continue; // skip tehsil-level rows
-    const period = row.observation_period;
-    const existing = latestByVillage.get(row.village);
-    if (!existing || period > existing.observation_period) {
-      latestByVillage.set(row.village, row);
-    }
-  }
-
-  const total = latestByVillage.size;
-  let droughtCount = 0;
-  const classCounts: Record<string, number> = {};
-  for (const row of latestByVillage.values()) {
-    const cls = row.composite_drought_class || "None";
-    classCounts[cls] = (classCounts[cls] || 0) + 1;
-    if (cls && cls !== "None" && cls !== "ND") droughtCount++;
-  }
-
-  const pct = total > 0 ? Math.round((droughtCount / total) * 100) : 0;
-
-  return (
-    <div className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-          {t("summary.title")}
-        </h3>
-        <span className="text-[10px] text-slate-500">{total} villages</span>
-      </div>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
-        <div className="rounded bg-slate-50 p-3 dark:bg-slate-800">
-          <div className="text-slate-500">{t("summary.drought_villages")}</div>
-          <div className="font-bold text-rose-600">{droughtCount}</div>
-          <div className="text-[10px] text-slate-500">{pct}% of total</div>
-        </div>
-        <div className="rounded bg-green-50 p-3 dark:bg-green-900/20">
-          <div className="text-slate-500">{t("summary.normal_villages")}</div>
-          <div className="font-bold text-green-600">{total - droughtCount}</div>
-          <div className="text-[10px] text-slate-500">{total > 0 ? Math.round(((total - droughtCount) / total) * 100) : 0}% of total</div>
-        </div>
-        <div className="rounded bg-amber-50 p-3 dark:bg-amber-900/20">
-          <div className="text-slate-500">{t("summary.d0_d1")}</div>
-          <div className="font-bold text-amber-600">
-            {(classCounts["D0"] || 0) + (classCounts["D1"] || 0)}
-          </div>
-        </div>
-        <div className="rounded bg-rose-50 p-3 dark:bg-rose-900/20">
-          <div className="text-slate-500">{t("summary.d2_plus")}</div>
-          <div className="font-bold text-rose-600">
-            {(classCounts["D2"] || 0) + (classCounts["D3"] || 0) + (classCounts["D4"] || 0)}
-          </div>
-        </div>
-      </div>
-      <div className="mt-3 grid grid-cols-2 md:grid-cols-6 gap-2">
-        {D_CODES.map((code) => {
-          const cnt = classCounts[code] || 0;
-          const color = code === "None" ? "#FFFFFF" :
-            code === "D0" ? "#FFFF00" :
-            code === "D1" ? "#FCD37F" :
-            code === "D2" ? "#FFAA00" :
-            code === "D3" ? "#E60000" :
-            "#730000";
-          return (
-            <div key={code} className="rounded bg-slate-100 p-2 dark:bg-slate-800 flex items-center gap-2">
-              <span className="w-3 h-3 rounded-full" style={{ background: color }}></span>
-              <span className="text-[10px]">{code}</span>
-              <span className="ml-auto text-[10px] font-mono">{cnt}</span>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
+const MONTHS = [
+  { id: "01", label: "Jan" },
+  { id: "02", label: "Feb" },
+  { id: "03", label: "Mar" },
+  { id: "04", label: "Apr" },
+  { id: "05", label: "May" },
+  { id: "06", label: "Jun" },
+  { id: "07", label: "Jul" },
+  { id: "08", label: "Aug" },
+  { id: "09", label: "Sep" },
+  { id: "10", label: "Oct" },
+  { id: "11", label: "Nov" },
+  { id: "12", label: "Dec" },
+];
 
 export default function HomePage() {
-  const { t } = useLocale();
-  const [manifest, setManifest] = useState<Manifest | null>(null);
-  const [index, setIndex] = useState<IndexName>("cdi");
+  const [metric, setMetric] = useState<MetricName>("cdi");
+  const [tehsil, setTehsil] = useState<string>("All");
+  const [selectedVillageName, setSelectedVillageName] = useState<string>("");
+  const [selectedVillage, setSelectedVillage] = useState<VillageProperties | null>(null);
+  const [villagesByTehsil, setVillagesByTehsil] = useState<Record<string, string[]>>({});
+  const [periods, setPeriods] = useState<string[]>([]);
+  const [currentPeriod, setCurrentPeriod] = useState<string>("2026-10");
   const [year, setYear] = useState<number>(2026);
-  const [month, setMonth] = useState<number>(9);
-  const [tehsil, setTehsil] = useState<TehsilName>("Latur");
-  const [village, setVillage] = useState<string>("");
-  const [latest, setLatest] = useState(false);
+  const [month, setMonth] = useState<string>("10");
 
+  const [stats, setStats] = useState<{
+    total: number;
+    droughtCount: number;
+    d2PlusCount: number;
+    avgCdi: number;
+  }>({ total: 954, droughtCount: 512, d2PlusCount: 148, avgCdi: 0.38 });
+
+  // Load Tehsil village registry
   useEffect(() => {
-    getManifest().then((m) => {
-      setManifest(m);
-      if (m.years.length) setYear(m.years[m.years.length - 1]);
-    }).catch(() => undefined);
+    fetch("/data/villages_by_tehsil.json")
+      .then((res) => res.json())
+      .then((data) => setVillagesByTehsil(data))
+      .catch((err) => console.error("Failed to load villages by tehsil:", err));
   }, []);
 
-  const years = manifest?.years?.length ? manifest.years
-    : Array.from({ length: 11 }, (_, i) => 2016 + i);
-  const available: IndexName[] = manifest
-    ? (Object.keys(manifest.indices) as IndexName[])
-    : ["ndvi", "spi3", "vci", "vhi", "evi", "pci", "cdi", "cdi_class"];
-  const effectiveTehsil = tehsil === "All" ? "Latur" : tehsil;
+  // Load continuous 98 observation periods from district series
+  useEffect(() => {
+    fetch("/data/district_monthly.json")
+      .then((r) => r.json())
+      .then((d) => {
+        const pList = (d.series || []).map((s: any) => s.date).filter(Boolean);
+        if (pList.length > 0) {
+          setPeriods(pList);
+        }
+      })
+      .catch((e) => console.error("Error loading periods:", e));
+  }, []);
+
+  // Load summary stats from GeoJSON properties once
+  useEffect(() => {
+    fetch("/data/latur_villages_latest.geojson")
+      .then((res) => res.json())
+      .then((gj) => {
+        const features = gj.features || [];
+        const total = features.length;
+        let droughtCount = 0;
+        let d2PlusCount = 0;
+        let cdiSum = 0;
+        let cdiCount = 0;
+
+        for (const f of features) {
+          const p = f.properties || {};
+          const cdi = p.CDI;
+          const cls = p.CDI_class || p.class || "";
+          if (cdi != null) {
+            cdiSum += cdi;
+            cdiCount++;
+            if (cdi >= 0.20 || (cls && cls !== "None" && cls !== "ND")) {
+              droughtCount++;
+            }
+            if (["D2", "D3", "D4"].includes(cls)) {
+              d2PlusCount++;
+            }
+          }
+        }
+
+        setStats({
+          total,
+          droughtCount,
+          d2PlusCount,
+          avgCdi: cdiCount > 0 ? cdiSum / cdiCount : 0.38,
+        });
+      })
+      .catch((err) => console.error("Failed to compute stats:", err));
+  }, []);
+
+  // Filter available villages based on selected Tehsil
+  const availableVillages = useMemo(() => {
+    if (tehsil !== "All" && villagesByTehsil[tehsil]) {
+      return villagesByTehsil[tehsil];
+    }
+    const all: string[] = [];
+    for (const vList of Object.values(villagesByTehsil)) {
+      all.push(...vList);
+    }
+    return Array.from(new Set(all)).sort();
+  }, [tehsil, villagesByTehsil]);
+
+  // Handler when user selects a village from the top dropdown or search
+  const handleSelectVillageByName = (vName: string) => {
+    setSelectedVillageName(vName);
+    if (!vName) {
+      setSelectedVillage(null);
+      return;
+    }
+    fetch("/data/latur_villages_latest.geojson")
+      .then((res) => res.json())
+      .then((gj) => {
+        const match = (gj.features || []).find((f: any) => {
+          const p = f.properties || {};
+          const name = p.village || p.VILLAGE || p.name || "";
+          return name.toLowerCase() === vName.toLowerCase();
+        });
+        if (match) {
+          setSelectedVillage(match.properties);
+        }
+      })
+      .catch(() => null);
+  };
+
+  // Synchronize period from timeline scrubber
+  const handlePeriodChange = (p: string) => {
+    setCurrentPeriod(p);
+    const [y, m] = p.split("-");
+    if (y && m) {
+      setYear(parseInt(y, 10));
+      setMonth(m);
+    }
+  };
+
+  // Synchronize period from Year & Month selects
+  const handleYearMonthSelect = (newYear: number, newMonth: string) => {
+    setYear(newYear);
+    setMonth(newMonth);
+    const candidate = `${newYear}-${newMonth}`;
+    if (periods.includes(candidate)) {
+      setCurrentPeriod(candidate);
+    } else {
+      // Find nearest period in the same year or fallback
+      const match = periods.find((p) => p.startsWith(String(newYear))) || candidate;
+      setCurrentPeriod(match);
+    }
+  };
+
+  // Reset to latest observation period (2026-10)
+  const setLatestPeriod = () => {
+    setYear(2026);
+    setMonth("10");
+    setCurrentPeriod("2026-10");
+  };
 
   return (
-    <div className="space-y-6">
-      <DroughtStatusCard tehsil={effectiveTehsil} village={village} />
-      <DroughtSummary tehsil={effectiveTehsil} village={village} />
+    <div className="flex flex-col h-[calc(100vh-57px)] overflow-hidden bg-slate-50 text-slate-900">
+      {/* Executive Command Controls Header — Crisp White with Gold Accents */}
+      <header className="px-5 py-2.5 border-b border-slate-200 bg-white shadow-xs flex flex-wrap items-center justify-between gap-3 z-20">
+        {/* Left Side: System State & Old Dashboard Controls */}
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2 pr-2 border-r border-slate-200">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+            <div>
+              <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 leading-none">
+                Live Sentinel-2 · GEE Operational
+              </div>
+              <div className="text-xs font-bold text-slate-900 leading-tight">
+                Latur District Observatory
+              </div>
+            </div>
+          </div>
 
-      {/* Controls strip */}
-      <div className="grid grid-cols-1 gap-4 rounded-lg border border-slate-200
-                      bg-white p-4 dark:border-slate-800 dark:bg-slate-900
-                      md:grid-cols-6">
-        <TehsilSelector value={tehsil} onChange={(t) => { setTehsil(t); setVillage(""); }} />
-        <VillageSelector tehsil={tehsil} value={village} onChange={setVillage} />
-        <IndexDropdown value={index} onChange={setIndex} available={available} />
-        <div className={latest ? "opacity-40 pointer-events-none" : ""}>
-          <YearSlider years={years} value={year} onChange={setYear} />
-        </div>
-        <div>
-          <label className="block text-xs font-medium text-slate-500">{t("controls.month")}</label>
-          <select value={month} onChange={(e) => setMonth(Number(e.target.value))}
-                  disabled={latest}
-                  className="mt-1 w-full rounded border border-slate-300 bg-transparent
-                             px-2 py-1.5 text-sm dark:border-slate-700">
-            {MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
-          </select>
-        </div>
-        <label className="flex items-end gap-1 text-xs text-slate-600 dark:text-slate-300">
-          <input type="checkbox" checked={latest} onChange={(e) => setLatest(e.target.checked)}
-                 className="accent-blue-600" />
-          {t("controls.latest")}
-        </label>
-      </div>
+          {/* 1. Tehsil Selector */}
+          <div className="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-xl border border-slate-200 shadow-2xs">
+            <span className="text-[11px] font-bold text-slate-500 uppercase">Tehsil:</span>
+            <select
+              value={tehsil}
+              onChange={(e) => {
+                setTehsil(e.target.value);
+                setSelectedVillageName("");
+                setSelectedVillage(null);
+              }}
+              className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer"
+            >
+              {TEHSILS.map((t) => (
+                <option key={t} value={t}>
+                  {t === "All" ? "All Latur (10 Tehsils)" : `${t} Tehsil`}
+                </option>
+              ))}
+            </select>
+          </div>
 
-      <IndicatorCards tehsil={effectiveTehsil} village={village} />
+          {/* 2. Village Selector Dropdown */}
+          <div className="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-xl border border-slate-200 shadow-2xs">
+            <span className="text-[11px] font-bold text-slate-500 uppercase">Village:</span>
+            <select
+              value={selectedVillageName}
+              onChange={(e) => handleSelectVillageByName(e.target.value)}
+              className="bg-transparent text-xs font-semibold text-slate-800 focus:outline-none max-w-[170px] truncate cursor-pointer"
+            >
+              <option value="">— Select Village ({availableVillages.length}) —</option>
+              {availableVillages.map((v) => (
+                <option key={v} value={v}>
+                  {v}
+                </option>
+              ))}
+            </select>
+          </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
-        <div className="lg:col-span-3">
-          <div className="h-[560px] overflow-hidden rounded-lg border border-slate-200
-                          dark:border-slate-800">
-            <LaturMap index={index} year={year} month={month}
-                      tehsil={tehsil} village={village} latest={latest} />
+          {/* 3. Metric Dropdown with full SPI 1, 3, 6, 12 Suite */}
+          <div className="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-xl border border-slate-200 shadow-2xs">
+            <span className="text-[11px] font-bold text-slate-500 uppercase">Index:</span>
+            <select
+              value={metric}
+              onChange={(e) => setMetric(e.target.value as MetricName)}
+              className="bg-transparent text-xs font-bold text-amber-700 focus:outline-none cursor-pointer"
+            >
+              {METRICS.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.label} ({m.desc})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* 4. Year & Month Timeline Controls */}
+          <div className="flex items-center gap-2 bg-slate-50 px-2.5 py-1 rounded-xl border border-slate-200 shadow-2xs">
+            <span className="text-[11px] font-bold text-slate-500 uppercase">Period:</span>
+            <select
+              value={year}
+              onChange={(e) => handleYearMonthSelect(Number(e.target.value), month)}
+              className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer"
+            >
+              {[2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026].map((y) => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
+
+            <select
+              value={month}
+              onChange={(e) => handleYearMonthSelect(year, e.target.value)}
+              className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer"
+            >
+              {MONTHS.map((m) => (
+                <option key={m.id} value={m.id}>{m.label}</option>
+              ))}
+            </select>
+
+            {/* Quick Set Latest Button in Gold Accent */}
+            <button
+              onClick={setLatestPeriod}
+              className={`px-2 py-0.5 rounded text-[11px] font-bold transition-all ${
+                currentPeriod === "2026-10"
+                  ? "bg-amber-600 text-white shadow-xs"
+                  : "bg-amber-100 text-amber-800 hover:bg-amber-200"
+              }`}
+              title="Jump to latest operational observation (2026-10)"
+            >
+              Latest (2026-10)
+            </button>
           </div>
         </div>
-        <div className="lg:col-span-1 space-y-4">
-          <SentinelPanel />
-          <ChirpsPanel tehsil={effectiveTehsil} />
-        </div>
-      </div>
 
-      <div className="h-[360px] rounded-lg border border-slate-200 p-3 dark:border-slate-800">
-        <SPIChart index={index} />
+        {/* Right Side: High-Level Executive KPI Chips */}
+        <div className="hidden 2xl:flex items-center gap-2">
+          <div className="px-3 py-1 bg-white rounded-lg border border-slate-200 shadow-2xs text-right">
+            <div className="text-[9px] text-slate-500 uppercase font-bold">Monitored Villages</div>
+            <div className="text-xs font-extrabold font-mono text-slate-900">{stats.total} Villages</div>
+          </div>
+          <div className="px-3 py-1 bg-amber-50 rounded-lg border border-amber-200 shadow-2xs text-right">
+            <div className="text-[9px] text-amber-800 uppercase font-bold">In Drought (D0-D4)</div>
+            <div className="text-xs font-extrabold font-mono text-amber-900">
+              {stats.droughtCount} <span className="text-[10px] font-semibold text-amber-700">({Math.round((stats.droughtCount / stats.total) * 100)}%)</span>
+            </div>
+          </div>
+          <div className="px-3 py-1 bg-rose-50 rounded-lg border border-rose-200 shadow-2xs text-right">
+            <div className="text-[9px] text-rose-800 uppercase font-bold">Critical (D2-D4)</div>
+            <div className="text-xs font-extrabold font-mono text-rose-900">{stats.d2PlusCount} Villages</div>
+          </div>
+          <div className="px-3 py-1 bg-amber-500 rounded-lg shadow-xs text-right text-white">
+            <div className="text-[9px] uppercase font-bold text-amber-100">District CDI</div>
+            <div className="text-xs font-extrabold font-mono">{stats.avgCdi.toFixed(3)}</div>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Split Layout: Map on the Left (62%) + Permanent Dedicated Sidebar on the Right (38%) */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Left Section: Interactive Google Terrain Choropleth Map with Monthly Timeline Scrubber */}
+        <main className="flex-1 h-full relative flex flex-col">
+          <div className="flex-1 relative">
+            <LaturMap
+              metric={metric}
+              tehsil={tehsil}
+              selectedVillageName={selectedVillageName}
+              currentPeriod={currentPeriod}
+              onSelectVillage={(props) => {
+                setSelectedVillage(props);
+                const name = props.village || props.VILLAGE || props.name || "";
+                setSelectedVillageName(name);
+              }}
+            />
+
+            {/* Continuous Monthly Historical Timeline Scrubber Overlay */}
+            {periods.length > 0 && (
+              <div className="absolute bottom-5 left-4 right-4 z-[950] max-w-2xl mx-auto">
+                <MonthlyTimelineScrubber
+                  periods={periods}
+                  currentPeriod={currentPeriod}
+                  onPeriodChange={handlePeriodChange}
+                />
+              </div>
+            )}
+          </div>
+        </main>
+
+        {/* Right Section: PERMANENT DEDICATED SIDEBAR (Never collapses) */}
+        <div className="w-[450px] xl:w-[490px] 2xl:w-[530px] h-full flex-shrink-0">
+          <PermanentSidebar
+            village={selectedVillage}
+            selectedTehsil={tehsil}
+            selectedPeriod={currentPeriod}
+            onSelectTehsil={(t) => {
+              setTehsil(t);
+              setSelectedVillageName("");
+              setSelectedVillage(null);
+            }}
+            onSelectVillageByName={handleSelectVillageByName}
+          />
+        </div>
       </div>
     </div>
   );

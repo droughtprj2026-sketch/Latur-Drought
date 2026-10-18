@@ -1,27 +1,22 @@
 {
-  "generated_at": "2026-10-17T11:45:30.207072+00:00",
-  "monitoring_status": "operational",
+  "generated_at": "2026-10-18T13:05:58+05:30",
+  "monitoring_status": "degraded",
   "sentinel2": {
     "latest_observation_date": "2026-10-15",
     "latest_period_id": "2026-10",
-    "cloud_percentage": 5.0,
-    "last_successful_update": "2026-10-17T11:45:30.207072+00:00",
-    "status": "operational",
-    "notes": "Full Sentinel-2 index suite (NDVI, EVI, VCI, VHI) computed through 2026-10."
+    "cloud_percentage": null,
+    "last_successful_update": "2026-10-16T19:22:49+05:30",
+    "status": "success"
   },
   "chirps": {
-    "latest_observation_date": "2026-10-28",
-    "latest_period_id": "2026-10",
-    "last_successful_update": "2026-10-17T11:45:30.207072+00:00",
-    "status": "operational",
-    "qc": {
-      "coverage_pct": 100,
-      "verified": true
-    }
+    "latest_observation_date": null,
+    "latest_period_id": null,
+    "last_successful_update": null,
+    "status": null,
+    "qc": null
   },
   "composite": {
     "formula_version": "cdi-v2026.10",
-    "status": "operational",
     "weights": {
       "SPI": 0.3,
       "VHI": 0.2,
@@ -31,16 +26,7 @@
       "PCI": 0.1
     },
     "min_inputs": 3,
-    "available_inputs": [
-      "SPI",
-      "NDVI",
-      "EVI",
-      "VCI",
-      "VHI",
-      "PCI"
-    ],
-    "spi_reference": "SPI-3",
-    "notes": "Transparent multi-index composite drought classification active."
+    "spi_reference": "1991-2020"
   },
   "region": {
     "district": "Latur",

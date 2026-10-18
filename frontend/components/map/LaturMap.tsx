@@ -1,283 +1,443 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import {
-  GeoJSON, LayersControl, MapContainer, ScaleControl, TileLayer,
-  ZoomControl, useMap, Popup,
+  GeoJSON,
+  MapContainer,
+  ScaleControl,
+  TileLayer,
+  ZoomControl,
+  useMap,
 } from "react-leaflet";
 import type { Feature, FeatureCollection } from "geojson";
 import type { Layer, PathOptions, LeafletMouseEvent } from "leaflet";
-import { getIndexGeoJSON, getVillageIndices, getStatus, type IndexName } from "@/lib/api";
-import { classifyValue, colorForValue, D_CODES, D_COLORS } from "@/lib/classify";
 import L from "leaflet";
 import { BASEMAPS } from "./basemaps";
 import { BasemapSwitcher } from "./BasemapSwitcher";
-import { BoundaryLayers } from "./BoundaryLayers";
 import { LegendBar } from "./LegendBar";
-import { MapExportButtons } from "@/components/export/MapExportButtons";
+import { D_CODES, D_COLORS } from "@/lib/classify";
+import type { VillageProperties } from "@/components/panels/VillageIntelligenceDrawer";
+
+export type MetricName =
+  | "cdi"
+  | "cdi_class"
+  | "ndvi"
+  | "evi"
+  | "vci"
+  | "vhi"
+  | "spi1"
+  | "spi3"
+  | "spi6"
+  | "spi12"
+  | "rain";
 
 interface Props {
-  index: IndexName;
-  year: number;
-  month: number;
+  metric: MetricName;
   tehsil?: string;
-  village?: string;
-  latest?: boolean;
+  selectedVillageName?: string;
+  currentPeriod?: string;
+  onSelectVillage?: (props: VillageProperties) => void;
+  geeTileUrl?: string | null;
+  showGeeLayer?: boolean;
 }
 
 const LATUR_CENTER: [number, number] = [18.4088, 76.5604];
-const DEFAULT_ZOOM = 10;
+const DEFAULT_ZOOM = 9;
 
-function FitToData({ geojson }: { geojson: FeatureCollection | null }) {
+// Color ramp helpers
+function getCDIColor(code?: string, score?: number | null): string {
+  if (code) {
+    const idx = D_CODES.indexOf(code as any);
+    if (idx >= 0) return D_COLORS[idx];
+  }
+  if (score == null || isNaN(score)) return "#64748b"; // fallback slate
+  if (score < 0.20) return "#22c55e"; // Normal (Green)
+  if (score < 0.35) return "#eab308"; // D0 (Yellow)
+  if (score < 0.50) return "#f59e0b"; // D1 (Amber)
+  if (score < 0.65) return "#ea580c"; // D2 (Orange)
+  if (score < 0.80) return "#dc2626"; // D3 (Red)
+  return "#7f1d1d"; // D4 (Dark Red)
+}
+
+function getNDVIColor(val?: number | null): string {
+  if (val == null || isNaN(val)) return "#475569";
+  if (val < 0.15) return "#854d0e";
+  if (val < 0.25) return "#ca8a04";
+  if (val < 0.35) return "#a3e635";
+  if (val < 0.45) return "#4ade80";
+  return "#15803d";
+}
+
+function getVCIColor(val?: number | null): string {
+  if (val == null || isNaN(val)) return "#475569";
+  if (val < 10) return "#7f1d1d";
+  if (val < 20) return "#dc2626";
+  if (val < 35) return "#ea580c";
+  if (val < 50) return "#eab308";
+  return "#22c55e";
+}
+
+function getSPIColor(val?: number | null): string {
+  if (val == null || isNaN(val)) return "#94a3b8";
+  if (val <= -2.0) return "#7f1d1d"; // Extremely Dry
+  if (val <= -1.5) return "#dc2626"; // Severely Dry
+  if (val <= -1.0) return "#ea580c"; // Moderately Dry
+  if (val <= -0.5) return "#eab308"; // Abnormally Dry
+  if (val < 1.0) return "#cbd5e1";   // Near Normal
+  if (val < 2.0) return "#38bdf8";   // Moderately Wet
+  return "#1d4ed8";                  // Extremely Wet
+}
+
+function getMetricColor(p: any, metric: MetricName): string {
+  switch (metric) {
+    case "cdi":
+    case "cdi_class":
+      return getCDIColor(p.CDI_class || p.class, p.CDI);
+    case "ndvi":
+      return getNDVIColor(p.NDVI);
+    case "evi":
+      return getNDVIColor(p.EVI);
+    case "vci":
+      return getVCIColor(p.VCI);
+    case "vhi":
+      return getVCIColor(p.VHI);
+    case "spi1":
+      return getSPIColor(p.SPI1 ?? p.spi1);
+    case "spi3":
+      return getSPIColor(p.SPI3 ?? p.spi3);
+    case "spi6":
+      return getSPIColor(p.SPI6 ?? p.spi6);
+    case "spi12":
+      return getSPIColor(p.SPI12 ?? p.spi12);
+    case "rain":
+      return p.Rain_mm && p.Rain_mm > 50 ? "#0284c7" : p.Rain_mm && p.Rain_mm > 20 ? "#38bdf8" : "#f59e0b";
+    default:
+      return getCDIColor(p.CDI_class, p.CDI);
+  }
+}
+
+function MapAutoZoomer({
+  geojson,
+  tehsil,
+  selectedVillageName,
+}: {
+  geojson: FeatureCollection | null;
+  tehsil: string;
+  selectedVillageName?: string;
+}) {
   const map = useMap();
   useEffect(() => {
     if (!geojson?.features?.length) return;
-    const L = require("leaflet");
-    const layer = L.geoJSON(geojson);
-    map.fitBounds(layer.getBounds(), { padding: [20, 20] });
-  }, [geojson, map]);
+    if (selectedVillageName) {
+      const match = geojson.features.find((f) => {
+        const v = f.properties?.village || f.properties?.VILLAGE || f.properties?.name || "";
+        return v.toLowerCase() === selectedVillageName.toLowerCase();
+      });
+      if (match) {
+        const layer = L.geoJSON(match as any);
+        map.fitBounds(layer.getBounds(), { padding: [60, 60], maxZoom: 13 });
+        return;
+      }
+    }
+    if (tehsil && tehsil !== "All") {
+      const filtered = geojson.features.filter((f) => {
+        const t = f.properties?.tehsil || f.properties?.TEHSIL || "";
+        return t.toLowerCase() === tehsil.toLowerCase();
+      });
+      if (filtered.length) {
+        const layer = L.geoJSON({ type: "FeatureCollection", features: filtered } as any);
+        map.fitBounds(layer.getBounds(), { padding: [30, 30], maxZoom: 12 });
+        return;
+      }
+    }
+    map.setView(LATUR_CENTER, DEFAULT_ZOOM);
+  }, [geojson, tehsil, selectedVillageName, map]);
   return null;
-}
-
-function HoverPipe() {
-  const map = useMap();
-  useEffect(() => {
-    const onMove = (e: LeafletMouseEvent) => {
-      window.dispatchEvent(new CustomEvent("latur:latlon", {
-        detail: { lat: e.latlng.lat, lon: e.latlng.lng },
-      }));
-    };
-    map.on("mousemove", onMove);
-    return () => { map.off("mousemove", onMove); };
-  }, [map]);
-  return null;
-}
-
-/** Number formatter with null-safe fallback. */
-function nf(v: number | null | undefined, digits = 2): string {
-  if (v == null || Number.isNaN(v)) return "—";
-  return Number(v).toFixed(digits);
-}
-
-function classColor(code: string | null | undefined): string {
-  if (!code) return "#e5e7eb";
-  const idx = D_CODES.indexOf(code as any);
-  return idx >= 0 ? D_COLORS[idx] : "#e5e7eb";
-}
-
-function buildPopupHtml(f: Feature, effective: { y: number; m: number }): string {
-  const p = f.properties || {};
-  const period = `${effective.y}-${String(effective.m).padStart(2, "0")}`;
-  const cdi = p.CDI ?? p.composite_drought_score ?? p.value;
-  const cdiClass = p.CDI_class ?? p.composite_drought_class ?? "";
-  const droughtMonth = p.drought_month ?? false;
-  const severity = p.drought_severity ?? "";
-
-  return `
-    <div class="text-xs font-sans leading-relaxed">
-      <div class="font-bold text-slate-900 dark:text-slate-100 mb-1">
-        ${p.village || p.name || "Village"} · ${p.tehsil || ""}
-      </div>
-      <div class="text-[10px] text-slate-500 mb-2">${period}</div>
-      <div class="flex gap-2 mb-2">
-        <span class="rounded px-2 py-0.5 text-[10px] font-bold"
-              style="background:${classColor(cdiClass)};color:#fff">
-          ${cdiClass || "—"}
-        </span>
-        ${droughtMonth ? '<span class="rounded px-2 py-0.5 text-[10px] font-bold text-white bg-red-600">DROUGHT MONTH</span>' : ''}
-      </div>
-      <div class="grid grid-cols-2 gap-1 text-[10px]">
-        <div><span class="text-slate-500">CDI:</span> <span class="font-mono">${nf(cdi, 3)}</span></div>
-        <div><span class="text-slate-500">NDVI:</span> <span class="font-mono">${nf(p.NDVI, 3)}</span></div>
-        <div><span class="text-slate-500">EVI:</span> <span class="font-mono">${nf(p.EVI, 3)}</span></div>
-        <div><span class="text-slate-500">VCI:</span> <span class="font-mono">${nf(p.VCI, 3)}</span></div>
-        <div><span class="text-slate-500">VHI:</span> <span class="font-mono">${nf(p.VHI, 3)}</span></div>
-        <div><span class="text-slate-500">PCI:</span> <span class="font-mono">${nf(p.PCI, 3)}</span></div>
-        <div><span class="text-slate-500">SPI-3:</span> <span class="font-mono">${nf(p.SPI3, 3)}</span></div>
-        <div><span class="text-slate-500">Rain:</span> <span class="font-mono">${nf(p.Rain_mm, 2)} mm</span></div>
-      </div>
-      ${severity ? `<div class="mt-1 text-[10px] text-slate-500">Severity: ${severity}</div>` : ""}
-    </div>
-  `;
 }
 
 export default function LaturMap({
-  index, year, month, tehsil = "All", village = "", latest = false,
+  metric = "cdi",
+  tehsil = "All",
+  selectedVillageName = "",
+  currentPeriod = "2026-10",
+  onSelectVillage,
+  geeTileUrl,
+  showGeeLayer = false,
 }: Props) {
   const rootRef = useRef<HTMLDivElement>(null);
-  const [basemapId, setBasemapId] = useState<string>("carto-light");
-  const [pixels, setPixels] = useState<FeatureCollection | null>(null);
-  const [effective, setEffective] = useState<{ y: number; m: number }>({ y: year, m: month });
-  const [err, setErr] = useState<string | null>(null);
-  const [isFull, setFull] = useState(false);
-  const [selectedVillage, setSelectedVillage] = useState<Feature | null>(null);
+  const [basemapId, setBasemapId] = useState<string>("google-terrain");
+  const [villagesData, setVillagesData] = useState<FeatureCollection | null>(null);
+  const [districtData, setDistrictData] = useState<FeatureCollection | null>(null);
+  const [tehsilsData, setTehsilsData] = useState<FeatureCollection | null>(null);
+  const [timeseriesCache, setTimeseriesCache] = useState<Record<string, any[]> | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [hoveredVillage, setHoveredVillage] = useState<string | null>(null);
 
   const basemap = useMemo(
-    () => BASEMAPS.find((b) => b.id === basemapId) ?? BASEMAPS[0],
+    () => BASEMAPS.find((b) => b.id === basemapId) ?? BASEMAPS.find((b) => b.id === "google-terrain") ?? BASEMAPS[0],
     [basemapId]
   );
 
+  // Load vector boundaries and timeseries cache
   useEffect(() => {
-    setErr(null); setPixels(null); setSelectedVillage(null);
-    const resolve = async () => {
-      if (!latest) return { y: year, m: month };
-      try {
-        const s = await getStatus();
-        const pid = s.sentinel2?.latest_period_id ?? s.chirps?.latest_period_id;
-        if (!pid) return { y: year, m: month };
-        const [yy, mm] = pid.split("-");
-        return { y: Number(yy), m: Number(mm) };
-      } catch { return { y: year, m: month }; }
-    };
-    resolve().then((e) => {
-      setEffective(e);
-      return getVillageIndices(index, e.y, e.m);
-    }).then(setPixels).catch((e) => setErr(String(e)));
-  }, [index, year, month, latest]);
+    setLoading(true);
+    Promise.all([
+      fetch("/data/latur_villages_latest.geojson").then((r) => r.json()),
+      fetch("/data/latur_district.geojson").then((r) => r.json()).catch(() => null),
+      fetch("/data/latur_tehsils.geojson").then((r) => r.json()).catch(() => null),
+      fetch("/data/village_timeseries.json").then((r) => r.json()).catch(() => null),
+    ])
+      .then(([vil, dist, teh, ts]) => {
+        setVillagesData(vil);
+        setDistrictData(dist);
+        setTehsilsData(teh);
+        if (ts) setTimeseriesCache(ts);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error("Failed to load map data:", err);
+        setLoading(false);
+      });
+  }, []);
 
-  const styleFor = (f?: Feature): PathOptions => {
-    const v = f?.properties?.value as number | undefined;
-    return { color: "#111", weight: 0.15, fillColor: colorForValue(v, index), fillOpacity: 0.82 };
-  };
+  // Helper to get active properties for currentPeriod
+  const getActiveVillageProps = useCallback(
+    (p: any) => {
+      if (!p) return {};
+      if (!timeseriesCache) return p;
+      const vName = (p.village || p.VILLAGE || p.name || "").trim().toLowerCase();
+      const tName = (p.tehsil || p.TEHSIL || "").trim().toLowerCase();
+      const key = `${tName}::${vName}`;
+      const pts = timeseriesCache[key];
+      if (pts) {
+        const match = pts.find((x: any) => x.p === currentPeriod);
+        if (match) {
+          return {
+            ...p,
+            ...match,
+            period: currentPeriod,
+            date: currentPeriod,
+            CDI: match.cdi,
+            CDI_class: match.cls,
+            class: match.cls,
+            NDVI: match.ndvi,
+            VHI: match.vhi,
+            VCI: match.vci,
+            Rain_mm: match.rain,
+            SPI1: match.spi1,
+            SPI3: match.spi3,
+            SPI6: match.spi6,
+            SPI12: match.spi12,
+          };
+        }
+      }
+      return {
+        ...p,
+        period: currentPeriod,
+        date: currentPeriod,
+      };
+    },
+    [timeseriesCache, currentPeriod]
+  );
 
-  const pointToLayer = (f: Feature, latlng: L.LatLng) => {
-    const p = f.properties || {};
-    const score = p.score as number | undefined;
-    const cdiClass = p.cdi_class || p.CDI_class || p.composite_drought_class || "";
-    const color = classColor(cdiClass);
-    const radius = score != null && score >= 0 ? 4 + score * 6 : 5;
-    return L.circleMarker(latlng, {
-      radius,
-      fillColor: color,
-      color: "#222",
-      weight: 1,
-      fillOpacity: 0.85,
+  // Keep selected village in sync with currentPeriod
+  useEffect(() => {
+    if (!selectedVillageName || !onSelectVillage || !villagesData || !timeseriesCache) return;
+    const match = villagesData.features.find((f) => {
+      const v = f.properties?.village || f.properties?.VILLAGE || f.properties?.name || "";
+      return v.toLowerCase() === selectedVillageName.toLowerCase();
     });
-  };
+    if (match) {
+      const active = getActiveVillageProps(match.properties);
+      onSelectVillage(active as VillageProperties);
+    }
+  }, [currentPeriod, selectedVillageName, villagesData, timeseriesCache, getActiveVillageProps, onSelectVillage]);
 
-  /** Build a rich popup showing ALL indices for the clicked village. */
-  const onEach = (f: Feature, layer: Layer) => {
-    const p = f.properties || {};
-    const period = `${effective.y}-${String(effective.m).padStart(2, "0")}`;
-    const cdi = p.CDI ?? p.composite_drought_score ?? p.value;
-    const cdiClass = p.CDI_class ?? p.composite_drought_class ?? "";
-    const droughtMonth = p.drought_month ?? false;
-    const severity = p.drought_severity ?? "";
+  // Polygon styling
+  const styleVillage = useCallback(
+    (f?: Feature): PathOptions => {
+      const rawProps = f?.properties || {};
+      const p = getActiveVillageProps(rawProps);
+      const vName = p.village || p.VILLAGE || p.name || "";
+      const tName = p.tehsil || p.TEHSIL || "";
+      const isSelected = selectedVillageName && vName.toLowerCase() === selectedVillageName.toLowerCase();
+      const isHovered = hoveredVillage && vName.toLowerCase() === hoveredVillage.toLowerCase();
 
-    const html = `
-      <div class="text-xs font-sans leading-relaxed">
-        <div class="font-bold text-slate-900 dark:text-slate-100 mb-1">
-          ${p.village || p.name || "Village"} · ${p.tehsil || ""}
-        </div>
-        <div class="text-[10px] text-slate-500 mb-2">${period}</div>
-        <div class="flex gap-2 mb-2">
-          <span class="rounded px-2 py-0.5 text-[10px] font-bold"
-                style="background:${classColor(cdiClass)};color:#fff">
-            ${cdiClass || "—"}
-          </span>
-          ${droughtMonth ? '<span class="rounded px-2 py-0.5 text-[10px] font-bold text-white bg-red-600">DROUGHT MONTH</span>' : ''}
-        </div>
-        <div class="grid grid-cols-2 gap-1 text-[10px]">
-          <div><span class="text-slate-500">CDI:</span> <span class="font-mono">${nf(cdi, 3)}</span></div>
-          <div><span class="text-slate-500">NDVI:</span> <span class="font-mono">${nf(p.NDVI, 3)}</span></div>
-          <div><span class="text-slate-500">EVI:</span> <span class="font-mono">${nf(p.EVI, 3)}</span></div>
-          <div><span class="text-slate-500">VCI:</span> <span class="font-mono">${nf(p.VCI, 3)}</span></div>
-          <div><span class="text-slate-500">VHI:</span> <span class="font-mono">${nf(p.VHI, 3)}</span></div>
-          <div><span class="text-slate-500">PCI:</span> <span class="font-mono">${nf(p.PCI, 3)}</span></div>
-          <div><span class="text-slate-500">SPI-3:</span> <span class="font-mono">${nf(p.SPI3, 3)}</span></div>
-          <div><span class="text-slate-500">Rain:</span> <span class="font-mono">${nf(p.Rain_mm, 2)} mm</span></div>
-        </div>
-        <div class="mt-1 text-[10px] text-slate-500">
-          Click to keep this info open
-        </div>
-      </div>
-    `;
-    layer.bindPopup(html);
-    layer.on("click", () => setSelectedVillage(f));
-  };
+      // Check tehsil filter
+      const matchesTehsil = tehsil === "All" || tName.toLowerCase() === tehsil.toLowerCase();
 
-  const toggleFullscreen = () => {
-    setFull((f) => !f);
-  };
+      const fillColor = getMetricColor(p, metric);
+
+      return {
+        fillColor,
+        fillOpacity: isSelected ? 0.95 : isHovered ? 0.9 : matchesTehsil ? 0.75 : 0.15,
+        color: isSelected ? "#f59e0b" : isHovered ? "#ffffff" : matchesTehsil ? "#1e293b" : "#334155",
+        weight: isSelected ? 3 : isHovered ? 2 : 0.6,
+        opacity: matchesTehsil ? 0.8 : 0.2,
+      };
+    },
+    [metric, tehsil, selectedVillageName, hoveredVillage, getActiveVillageProps]
+  );
+
+  const onEachVillage = useCallback(
+    (f: Feature, layer: Layer) => {
+      const rawProps = f.properties || {};
+      const p = getActiveVillageProps(rawProps);
+      const vName = p.village || p.VILLAGE || p.name || "Village";
+      const tName = p.tehsil || p.TEHSIL || "Tehsil";
+      const cdi = p.CDI != null ? Number(p.CDI).toFixed(3) : "—";
+      const cdiClass = p.CDI_class || p.class || "None";
+      const ndvi = p.NDVI != null ? Number(p.NDVI).toFixed(3) : "—";
+      const rain = p.Rain_mm != null ? `${Number(p.Rain_mm).toFixed(1)} mm` : "—";
+
+      // Micro-tooltip styled for light theme. Values are escaped so a
+      // malicious feature property (e.g. uploaded via /upload/aoi) cannot
+      // inject HTML/JS through bindTooltip.
+      const esc = (s: unknown) => {
+        const str = s == null ? "" : String(s);
+        return str
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+      };
+      layer.bindTooltip(
+        `<div class="font-sans text-xs">
+          <div class="font-extrabold text-slate-900 text-sm leading-tight">${esc(vName)}</div>
+          <div class="text-[11px] text-slate-600 font-medium">${esc(tName)} Tehsil · <span class="font-mono font-bold text-amber-700">CDI: ${esc(cdi)} (${esc(cdiClass)})</span></div>
+          <div class="text-[10px] text-slate-500">NDVI: <span class="font-mono font-bold text-emerald-700">${esc(ndvi)}</span> · Rain: <span class="font-mono font-bold text-blue-700">${esc(rain)}</span></div>
+        </div>`,
+        { sticky: true, className: "custom-leaflet-tooltip" }
+      );
+
+      layer.on({
+        mouseover: () => setHoveredVillage(vName),
+        mouseout: () => setHoveredVillage(null),
+        click: () => {
+          if (onSelectVillage) {
+            onSelectVillage(p as VillageProperties);
+          }
+        },
+      });
+    },
+    [onSelectVillage, getActiveVillageProps]
+  );
 
   return (
-    <div ref={rootRef}
-         className={isFull
-           ? "fixed inset-0 z-[1000] bg-white dark:bg-slate-900"
-           : "relative h-full w-full"}>
-      <MapContainer center={LATUR_CENTER} zoom={DEFAULT_ZOOM} minZoom={7}
-                    maxZoom={basemap.maxZoom ?? 18} zoomControl={false}
-                    scrollWheelZoom className="h-full w-full">
-        <TileLayer key={basemap.id} url={basemap.url}
-                   attribution={basemap.attribution}
-                   maxZoom={basemap.maxZoom ?? 19} />
+    <div ref={rootRef} className="relative h-full w-full overflow-hidden bg-slate-100">
+      {loading && (
+        <div className="absolute inset-0 z-[1000] flex items-center justify-center bg-white/80 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-2">
+            <div className="w-8 h-8 border-2 border-amber-600 border-t-transparent rounded-full animate-spin" />
+            <span className="text-xs font-semibold text-slate-700">Rendering 954 Village Polygons...</span>
+          </div>
+        </div>
+      )}
 
-        <LayersControl position="bottomright" collapsed={false}>
-          <LayersControl.Overlay name="District boundary" checked>
-            <GeoJSONToggleWrapper child={<BoundaryLayers showDistrict showTehsils={false} />} />
-          </LayersControl.Overlay>
-          <LayersControl.Overlay name="Tehsil boundary" checked>
-            <GeoJSONToggleWrapper child={<BoundaryLayers showDistrict={false} showTehsils />} />
-          </LayersControl.Overlay>
-          <LayersControl.Overlay name="Villages">
-            <GeoJSONToggleWrapper child={<BoundaryLayers showDistrict={false} showTehsils={false} showVillages />} />
-          </LayersControl.Overlay>
-        </LayersControl>
+      <MapContainer
+        center={LATUR_CENTER}
+        zoom={DEFAULT_ZOOM}
+        minZoom={8}
+        maxZoom={15}
+        zoomControl={false}
+        scrollWheelZoom
+        className="h-full w-full"
+      >
+        <TileLayer
+          key={basemap.id}
+          url={basemap.url}
+          attribution={basemap.attribution}
+          maxZoom={basemap.maxZoom ?? 19}
+        />
 
-        {pixels && (
-          <GeoJSON
-            key={`${index}-${effective.y}-${effective.m}-${tehsil}-${village}`}
-            data={pixels}
-            pointToLayer={pointToLayer}
-            style={styleFor}
-            onEachFeature={onEach}
+        {/* Optional Live GEE Satellite Raster Layer */}
+        {showGeeLayer && geeTileUrl && (
+          <TileLayer
+            key={geeTileUrl}
+            url={geeTileUrl}
+            opacity={0.7}
+            attribution="Google Earth Engine Sentinel-2"
           />
         )}
 
-        {selectedVillage && (
-          <Popup position={[selectedVillage.properties?.lat || 18.4088, selectedVillage.properties?.lon || 76.5604]}>
-            <div className="p-2">
-              <button onClick={() => setSelectedVillage(null)}
-                      className="text-[10px] text-slate-500 hover:text-slate-900 mb-1">✕ Close</button>
-              <div dangerouslySetInnerHTML={{ __html: buildPopupHtml(selectedVillage, effective) }} />
-            </div>
-          </Popup>
+        {/* Village Polygons Choropleth */}
+        {villagesData && (
+          <GeoJSON
+            key={`villages-${metric}-${tehsil}-${currentPeriod}-${selectedVillageName}`}
+            data={villagesData}
+            style={styleVillage}
+            onEachFeature={onEachVillage}
+          />
+        )}
+
+        {/* Tehsil Outer Outlines */}
+        {tehsilsData && (
+          <GeoJSON
+            key="tehsils-overlay"
+            data={tehsilsData}
+            style={() => ({
+              fillColor: "transparent",
+              color: "#b45309",
+              weight: 1.8,
+              dashArray: "4 4",
+              opacity: 0.8,
+            })}
+          />
+        )}
+
+        {/* District Boundary */}
+        {districtData && (
+          <GeoJSON
+            key="district-boundary"
+            data={districtData}
+            style={() => ({
+              fillColor: "transparent",
+              color: "#0f172a",
+              weight: 2.5,
+              opacity: 0.9,
+            })}
+          />
         )}
 
         <ZoomControl position="topright" />
         <ScaleControl position="bottomleft" imperial={false} />
-        <FitToData geojson={pixels} />
-        <HoverPipe />
+        <MapAutoZoomer geojson={villagesData} tehsil={tehsil} selectedVillageName={selectedVillageName} />
       </MapContainer>
 
-      <BasemapSwitcher value={basemapId} onChange={setBasemapId} />
-      <LegendBar />
-
-      <button onClick={toggleFullscreen}
-              aria-label={isFull ? "Exit fullscreen" : "Enter fullscreen"}
-              className="absolute right-3 top-32 z-[400] rounded bg-white/90 px-2 py-1 text-xs
-                         shadow dark:bg-slate-900/90">
-        {isFull ? "Exit" : "⛶"}
-      </button>
-
-      <MapExportButtons index={index} year={effective.y} month={effective.m}
-                        getMapRoot={() => rootRef.current} />
-
-      <div className="absolute bottom-14 left-3 rounded bg-white/90 px-2 py-1 text-xs shadow
-                      dark:bg-slate-900/90">
-        {index.toUpperCase()} · {effective.y}-{String(effective.m).padStart(2, "0")}
-        {latest && <span className="ml-2 text-emerald-700 dark:text-emerald-300">(latest)</span>}
+      {/* Floating Basemap Selector */}
+      <div className="absolute top-4 left-4 z-[900]">
+        <BasemapSwitcher value={basemapId} onChange={setBasemapId} />
       </div>
 
-      {err && (
-        <div className="absolute bottom-14 right-3 rounded bg-red-50 px-2 py-1 text-xs text-red-700 shadow">
-          {err}
+      {/* Floating Bottom Legend — White Theme with Gold Accents */}
+      <div className="absolute bottom-6 left-4 z-[900] bg-white/95 backdrop-blur-md px-3.5 py-2.5 rounded-xl border border-slate-200 shadow-md max-w-md text-slate-800">
+        <div className="text-[11px] font-bold text-slate-700 mb-1 flex items-center justify-between">
+          <span className="uppercase tracking-wider">
+            {metric.startsWith("spi") ? `WMO ${metric.toUpperCase()} Rainfall Anomaly Scale` : metric === "cdi" ? "CDI Severity Scale" : `${metric.toUpperCase()} Scale`}
+          </span>
+          <span className="text-[10px] text-amber-700 font-mono font-bold">Latur Multi-Scale</span>
         </div>
-      )}
+        {metric.startsWith("spi") ? (
+          <div className="flex flex-wrap items-center gap-2 text-[10px] font-semibold text-slate-700">
+            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded" style={{ background: "#7f1d1d" }} /> &le; -2.0 Extr. Dry</span>
+            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded" style={{ background: "#dc2626" }} /> -1.5 Sev. Dry</span>
+            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded" style={{ background: "#ea580c" }} /> -1.0 Mod. Dry</span>
+            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded" style={{ background: "#cbd5e1" }} /> &plusmn;1.0 Normal</span>
+            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded" style={{ background: "#38bdf8" }} /> &ge; 1.0 Wet</span>
+            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded" style={{ background: "#1d4ed8" }} /> &ge; 2.0 Extr. Wet</span>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 text-[10px] font-semibold text-slate-700">
+            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded" style={{ background: "#22c55e" }} /> None</span>
+            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded" style={{ background: "#eab308" }} /> D0</span>
+            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded" style={{ background: "#f59e0b" }} /> D1</span>
+            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded" style={{ background: "#ea580c" }} /> D2</span>
+            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded" style={{ background: "#dc2626" }} /> D3</span>
+            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded" style={{ background: "#7f1d1d" }} /> D4</span>
+          </div>
+        )}
+      </div>
     </div>
   );
-}
-
-function GeoJSONToggleWrapper({ child }: { child: React.ReactNode }) {
-  return <>{child}</>;
 }

@@ -19,21 +19,25 @@ export const BASEMAPS: Basemap[] = [
     maxZoom: 19,
   },
   {
-    id: "carto-light",
-    label: "Carto Light (free)",
-    url: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
-    attribution:
-      '&copy; <a href="https://carto.com/attributions">CARTO</a> &copy; <a href="https://openstreetmap.org/copyright">OSM</a>',
+    id: "google-terrain",
+    label: "Google Terrain",
+    url: "https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}",
+    attribution: "&copy; Google Maps",
     maxZoom: 20,
   },
   {
-    id: "carto-dark",
-    label: "Carto Dark (free)",
-    url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
-    attribution:
-      '&copy; <a href="https://carto.com/attributions">CARTO</a> &copy; <a href="https://openstreetmap.org/copyright">OSM</a>',
+    id: "google-roadmap",
+    label: "Google Roadmap",
+    url: "https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}",
+    attribution: "&copy; Google Maps",
     maxZoom: 20,
-    darkFriendly: true,
+  },
+  {
+    id: "google-hybrid",
+    label: "Google Satellite Hybrid",
+    url: "https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}",
+    attribution: "&copy; Google Maps",
+    maxZoom: 20,
   },
   {
     id: "esri-sat",

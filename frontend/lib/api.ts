@@ -109,6 +109,17 @@ export const getCompare = (index: IndexName, a: string, b: string) =>
     `/compare?index=${index}&a=${a}&b=${b}`
   );
 
+export const getVillageTimeseries = (tehsil: string, village: string) => {
+  const q = new URLSearchParams({ tehsil, village });
+  return fetchJSON<any[]>(`/timeseries?${q.toString()}`);
+};
+
+export const getDistrictTimeseries = () =>
+  fetchJSON<any>("/district-timeseries");
+
+export const getTehsilAnalytics = () =>
+  fetchJSON<any>("/tehsil-analytics");
+
 export const getAnimation = (index: IndexName, from?: string, to?: string) => {
   const q = new URLSearchParams({ index });
   if (from) q.set("from", from);

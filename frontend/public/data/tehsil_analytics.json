@@ -1,0 +1,727 @@
+{
+  "latest_period": "2026-10",
+  "tehsil_ranking": [
+    {
+      "tehsil": "Deoni",
+      "villages": 57,
+      "avg_cdi": 0.663,
+      "avg_ndvi": 0.329,
+      "avg_vci": 18.9,
+      "avg_vhi": 18.9,
+      "avg_spi3": 0.0,
+      "drought_villages": 47,
+      "normal_villages": 10,
+      "d2_plus": 41,
+      "drought_pct": 82.5
+    },
+    {
+      "tehsil": "Udgir",
+      "villages": 98,
+      "avg_cdi": 0.582,
+      "avg_ndvi": 0.365,
+      "avg_vci": 14.6,
+      "avg_vhi": 14.6,
+      "avg_spi3": 0.0,
+      "drought_villages": 88,
+      "normal_villages": 10,
+      "d2_plus": 66,
+      "drought_pct": 89.8
+    },
+    {
+      "tehsil": "Jalkot",
+      "villages": 47,
+      "avg_cdi": 0.482,
+      "avg_ndvi": 0.391,
+      "avg_vci": 9.5,
+      "avg_vhi": 9.5,
+      "avg_spi3": 0.0,
+      "drought_villages": 47,
+      "normal_villages": 0,
+      "d2_plus": 18,
+      "drought_pct": 100.0
+    },
+    {
+      "tehsil": "Ahmadpur",
+      "villages": 125,
+      "avg_cdi": 0.412,
+      "avg_ndvi": 0.365,
+      "avg_vci": 20.3,
+      "avg_vhi": 20.3,
+      "avg_spi3": 0.0,
+      "drought_villages": 109,
+      "normal_villages": 16,
+      "d2_plus": 40,
+      "drought_pct": 87.2
+    },
+    {
+      "tehsil": "Chakur",
+      "villages": 85,
+      "avg_cdi": 0.328,
+      "avg_ndvi": 0.357,
+      "avg_vci": 33.6,
+      "avg_vhi": 33.6,
+      "avg_spi3": 0.0,
+      "drought_villages": 52,
+      "normal_villages": 33,
+      "d2_plus": 26,
+      "drought_pct": 61.2
+    },
+    {
+      "tehsil": "Ausa",
+      "villages": 134,
+      "avg_cdi": 0.195,
+      "avg_ndvi": 0.35,
+      "avg_vci": 42.7,
+      "avg_vhi": 42.7,
+      "avg_spi3": 0.0,
+      "drought_villages": 56,
+      "normal_villages": 78,
+      "d2_plus": 16,
+      "drought_pct": 41.8
+    },
+    {
+      "tehsil": "Nilanga",
+      "villages": 157,
+      "avg_cdi": 0.163,
+      "avg_ndvi": 0.395,
+      "avg_vci": 42.9,
+      "avg_vhi": 42.9,
+      "avg_spi3": 0.0,
+      "drought_villages": 54,
+      "normal_villages": 103,
+      "d2_plus": 14,
+      "drought_pct": 34.4
+    },
+    {
+      "tehsil": "Shirur-Anantpal",
+      "villages": 51,
+      "avg_cdi": 0.155,
+      "avg_ndvi": 0.369,
+      "avg_vci": 43.6,
+      "avg_vhi": 43.6,
+      "avg_spi3": 0.0,
+      "drought_villages": 15,
+      "normal_villages": 36,
+      "d2_plus": 3,
+      "drought_pct": 29.4
+    },
+    {
+      "tehsil": "Latur",
+      "villages": 121,
+      "avg_cdi": 0.06,
+      "avg_ndvi": 0.392,
+      "avg_vci": 58.4,
+      "avg_vhi": 58.4,
+      "avg_spi3": 0.0,
+      "drought_villages": 14,
+      "normal_villages": 107,
+      "d2_plus": 3,
+      "drought_pct": 11.6
+    },
+    {
+      "tehsil": "Renapur",
+      "villages": 79,
+      "avg_cdi": 0.052,
+      "avg_ndvi": 0.362,
+      "avg_vci": 57.3,
+      "avg_vhi": 57.3,
+      "avg_spi3": 0.0,
+      "drought_villages": 8,
+      "normal_villages": 71,
+      "d2_plus": 3,
+      "drought_pct": 10.1
+    }
+  ],
+  "annual_tehsil": [
+    {
+      "year": 2016,
+      "tehsil": "Ahmadpur",
+      "cdi": 0.387
+    },
+    {
+      "year": 2016,
+      "tehsil": "Ausa",
+      "cdi": 0.359
+    },
+    {
+      "year": 2016,
+      "tehsil": "Chakur",
+      "cdi": 0.394
+    },
+    {
+      "year": 2016,
+      "tehsil": "Deoni",
+      "cdi": 0.347
+    },
+    {
+      "year": 2016,
+      "tehsil": "Jalkot",
+      "cdi": 0.34
+    },
+    {
+      "year": 2016,
+      "tehsil": "Latur",
+      "cdi": 0.357
+    },
+    {
+      "year": 2016,
+      "tehsil": "Nilanga",
+      "cdi": 0.355
+    },
+    {
+      "year": 2016,
+      "tehsil": "Renapur",
+      "cdi": 0.307
+    },
+    {
+      "year": 2016,
+      "tehsil": "Shirur-Anantpal",
+      "cdi": 0.348
+    },
+    {
+      "year": 2016,
+      "tehsil": "Udgir",
+      "cdi": 0.37
+    },
+    {
+      "year": 2017,
+      "tehsil": "Ahmadpur",
+      "cdi": 0.207
+    },
+    {
+      "year": 2017,
+      "tehsil": "Ausa",
+      "cdi": 0.2
+    },
+    {
+      "year": 2017,
+      "tehsil": "Chakur",
+      "cdi": 0.204
+    },
+    {
+      "year": 2017,
+      "tehsil": "Deoni",
+      "cdi": 0.168
+    },
+    {
+      "year": 2017,
+      "tehsil": "Jalkot",
+      "cdi": 0.204
+    },
+    {
+      "year": 2017,
+      "tehsil": "Latur",
+      "cdi": 0.172
+    },
+    {
+      "year": 2017,
+      "tehsil": "Nilanga",
+      "cdi": 0.206
+    },
+    {
+      "year": 2017,
+      "tehsil": "Renapur",
+      "cdi": 0.166
+    },
+    {
+      "year": 2017,
+      "tehsil": "Shirur-Anantpal",
+      "cdi": 0.172
+    },
+    {
+      "year": 2017,
+      "tehsil": "Udgir",
+      "cdi": 0.209
+    },
+    {
+      "year": 2018,
+      "tehsil": "Ahmadpur",
+      "cdi": 0.25
+    },
+    {
+      "year": 2018,
+      "tehsil": "Ausa",
+      "cdi": 0.196
+    },
+    {
+      "year": 2018,
+      "tehsil": "Chakur",
+      "cdi": 0.213
+    },
+    {
+      "year": 2018,
+      "tehsil": "Deoni",
+      "cdi": 0.206
+    },
+    {
+      "year": 2018,
+      "tehsil": "Jalkot",
+      "cdi": 0.292
+    },
+    {
+      "year": 2018,
+      "tehsil": "Latur",
+      "cdi": 0.167
+    },
+    {
+      "year": 2018,
+      "tehsil": "Nilanga",
+      "cdi": 0.184
+    },
+    {
+      "year": 2018,
+      "tehsil": "Renapur",
+      "cdi": 0.158
+    },
+    {
+      "year": 2018,
+      "tehsil": "Shirur-Anantpal",
+      "cdi": 0.21
+    },
+    {
+      "year": 2018,
+      "tehsil": "Udgir",
+      "cdi": 0.222
+    },
+    {
+      "year": 2019,
+      "tehsil": "Ahmadpur",
+      "cdi": 0.228
+    },
+    {
+      "year": 2019,
+      "tehsil": "Ausa",
+      "cdi": 0.194
+    },
+    {
+      "year": 2019,
+      "tehsil": "Chakur",
+      "cdi": 0.204
+    },
+    {
+      "year": 2019,
+      "tehsil": "Deoni",
+      "cdi": 0.205
+    },
+    {
+      "year": 2019,
+      "tehsil": "Jalkot",
+      "cdi": 0.234
+    },
+    {
+      "year": 2019,
+      "tehsil": "Latur",
+      "cdi": 0.268
+    },
+    {
+      "year": 2019,
+      "tehsil": "Nilanga",
+      "cdi": 0.178
+    },
+    {
+      "year": 2019,
+      "tehsil": "Renapur",
+      "cdi": 0.229
+    },
+    {
+      "year": 2019,
+      "tehsil": "Shirur-Anantpal",
+      "cdi": 0.172
+    },
+    {
+      "year": 2019,
+      "tehsil": "Udgir",
+      "cdi": 0.228
+    },
+    {
+      "year": 2020,
+      "tehsil": "Ahmadpur",
+      "cdi": 0.045
+    },
+    {
+      "year": 2020,
+      "tehsil": "Ausa",
+      "cdi": 0.077
+    },
+    {
+      "year": 2020,
+      "tehsil": "Chakur",
+      "cdi": 0.053
+    },
+    {
+      "year": 2020,
+      "tehsil": "Deoni",
+      "cdi": 0.083
+    },
+    {
+      "year": 2020,
+      "tehsil": "Jalkot",
+      "cdi": 0.031
+    },
+    {
+      "year": 2020,
+      "tehsil": "Latur",
+      "cdi": 0.094
+    },
+    {
+      "year": 2020,
+      "tehsil": "Nilanga",
+      "cdi": 0.087
+    },
+    {
+      "year": 2020,
+      "tehsil": "Renapur",
+      "cdi": 0.09
+    },
+    {
+      "year": 2020,
+      "tehsil": "Shirur-Anantpal",
+      "cdi": 0.101
+    },
+    {
+      "year": 2020,
+      "tehsil": "Udgir",
+      "cdi": 0.042
+    },
+    {
+      "year": 2021,
+      "tehsil": "Ahmadpur",
+      "cdi": 0.07
+    },
+    {
+      "year": 2021,
+      "tehsil": "Ausa",
+      "cdi": 0.046
+    },
+    {
+      "year": 2021,
+      "tehsil": "Chakur",
+      "cdi": 0.077
+    },
+    {
+      "year": 2021,
+      "tehsil": "Deoni",
+      "cdi": 0.053
+    },
+    {
+      "year": 2021,
+      "tehsil": "Jalkot",
+      "cdi": 0.087
+    },
+    {
+      "year": 2021,
+      "tehsil": "Latur",
+      "cdi": 0.038
+    },
+    {
+      "year": 2021,
+      "tehsil": "Nilanga",
+      "cdi": 0.058
+    },
+    {
+      "year": 2021,
+      "tehsil": "Renapur",
+      "cdi": 0.065
+    },
+    {
+      "year": 2021,
+      "tehsil": "Shirur-Anantpal",
+      "cdi": 0.053
+    },
+    {
+      "year": 2021,
+      "tehsil": "Udgir",
+      "cdi": 0.069
+    },
+    {
+      "year": 2022,
+      "tehsil": "Ahmadpur",
+      "cdi": 0.096
+    },
+    {
+      "year": 2022,
+      "tehsil": "Ausa",
+      "cdi": 0.07
+    },
+    {
+      "year": 2022,
+      "tehsil": "Chakur",
+      "cdi": 0.088
+    },
+    {
+      "year": 2022,
+      "tehsil": "Deoni",
+      "cdi": 0.107
+    },
+    {
+      "year": 2022,
+      "tehsil": "Jalkot",
+      "cdi": 0.1
+    },
+    {
+      "year": 2022,
+      "tehsil": "Latur",
+      "cdi": 0.063
+    },
+    {
+      "year": 2022,
+      "tehsil": "Nilanga",
+      "cdi": 0.083
+    },
+    {
+      "year": 2022,
+      "tehsil": "Renapur",
+      "cdi": 0.074
+    },
+    {
+      "year": 2022,
+      "tehsil": "Shirur-Anantpal",
+      "cdi": 0.088
+    },
+    {
+      "year": 2022,
+      "tehsil": "Udgir",
+      "cdi": 0.114
+    },
+    {
+      "year": 2023,
+      "tehsil": "Ahmadpur",
+      "cdi": 0.125
+    },
+    {
+      "year": 2023,
+      "tehsil": "Ausa",
+      "cdi": 0.112
+    },
+    {
+      "year": 2023,
+      "tehsil": "Chakur",
+      "cdi": 0.102
+    },
+    {
+      "year": 2023,
+      "tehsil": "Deoni",
+      "cdi": 0.125
+    },
+    {
+      "year": 2023,
+      "tehsil": "Jalkot",
+      "cdi": 0.141
+    },
+    {
+      "year": 2023,
+      "tehsil": "Latur",
+      "cdi": 0.077
+    },
+    {
+      "year": 2023,
+      "tehsil": "Nilanga",
+      "cdi": 0.136
+    },
+    {
+      "year": 2023,
+      "tehsil": "Renapur",
+      "cdi": 0.096
+    },
+    {
+      "year": 2023,
+      "tehsil": "Shirur-Anantpal",
+      "cdi": 0.11
+    },
+    {
+      "year": 2023,
+      "tehsil": "Udgir",
+      "cdi": 0.119
+    },
+    {
+      "year": 2025,
+      "tehsil": "Ahmadpur",
+      "cdi": 0.058
+    },
+    {
+      "year": 2025,
+      "tehsil": "Ausa",
+      "cdi": 0.056
+    },
+    {
+      "year": 2025,
+      "tehsil": "Chakur",
+      "cdi": 0.063
+    },
+    {
+      "year": 2025,
+      "tehsil": "Deoni",
+      "cdi": 0.057
+    },
+    {
+      "year": 2025,
+      "tehsil": "Jalkot",
+      "cdi": 0.067
+    },
+    {
+      "year": 2025,
+      "tehsil": "Latur",
+      "cdi": 0.068
+    },
+    {
+      "year": 2025,
+      "tehsil": "Nilanga",
+      "cdi": 0.057
+    },
+    {
+      "year": 2025,
+      "tehsil": "Renapur",
+      "cdi": 0.061
+    },
+    {
+      "year": 2025,
+      "tehsil": "Shirur-Anantpal",
+      "cdi": 0.065
+    },
+    {
+      "year": 2025,
+      "tehsil": "Udgir",
+      "cdi": 0.067
+    },
+    {
+      "year": 2026,
+      "tehsil": "Ahmadpur",
+      "cdi": 0.137
+    },
+    {
+      "year": 2026,
+      "tehsil": "Ausa",
+      "cdi": 0.1
+    },
+    {
+      "year": 2026,
+      "tehsil": "Chakur",
+      "cdi": 0.127
+    },
+    {
+      "year": 2026,
+      "tehsil": "Deoni",
+      "cdi": 0.209
+    },
+    {
+      "year": 2026,
+      "tehsil": "Jalkot",
+      "cdi": 0.181
+    },
+    {
+      "year": 2026,
+      "tehsil": "Latur",
+      "cdi": 0.076
+    },
+    {
+      "year": 2026,
+      "tehsil": "Nilanga",
+      "cdi": 0.101
+    },
+    {
+      "year": 2026,
+      "tehsil": "Renapur",
+      "cdi": 0.073
+    },
+    {
+      "year": 2026,
+      "tehsil": "Shirur-Anantpal",
+      "cdi": 0.103
+    },
+    {
+      "year": 2026,
+      "tehsil": "Udgir",
+      "cdi": 0.193
+    }
+  ],
+  "correlation_matrix": [
+    {
+      "index": "Rainfall",
+      "Rainfall": 1.0,
+      "SPI-1": 0.314,
+      "SPI-3": 0.159,
+      "SPI-6": 0.118,
+      "NDVI": 0.407,
+      "VCI": 0.081,
+      "VHI": 0.081,
+      "CDI": -0.136
+    },
+    {
+      "index": "SPI-1",
+      "Rainfall": 0.314,
+      "SPI-1": 1.0,
+      "SPI-3": 0.57,
+      "SPI-6": 0.461,
+      "NDVI": 0.149,
+      "VCI": 0.174,
+      "VHI": 0.174,
+      "CDI": -0.286
+    },
+    {
+      "index": "SPI-3",
+      "Rainfall": 0.159,
+      "SPI-1": 0.57,
+      "SPI-3": 1.0,
+      "SPI-6": 0.7,
+      "NDVI": 0.253,
+      "VCI": 0.322,
+      "VHI": 0.322,
+      "CDI": -0.529
+    },
+    {
+      "index": "SPI-6",
+      "Rainfall": 0.118,
+      "SPI-1": 0.461,
+      "SPI-3": 0.7,
+      "SPI-6": 1.0,
+      "NDVI": 0.269,
+      "VCI": 0.439,
+      "VHI": 0.439,
+      "CDI": -0.465
+    },
+    {
+      "index": "NDVI",
+      "Rainfall": 0.407,
+      "SPI-1": 0.149,
+      "SPI-3": 0.253,
+      "SPI-6": 0.269,
+      "NDVI": 1.0,
+      "VCI": 0.436,
+      "VHI": 0.436,
+      "CDI": -0.359
+    },
+    {
+      "index": "VCI",
+      "Rainfall": 0.081,
+      "SPI-1": 0.174,
+      "SPI-3": 0.322,
+      "SPI-6": 0.439,
+      "NDVI": 0.436,
+      "VCI": 1.0,
+      "VHI": 1.0,
+      "CDI": -0.727
+    },
+    {
+      "index": "VHI",
+      "Rainfall": 0.081,
+      "SPI-1": 0.174,
+      "SPI-3": 0.322,
+      "SPI-6": 0.439,
+      "NDVI": 0.436,
+      "VCI": 1.0,
+      "VHI": 1.0,
+      "CDI": -0.727
+    },
+    {
+      "index": "CDI",
+      "Rainfall": -0.136,
+      "SPI-1": -0.286,
+      "SPI-3": -0.529,
+      "SPI-6": -0.465,
+      "NDVI": -0.359,
+      "VCI": -0.727,
+      "VHI": -0.727,
+      "CDI": 1.0
+    }
+  ]
+}
