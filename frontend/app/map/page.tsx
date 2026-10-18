@@ -57,8 +57,8 @@ export default function FullscreenMapPage() {
   );
 
   useEffect(() => {
-    // Load periods from district monthly data
-    fetch("/data/district_monthly.json")
+    // Load periods from district timeseries via API (fresh data on every load)
+    fetch("/api/v1/district-timeseries")
       .then((r) => r.json())
       .then((d) => {
         const pList = (d.series || []).map((s: any) => s.date).filter(Boolean);

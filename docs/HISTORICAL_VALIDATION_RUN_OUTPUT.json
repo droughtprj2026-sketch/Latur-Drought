@@ -1,0 +1,479 @@
+{
+  "system": "Latur Real-Time Drought Monitoring Platform",
+  "study_horizon": "2016\u20132026",
+  "total_master_records": 94570,
+  "benchmarks": [
+    {
+      "event": "2016 Jaldoot Water Train Crisis",
+      "period": "2016-04",
+      "expected_state": "Extreme / Severe Crisis",
+      "criteria": "Lower Terna & Manjara dam dryout; 50-wagon train dispatches (540M liters); decadal low canopy greenness",
+      "avg_spi1": -0.661,
+      "avg_spi3": -0.516,
+      "avg_ndvi": 0.05,
+      "avg_rainfall_mm": 17.2,
+      "avg_cdi": 0.353,
+      "total_villages": 954,
+      "villages_in_drought": 950,
+      "pct_in_drought": 99.6
+    },
+    {
+      "event": "2016 Peak Pre-Monsoon Heat Stress",
+      "period": "2016-05",
+      "expected_state": "Severe Agricultural Drought",
+      "criteria": "Widespread crop desiccation across all 10 tehsils prior to delayed monsoon arrival",
+      "avg_spi1": -0.047,
+      "avg_spi3": -0.37,
+      "avg_ndvi": 0.036,
+      "avg_rainfall_mm": 31.5,
+      "avg_cdi": 0.343,
+      "total_villages": 954,
+      "villages_in_drought": 936,
+      "pct_in_drought": 98.1
+    },
+    {
+      "event": "2018 Maharashtra SDMA Declared Drought",
+      "period": "2018-05",
+      "expected_state": "Emerging & Severe Drought",
+      "criteria": "Formally declared under GR No. SCQ-2018/CR-334/M-3 across 8 Latur tehsils",
+      "avg_spi1": -0.417,
+      "avg_spi3": -0.613,
+      "avg_ndvi": 0.12,
+      "avg_rainfall_mm": 24.4,
+      "avg_cdi": 0.204,
+      "total_villages": 954,
+      "villages_in_drought": 109,
+      "pct_in_drought": 11.4
+    },
+    {
+      "event": "2020 Bumper Monsoon Recovery",
+      "period": "2020-09",
+      "expected_state": "Normal / Bumper Greenness",
+      "criteria": "Decadal peak precipitation (>300mm), reservoir replenishment, high NDVI canopy",
+      "avg_spi1": 0.827,
+      "avg_spi3": 0.032,
+      "avg_ndvi": 0.506,
+      "avg_rainfall_mm": 308.4,
+      "avg_cdi": 0.034,
+      "total_villages": 954,
+      "villages_in_drought": 1,
+      "pct_in_drought": 0.1
+    },
+    {
+      "event": "2023 August Dry Break (El Ni\u00f1o)",
+      "period": "2023-08",
+      "expected_state": "Mid-Season Agricultural Break",
+      "criteria": "28-day rain break during soybean pod-filling; rainfall plummeted to ~45mm against 130mm normal",
+      "avg_spi1": -1.84,
+      "avg_spi3": 0.076,
+      "avg_ndvi": 0.366,
+      "avg_rainfall_mm": 45.8,
+      "avg_cdi": 0.189,
+      "total_villages": 954,
+      "villages_in_drought": 67,
+      "pct_in_drought": 7.0
+    },
+    {
+      "event": "2026 Late Kharif Deficit",
+      "period": "2026-08",
+      "expected_state": "Rainfall Anomaly Deficit",
+      "criteria": "August rain below normal causing agricultural anomaly drop",
+      "avg_spi1": -1.218,
+      "avg_spi3": -2.062,
+      "avg_ndvi": 0.462,
+      "avg_rainfall_mm": 76.0,
+      "avg_cdi": 0.317,
+      "total_villages": 954,
+      "villages_in_drought": 951,
+      "pct_in_drought": 99.7
+    }
+  ],
+  "tehsil_coverage": {
+    "Ahmadpur": {
+      "record_count": 12348,
+      "village_count": 124,
+      "periods_covered": 98,
+      "sample_verified": [
+        {
+          "village": "Ahmadpur (M Cl)",
+          "present": true,
+          "rows": 98
+        },
+        {
+          "village": "Kingaon",
+          "present": true,
+          "rows": 98
+        },
+        {
+          "village": "Hadolti",
+          "present": true,
+          "rows": 98
+        }
+      ]
+    },
+    "Ausa": {
+      "record_count": 13230,
+      "village_count": 134,
+      "periods_covered": 98,
+      "sample_verified": [
+        {
+          "village": "Ausa (M Cl)",
+          "present": false,
+          "rows": 0
+        },
+        {
+          "village": "Killari",
+          "present": true,
+          "rows": 98
+        },
+        {
+          "village": "Alala",
+          "present": false,
+          "rows": 0
+        },
+        {
+          "village": "Lodga",
+          "present": true,
+          "rows": 98
+        }
+      ]
+    },
+    "Chakur": {
+      "record_count": 8428,
+      "village_count": 84,
+      "periods_covered": 98,
+      "sample_verified": [
+        {
+          "village": "Chakur",
+          "present": true,
+          "rows": 98
+        },
+        {
+          "village": "Nandgaon",
+          "present": true,
+          "rows": 98
+        },
+        {
+          "village": "Chapoli",
+          "present": true,
+          "rows": 98
+        }
+      ]
+    },
+    "Deoni": {
+      "record_count": 5684,
+      "village_count": 57,
+      "periods_covered": 98,
+      "sample_verified": [
+        {
+          "village": "Deoni",
+          "present": false,
+          "rows": 0
+        },
+        {
+          "village": "Walandi",
+          "present": true,
+          "rows": 98
+        },
+        {
+          "village": "Bopala",
+          "present": false,
+          "rows": 0
+        }
+      ]
+    },
+    "Jalkot": {
+      "record_count": 4704,
+      "village_count": 47,
+      "periods_covered": 98,
+      "sample_verified": [
+        {
+          "village": "Jalkot",
+          "present": true,
+          "rows": 98
+        },
+        {
+          "village": "Dhamangaon",
+          "present": true,
+          "rows": 98
+        },
+        {
+          "village": "Atnoor",
+          "present": true,
+          "rows": 98
+        }
+      ]
+    },
+    "Latur": {
+      "record_count": 11956,
+      "village_count": 121,
+      "periods_covered": 98,
+      "sample_verified": [
+        {
+          "village": "Latur (M Cl)",
+          "present": false,
+          "rows": 0
+        },
+        {
+          "village": "Murud",
+          "present": false,
+          "rows": 0
+        },
+        {
+          "village": "Babhalgaon",
+          "present": true,
+          "rows": 98
+        },
+        {
+          "village": "Harangul Bk.",
+          "present": true,
+          "rows": 98
+        }
+      ]
+    },
+    "Nilanga": {
+      "record_count": 15484,
+      "village_count": 156,
+      "periods_covered": 98,
+      "sample_verified": [
+        {
+          "village": "Nilanga (M Cl)",
+          "present": false,
+          "rows": 0
+        },
+        {
+          "village": "Kasar Sirsi",
+          "present": false,
+          "rows": 0
+        },
+        {
+          "village": "Aurad Shahajani",
+          "present": false,
+          "rows": 0
+        }
+      ]
+    },
+    "Renapur": {
+      "record_count": 7840,
+      "village_count": 79,
+      "periods_covered": 98,
+      "sample_verified": [
+        {
+          "village": "Renapur",
+          "present": true,
+          "rows": 98
+        },
+        {
+          "village": "Pangaon",
+          "present": true,
+          "rows": 98
+        },
+        {
+          "village": "Pohaner",
+          "present": false,
+          "rows": 0
+        }
+      ]
+    },
+    "Shirur-Anantpal": {
+      "record_count": 5096,
+      "village_count": 51,
+      "periods_covered": 98,
+      "sample_verified": [
+        {
+          "village": "Shirur-Anantpal",
+          "present": false,
+          "rows": 0
+        },
+        {
+          "village": "Sakol",
+          "present": true,
+          "rows": 98
+        },
+        {
+          "village": "Talegaon",
+          "present": false,
+          "rows": 0
+        }
+      ]
+    },
+    "Udgir": {
+      "record_count": 9702,
+      "village_count": 98,
+      "periods_covered": 98,
+      "sample_verified": [
+        {
+          "village": "Udgir (M Cl)",
+          "present": false,
+          "rows": 0
+        },
+        {
+          "village": "Nalgir",
+          "present": true,
+          "rows": 98
+        },
+        {
+          "village": "Her",
+          "present": true,
+          "rows": 98
+        },
+        {
+          "village": "Devarjan",
+          "present": false,
+          "rows": 0
+        }
+      ]
+    }
+  },
+  "accuracy_metrics": {
+    "total_eval_samples": 93492,
+    "true_positives": 8451,
+    "false_positives": 4463,
+    "false_negatives": 9338,
+    "true_negatives": 71240,
+    "hit_rate_pct": 47.51,
+    "specificity_pct": 94.1,
+    "false_alarm_ratio_pct": 34.56,
+    "critical_success_index": 0.3798,
+    "overall_accuracy_pct": 85.24
+  },
+  "physical_correlations": [
+    {
+      "pair": "spi_1 vs monthly_rainfall_mm",
+      "description": "Immediate precipitation vs 1-Month SPI",
+      "pearson_r": 0.3142,
+      "p_value": 0.0,
+      "significant_at_001": true,
+      "sample_size": 92064
+    },
+    {
+      "pair": "spi_3 vs ndvi",
+      "description": "Agricultural 3-Month SPI vs Canopy NDVI (Lagged)",
+      "pearson_r": 0.2523,
+      "p_value": 0.0,
+      "significant_at_001": true,
+      "sample_size": 74380
+    },
+    {
+      "pair": "vci vs ndvi",
+      "description": "Vegetation Condition Index vs NDVI",
+      "pearson_r": 0.4356,
+      "p_value": 0.0,
+      "significant_at_001": true,
+      "sample_size": 76346
+    },
+    {
+      "pair": "composite_drought_score vs spi_3",
+      "description": "Combined Drought Index vs Agricultural SPI-3",
+      "pearson_r": -0.6276,
+      "p_value": 0.0,
+      "significant_at_001": true,
+      "sample_size": 91390
+    },
+    {
+      "pair": "composite_drought_score vs vci",
+      "description": "Combined Drought Index vs Vegetation Condition Index",
+      "pearson_r": -0.7267,
+      "p_value": 0.0,
+      "significant_at_001": true,
+      "sample_size": 76346
+    }
+  ],
+  "cloud_masking_audit": [
+    {
+      "period": "2016-02",
+      "status": "SKIPPED_PERIOD",
+      "passed": true
+    },
+    {
+      "period": "2016-06",
+      "status": "SKIPPED_PERIOD",
+      "passed": true
+    },
+    {
+      "period": "2016-07",
+      "status": "SKIPPED_PERIOD",
+      "passed": true
+    },
+    {
+      "period": "2016-09",
+      "status": "SKIPPED_PERIOD",
+      "passed": true
+    },
+    {
+      "period": "2017-06",
+      "status": "SKIPPED_PERIOD",
+      "passed": true
+    },
+    {
+      "period": "2018-03",
+      "status": "SKIPPED_PERIOD",
+      "passed": true
+    },
+    {
+      "period": "2018-06",
+      "status": "SKIPPED_PERIOD",
+      "passed": true
+    },
+    {
+      "period": "2018-07",
+      "status": "SKIPPED_PERIOD",
+      "passed": true
+    },
+    {
+      "period": "2018-08",
+      "status": "SKIPPED_PERIOD",
+      "passed": true
+    },
+    {
+      "period": "2018-09",
+      "status": "SKIPPED_PERIOD",
+      "passed": true
+    },
+    {
+      "period": "2018-10",
+      "status": "SKIPPED_PERIOD",
+      "passed": true
+    },
+    {
+      "period": "2018-11",
+      "status": "SKIPPED_PERIOD",
+      "passed": true
+    },
+    {
+      "period": "2018-12",
+      "status": "SKIPPED_PERIOD",
+      "passed": true
+    },
+    {
+      "period": "2021-08",
+      "status": "PARTIAL_SEASONAL_PRESENT",
+      "passed": true
+    },
+    {
+      "period": "2024-06",
+      "status": "SKIPPED_PERIOD",
+      "passed": true
+    },
+    {
+      "period": "2024-07",
+      "status": "SKIPPED_PERIOD",
+      "passed": true
+    },
+    {
+      "period": "2024-08",
+      "status": "SKIPPED_PERIOD",
+      "passed": true
+    },
+    {
+      "period": "2026-07",
+      "status": "PARTIAL_SEASONAL_PRESENT",
+      "passed": true
+    },
+    {
+      "period": "2026-08",
+      "status": "PARTIAL_SEASONAL_PRESENT",
+      "passed": true
+    }
+  ]
+}

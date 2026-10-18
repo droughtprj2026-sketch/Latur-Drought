@@ -90,6 +90,15 @@ Cloud and shadow contamination is masked using the 10 m Scene Classification Lay
 
 Because the platform is deployed on **Vercel**, traditional heavy spatial servers (such as GeoServer or standalone GIS daemons) are not needed:
 1. **Cadastral Vector Polygons**: Verified Survey of India village polygons are stored as optimized GeoJSON in `public/data/latur_villages_latest.geojson`.
-2. **Dynamic In-Browser Styling**: Leaflet applies WMO SPI and CDI color scales client-side in sub-milliseconds based on the active timeline scrubber period.
-3. **GEE Live Tiles**: When full-resolution raster layers are requested, GEE returns a signed tile URL template (`https://earthengine.googleapis.com/v1/{mapid}/tiles/{z}/{x}/{y}`) which Leaflet mounts directly as a raster `TileLayer`.
-4. **Edge API Route**: Next.js App Router route handler at `app/api/v1/[...slug]/route.ts` handles all `/api/v1` calls serverlessly on Vercel with zero cold-start delay.
+2. **Dynamic In-Browser Styling & Instant 60 FPS Repaints**:
+   - `village_timeseries.json` contains the pre-computed 10-year monthly index histories (98 continuous periods) for all 954 villages.
+   - When scrolling the monthly timeline scrubber or running the sequential animation player, polygon fill colors update in <1 ms via `geoJsonRef.current.setStyle()` without tearing down or reconstructing DOM SVG elements.
+   - Any periods or cloud-masked months lacking satellite observations are explicitly rendered in neutral slate grey (`#94a3b8`) rather than leaking static values.
+3. **Multi-Index Symbology Scales**:
+   - **CDI** (Composite Multi-Index Drought Severity): 6-class D-codes (`None` green to `D4` maroon).
+   - **SPI Suite** (SPI-1, SPI-3, SPI-6, SPI-12): WMO McKee 1993 7-class scale ($-2.0$ maroon to $+2.0$ deep blue).
+   - **NDVI & EVI**: 5-class vegetation canopy greenness scale ($<0.15$ brown bare soil to $>0.45$ lush canopy).
+   - **VCI & VHI**: 5-class condition deficit scale ($<10$ extreme drought to $\ge 50$ optimal condition).
+   - **Rainfall**: Precipitation volume scale ($<20$ mm severe deficit, $20–50$ mm moderate, $>50$ mm adequate).
+4. **GEE Live Tiles**: When full-resolution raster layers are requested, GEE returns a signed tile URL template (`https://earthengine.googleapis.com/v1/{mapid}/tiles/{z}/{x}/{y}`) which Leaflet mounts directly as a raster `TileLayer`.
+5. **Edge API Route**: Next.js App Router route handler at `app/api/v1/[...slug]/route.ts` handles all `/api/v1` calls serverlessly on Vercel with in-memory caching and zero cold-start delay.

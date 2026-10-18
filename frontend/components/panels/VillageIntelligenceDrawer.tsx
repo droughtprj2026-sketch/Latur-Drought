@@ -303,6 +303,17 @@ export function VillageIntelligenceDrawer({ village, onClose }: Props) {
 
                 <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
                   <div className="text-[11px] text-slate-500 flex items-center justify-between">
+                    <span className="font-semibold text-slate-700">EVI</span>
+                    <span className="text-[10px] text-slate-400">-1 to +1</span>
+                  </div>
+                  <div className="text-xl font-bold font-mono text-slate-900 mt-1">
+                    {village.EVI != null ? village.EVI.toFixed(3) : "—"}
+                  </div>
+                  <div className="text-[10px] text-slate-500 mt-0.5">Enhanced Veg</div>
+                </div>
+
+                <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
+                  <div className="text-[11px] text-slate-500 flex items-center justify-between">
                     <span className="font-semibold text-slate-700">VHI (Stress)</span>
                     <span className="text-[10px] text-slate-400">0 to 100</span>
                   </div>
@@ -310,6 +321,17 @@ export function VillageIntelligenceDrawer({ village, onClose }: Props) {
                     {village.VHI != null ? village.VHI.toFixed(1) : "—"}
                   </div>
                   <div className="text-[10px] text-slate-500 mt-0.5">Vegetation Health Index</div>
+                </div>
+
+                <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
+                  <div className="text-[11px] text-slate-500 flex items-center justify-between">
+                    <span className="font-semibold text-slate-700">PCI</span>
+                    <span className="text-[10px] text-slate-400">0 to 100</span>
+                  </div>
+                  <div className="text-xl font-bold font-mono text-slate-900 mt-1">
+                    {village.PCI != null ? village.PCI.toFixed(1) : "—"}
+                  </div>
+                  <div className="text-[10px] text-slate-500 mt-0.5">Precip Concentration</div>
                 </div>
 
                 <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">

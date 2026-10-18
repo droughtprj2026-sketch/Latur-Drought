@@ -1,0 +1,1760 @@
+{
+  "generated_at": "2026-10-18T15:34:39+05:30",
+  "sentinel2": {
+    "schema": 1,
+    "source": "sentinel",
+    "updated": "2026-10-16T19:22:49+05:30",
+    "entries": [
+      {
+        "period_id": "2016-01",
+        "observation_date": "2016-01-15",
+        "processed_at": "2026-10-16T19:22:48+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2016-01.tif",
+          "indices/rasters/VCI/VCI_2016-01.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2016-03",
+        "observation_date": "2016-03-15",
+        "processed_at": "2026-10-16T19:22:48+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2016-03.tif",
+          "indices/rasters/VCI/VCI_2016-03.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2016-04",
+        "observation_date": "2016-04-15",
+        "processed_at": "2026-10-16T19:22:48+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2016-04.tif",
+          "indices/rasters/VCI/VCI_2016-04.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2016-05",
+        "observation_date": "2016-05-15",
+        "processed_at": "2026-10-16T19:22:48+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2016-05.tif",
+          "indices/rasters/VCI/VCI_2016-05.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2016-08",
+        "observation_date": "2016-08-15",
+        "processed_at": "2026-10-16T19:22:48+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2016-08.tif",
+          "indices/rasters/VCI/VCI_2016-08.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2016-10",
+        "observation_date": "2016-10-15",
+        "processed_at": "2026-10-16T19:22:48+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2016-10.tif",
+          "indices/rasters/VCI/VCI_2016-10.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2016-11",
+        "observation_date": "2016-11-15",
+        "processed_at": "2026-10-16T19:22:48+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2016-11.tif",
+          "indices/rasters/VCI/VCI_2016-11.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2016-12",
+        "observation_date": "2016-12-15",
+        "processed_at": "2026-10-16T19:22:48+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2016-12.tif",
+          "indices/rasters/VCI/VCI_2016-12.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2017-01",
+        "observation_date": "2017-01-15",
+        "processed_at": "2026-10-16T19:22:48+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2017-01.tif",
+          "indices/rasters/VCI/VCI_2017-01.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2017-02",
+        "observation_date": "2017-02-15",
+        "processed_at": "2026-10-16T19:22:48+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2017-02.tif",
+          "indices/rasters/VCI/VCI_2017-02.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2017-03",
+        "observation_date": "2017-03-15",
+        "processed_at": "2026-10-16T19:22:48+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2017-03.tif",
+          "indices/rasters/VCI/VCI_2017-03.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2017-04",
+        "observation_date": "2017-04-15",
+        "processed_at": "2026-10-16T19:22:48+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2017-04.tif",
+          "indices/rasters/VCI/VCI_2017-04.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2017-05",
+        "observation_date": "2017-05-15",
+        "processed_at": "2026-10-16T19:22:48+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2017-05.tif",
+          "indices/rasters/VCI/VCI_2017-05.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2017-07",
+        "observation_date": "2017-07-15",
+        "processed_at": "2026-10-16T19:22:48+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2017-07.tif",
+          "indices/rasters/VCI/VCI_2017-07.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2017-08",
+        "observation_date": "2017-08-15",
+        "processed_at": "2026-10-16T19:22:48+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2017-08.tif",
+          "indices/rasters/VCI/VCI_2017-08.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2017-09",
+        "observation_date": "2017-09-15",
+        "processed_at": "2026-10-16T19:22:48+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2017-09.tif",
+          "indices/rasters/VCI/VCI_2017-09.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2017-10",
+        "observation_date": "2017-10-15",
+        "processed_at": "2026-10-16T19:22:48+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2017-10.tif",
+          "indices/rasters/VCI/VCI_2017-10.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2017-11",
+        "observation_date": "2017-11-15",
+        "processed_at": "2026-10-16T19:22:48+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2017-11.tif",
+          "indices/rasters/VCI/VCI_2017-11.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2017-12",
+        "observation_date": "2017-12-15",
+        "processed_at": "2026-10-16T19:22:48+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2017-12.tif",
+          "indices/rasters/VCI/VCI_2017-12.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2018-01",
+        "observation_date": "2018-01-15",
+        "processed_at": "2026-10-16T19:22:48+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2018-01.tif",
+          "indices/rasters/VCI/VCI_2018-01.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2018-02",
+        "observation_date": "2018-02-15",
+        "processed_at": "2026-10-16T19:22:48+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2018-02.tif",
+          "indices/rasters/VCI/VCI_2018-02.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2018-04",
+        "observation_date": "2018-04-15",
+        "processed_at": "2026-10-16T19:22:48+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2018-04.tif",
+          "indices/rasters/VCI/VCI_2018-04.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2018-05",
+        "observation_date": "2018-05-15",
+        "processed_at": "2026-10-16T19:22:48+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2018-05.tif",
+          "indices/rasters/VCI/VCI_2018-05.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2019-01",
+        "observation_date": "2019-01-15",
+        "processed_at": "2026-10-16T19:22:48+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2019-01.tif",
+          "indices/rasters/VCI/VCI_2019-01.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2019-02",
+        "observation_date": "2019-02-15",
+        "processed_at": "2026-10-16T19:22:48+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2019-02.tif",
+          "indices/rasters/VCI/VCI_2019-02.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2019-03",
+        "observation_date": "2019-03-15",
+        "processed_at": "2026-10-16T19:22:48+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2019-03.tif",
+          "indices/rasters/VCI/VCI_2019-03.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2019-04",
+        "observation_date": "2019-04-15",
+        "processed_at": "2026-10-16T19:22:48+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2019-04.tif",
+          "indices/rasters/VCI/VCI_2019-04.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2019-05",
+        "observation_date": "2019-05-15",
+        "processed_at": "2026-10-16T19:22:48+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2019-05.tif",
+          "indices/rasters/VCI/VCI_2019-05.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2019-06",
+        "observation_date": "2019-06-15",
+        "processed_at": "2026-10-16T19:22:48+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2019-06.tif",
+          "indices/rasters/VCI/VCI_2019-06.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2019-07",
+        "observation_date": "2019-07-15",
+        "processed_at": "2026-10-16T19:22:48+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2019-07.tif",
+          "indices/rasters/VCI/VCI_2019-07.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2019-08",
+        "observation_date": "2019-08-15",
+        "processed_at": "2026-10-16T19:22:48+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2019-08.tif",
+          "indices/rasters/VCI/VCI_2019-08.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2019-09",
+        "observation_date": "2019-09-15",
+        "processed_at": "2026-10-16T19:22:48+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2019-09.tif",
+          "indices/rasters/VCI/VCI_2019-09.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2019-10",
+        "observation_date": "2019-10-15",
+        "processed_at": "2026-10-16T19:22:48+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2019-10.tif",
+          "indices/rasters/VCI/VCI_2019-10.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2019-11",
+        "observation_date": "2019-11-15",
+        "processed_at": "2026-10-16T19:22:48+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2019-11.tif",
+          "indices/rasters/VCI/VCI_2019-11.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2019-12",
+        "observation_date": "2019-12-15",
+        "processed_at": "2026-10-16T19:22:48+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2019-12.tif",
+          "indices/rasters/VCI/VCI_2019-12.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2020-01",
+        "observation_date": "2020-01-15",
+        "processed_at": "2026-10-16T19:22:48+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2020-01.tif",
+          "indices/rasters/VCI/VCI_2020-01.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2020-02",
+        "observation_date": "2020-02-15",
+        "processed_at": "2026-10-16T19:22:48+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2020-02.tif",
+          "indices/rasters/VCI/VCI_2020-02.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2020-03",
+        "observation_date": "2020-03-15",
+        "processed_at": "2026-10-16T19:22:48+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2020-03.tif",
+          "indices/rasters/VCI/VCI_2020-03.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2020-04",
+        "observation_date": "2020-04-15",
+        "processed_at": "2026-10-16T19:22:48+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2020-04.tif",
+          "indices/rasters/VCI/VCI_2020-04.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2020-05",
+        "observation_date": "2020-05-15",
+        "processed_at": "2026-10-16T19:22:48+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2020-05.tif",
+          "indices/rasters/VCI/VCI_2020-05.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2020-06",
+        "observation_date": "2020-06-15",
+        "processed_at": "2026-10-16T19:22:48+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2020-06.tif",
+          "indices/rasters/VCI/VCI_2020-06.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2020-07",
+        "observation_date": "2020-07-15",
+        "processed_at": "2026-10-16T19:22:48+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2020-07.tif",
+          "indices/rasters/VCI/VCI_2020-07.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2020-08",
+        "observation_date": "2020-08-15",
+        "processed_at": "2026-10-16T19:22:48+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2020-08.tif",
+          "indices/rasters/VCI/VCI_2020-08.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2020-09",
+        "observation_date": "2020-09-15",
+        "processed_at": "2026-10-16T19:22:48+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2020-09.tif",
+          "indices/rasters/VCI/VCI_2020-09.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2020-10",
+        "observation_date": "2020-10-15",
+        "processed_at": "2026-10-16T19:22:48+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2020-10.tif",
+          "indices/rasters/VCI/VCI_2020-10.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2020-11",
+        "observation_date": "2020-11-15",
+        "processed_at": "2026-10-16T19:22:48+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2020-11.tif",
+          "indices/rasters/VCI/VCI_2020-11.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2020-12",
+        "observation_date": "2020-12-15",
+        "processed_at": "2026-10-16T19:22:48+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2020-12.tif",
+          "indices/rasters/VCI/VCI_2020-12.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2021-03",
+        "observation_date": "2021-03-15",
+        "processed_at": "2026-10-16T19:22:48+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2021-03.tif",
+          "indices/rasters/VCI/VCI_2021-03.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2021-04",
+        "observation_date": "2021-04-15",
+        "processed_at": "2026-10-16T19:22:48+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2021-04.tif",
+          "indices/rasters/VCI/VCI_2021-04.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2021-05",
+        "observation_date": "2021-05-15",
+        "processed_at": "2026-10-16T19:22:48+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2021-05.tif",
+          "indices/rasters/VCI/VCI_2021-05.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2021-06",
+        "observation_date": "2021-06-15",
+        "processed_at": "2026-10-16T19:22:48+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2021-06.tif",
+          "indices/rasters/VCI/VCI_2021-06.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2021-07",
+        "observation_date": "2021-07-15",
+        "processed_at": "2026-10-16T19:22:48+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2021-07.tif",
+          "indices/rasters/VCI/VCI_2021-07.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2021-08",
+        "observation_date": "2021-08-15",
+        "processed_at": "2026-10-16T19:22:48+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2021-08.tif",
+          "indices/rasters/VCI/VCI_2021-08.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2021-09",
+        "observation_date": "2021-09-15",
+        "processed_at": "2026-10-16T19:22:48+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2021-09.tif",
+          "indices/rasters/VCI/VCI_2021-09.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2021-10",
+        "observation_date": "2021-10-15",
+        "processed_at": "2026-10-16T19:22:48+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2021-10.tif",
+          "indices/rasters/VCI/VCI_2021-10.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2021-11",
+        "observation_date": "2021-11-15",
+        "processed_at": "2026-10-16T19:22:48+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2021-11.tif",
+          "indices/rasters/VCI/VCI_2021-11.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2021-12",
+        "observation_date": "2021-12-15",
+        "processed_at": "2026-10-16T19:22:48+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2021-12.tif",
+          "indices/rasters/VCI/VCI_2021-12.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2022-01",
+        "observation_date": "2022-01-15",
+        "processed_at": "2026-10-16T19:22:48+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2022-01.tif",
+          "indices/rasters/VCI/VCI_2022-01.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2022-02",
+        "observation_date": "2022-02-15",
+        "processed_at": "2026-10-16T19:22:48+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2022-02.tif",
+          "indices/rasters/VCI/VCI_2022-02.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2022-03",
+        "observation_date": "2022-03-15",
+        "processed_at": "2026-10-16T19:22:48+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2022-03.tif",
+          "indices/rasters/VCI/VCI_2022-03.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2022-04",
+        "observation_date": "2022-04-15",
+        "processed_at": "2026-10-16T19:22:48+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2022-04.tif",
+          "indices/rasters/VCI/VCI_2022-04.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2022-05",
+        "observation_date": "2022-05-15",
+        "processed_at": "2026-10-16T19:22:48+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2022-05.tif",
+          "indices/rasters/VCI/VCI_2022-05.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2022-06",
+        "observation_date": "2022-06-15",
+        "processed_at": "2026-10-16T19:22:48+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2022-06.tif",
+          "indices/rasters/VCI/VCI_2022-06.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2022-07",
+        "observation_date": "2022-07-15",
+        "processed_at": "2026-10-16T19:22:48+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2022-07.tif",
+          "indices/rasters/VCI/VCI_2022-07.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2022-10",
+        "observation_date": "2022-10-15",
+        "processed_at": "2026-10-16T19:22:48+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2022-10.tif",
+          "indices/rasters/VCI/VCI_2022-10.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2022-11",
+        "observation_date": "2022-11-15",
+        "processed_at": "2026-10-16T19:22:48+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2022-11.tif",
+          "indices/rasters/VCI/VCI_2022-11.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2022-12",
+        "observation_date": "2022-12-15",
+        "processed_at": "2026-10-16T19:22:48+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2022-12.tif",
+          "indices/rasters/VCI/VCI_2022-12.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2023-01",
+        "observation_date": "2023-01-15",
+        "processed_at": "2026-10-16T19:22:48+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2023-01.tif",
+          "indices/rasters/VCI/VCI_2023-01.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2023-02",
+        "observation_date": "2023-02-15",
+        "processed_at": "2026-10-16T19:22:48+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2023-02.tif",
+          "indices/rasters/VCI/VCI_2023-02.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2023-03",
+        "observation_date": "2023-03-15",
+        "processed_at": "2026-10-16T19:22:49+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2023-03.tif",
+          "indices/rasters/VCI/VCI_2023-03.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2023-04",
+        "observation_date": "2023-04-15",
+        "processed_at": "2026-10-16T19:22:49+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2023-04.tif",
+          "indices/rasters/VCI/VCI_2023-04.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2023-05",
+        "observation_date": "2023-05-15",
+        "processed_at": "2026-10-16T19:22:49+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2023-05.tif",
+          "indices/rasters/VCI/VCI_2023-05.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2023-06",
+        "observation_date": "2023-06-15",
+        "processed_at": "2026-10-16T19:22:49+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2023-06.tif",
+          "indices/rasters/VCI/VCI_2023-06.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2023-07",
+        "observation_date": "2023-07-15",
+        "processed_at": "2026-10-16T19:22:49+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2023-07.tif",
+          "indices/rasters/VCI/VCI_2023-07.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2023-08",
+        "observation_date": "2023-08-15",
+        "processed_at": "2026-10-16T19:22:49+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2023-08.tif",
+          "indices/rasters/VCI/VCI_2023-08.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2023-09",
+        "observation_date": "2023-09-15",
+        "processed_at": "2026-10-16T19:22:49+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2023-09.tif",
+          "indices/rasters/VCI/VCI_2023-09.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2023-12",
+        "observation_date": "2023-12-15",
+        "processed_at": "2026-10-16T19:22:49+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2023-12.tif",
+          "indices/rasters/VCI/VCI_2023-12.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2024-01",
+        "observation_date": "2024-01-15",
+        "processed_at": "2026-10-16T19:22:49+05:30",
+        "status": "failed",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2024-01.tif",
+          "indices/rasters/VCI/VCI_2024-01.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2024-02",
+        "observation_date": "2024-02-15",
+        "processed_at": "2026-10-16T19:22:49+05:30",
+        "status": "failed",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2024-02.tif",
+          "indices/rasters/VCI/VCI_2024-02.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2024-03",
+        "observation_date": "2024-03-15",
+        "processed_at": "2026-10-16T19:22:49+05:30",
+        "status": "failed",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2024-03.tif",
+          "indices/rasters/VCI/VCI_2024-03.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2024-04",
+        "observation_date": "2024-04-15",
+        "processed_at": "2026-10-16T19:22:49+05:30",
+        "status": "failed",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2024-04.tif",
+          "indices/rasters/VCI/VCI_2024-04.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2024-05",
+        "observation_date": "2024-05-15",
+        "processed_at": "2026-10-16T19:22:49+05:30",
+        "status": "failed",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2024-05.tif",
+          "indices/rasters/VCI/VCI_2024-05.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2024-06",
+        "observation_date": "2024-06-15",
+        "processed_at": "2026-10-16T19:22:49+05:30",
+        "status": "failed",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2024-06.tif",
+          "indices/rasters/VCI/VCI_2024-06.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2024-08",
+        "observation_date": "2024-08-15",
+        "processed_at": "2026-10-16T19:22:49+05:30",
+        "status": "failed",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2024-08.tif",
+          "indices/rasters/VCI/VCI_2024-08.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2024-09",
+        "observation_date": "2024-09-15",
+        "processed_at": "2026-10-16T19:22:49+05:30",
+        "status": "failed",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2024-09.tif",
+          "indices/rasters/VCI/VCI_2024-09.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2024-10",
+        "observation_date": "2024-10-15",
+        "processed_at": "2026-10-16T19:22:49+05:30",
+        "status": "failed",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2024-10.tif",
+          "indices/rasters/VCI/VCI_2024-10.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2024-11",
+        "observation_date": "2024-11-15",
+        "processed_at": "2026-10-16T19:22:49+05:30",
+        "status": "failed",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2024-11.tif",
+          "indices/rasters/VCI/VCI_2024-11.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2024-12",
+        "observation_date": "2024-12-15",
+        "processed_at": "2026-10-16T19:22:49+05:30",
+        "status": "failed",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2024-12.tif",
+          "indices/rasters/VCI/VCI_2024-12.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2025-01",
+        "observation_date": "2025-01-15",
+        "processed_at": "2026-10-16T19:22:49+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2025-01.tif",
+          "indices/rasters/VCI/VCI_2025-01.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2025-02",
+        "observation_date": "2025-02-15",
+        "processed_at": "2026-10-16T19:22:49+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2025-02.tif",
+          "indices/rasters/VCI/VCI_2025-02.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2025-03",
+        "observation_date": "2025-03-15",
+        "processed_at": "2026-10-16T19:22:49+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2025-03.tif",
+          "indices/rasters/VCI/VCI_2025-03.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2025-04",
+        "observation_date": "2025-04-15",
+        "processed_at": "2026-10-16T19:22:49+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2025-04.tif",
+          "indices/rasters/VCI/VCI_2025-04.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2025-05",
+        "observation_date": "2025-05-15",
+        "processed_at": "2026-10-16T19:22:49+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2025-05.tif",
+          "indices/rasters/VCI/VCI_2025-05.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2025-06",
+        "observation_date": "2025-06-15",
+        "processed_at": "2026-10-16T19:22:49+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2025-06.tif",
+          "indices/rasters/VCI/VCI_2025-06.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2025-07",
+        "observation_date": "2025-07-15",
+        "processed_at": "2026-10-16T19:22:49+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2025-07.tif",
+          "indices/rasters/VCI/VCI_2025-07.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2025-09",
+        "observation_date": "2025-09-15",
+        "processed_at": "2026-10-16T19:22:49+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2025-09.tif",
+          "indices/rasters/VCI/VCI_2025-09.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2025-10",
+        "observation_date": "2025-10-15",
+        "processed_at": "2026-10-16T19:22:49+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2025-10.tif",
+          "indices/rasters/VCI/VCI_2025-10.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2025-11",
+        "observation_date": "2025-11-15",
+        "processed_at": "2026-10-16T19:22:49+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2025-11.tif",
+          "indices/rasters/VCI/VCI_2025-11.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2025-12",
+        "observation_date": "2025-12-15",
+        "processed_at": "2026-10-16T19:22:49+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2025-12.tif",
+          "indices/rasters/VCI/VCI_2025-12.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2026-01",
+        "observation_date": "2026-01-15",
+        "processed_at": "2026-10-16T19:22:49+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2026-01.tif",
+          "indices/rasters/VCI/VCI_2026-01.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2026-02",
+        "observation_date": "2026-02-15",
+        "processed_at": "2026-10-16T19:22:49+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2026-02.tif",
+          "indices/rasters/VCI/VCI_2026-02.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2026-03",
+        "observation_date": "2026-03-15",
+        "processed_at": "2026-10-16T19:22:49+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2026-03.tif",
+          "indices/rasters/VCI/VCI_2026-03.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2026-04",
+        "observation_date": "2026-04-15",
+        "processed_at": "2026-10-16T19:22:49+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2026-04.tif",
+          "indices/rasters/VCI/VCI_2026-04.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2026-05",
+        "observation_date": "2026-05-15",
+        "processed_at": "2026-10-16T19:22:49+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2026-05.tif",
+          "indices/rasters/VCI/VCI_2026-05.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2026-06",
+        "observation_date": "2026-06-15",
+        "processed_at": "2026-10-16T19:22:49+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2026-06.tif",
+          "indices/rasters/VCI/VCI_2026-06.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2026-07",
+        "observation_date": "2026-07-15",
+        "processed_at": "2026-10-16T19:22:49+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2026-07.tif",
+          "indices/rasters/VCI/VCI_2026-07.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2026-08",
+        "observation_date": "2026-08-15",
+        "processed_at": "2026-10-16T19:22:49+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2026-08.tif",
+          "indices/rasters/VCI/VCI_2026-08.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2026-09",
+        "observation_date": "2026-09-15",
+        "processed_at": "2026-10-16T19:22:49+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2026-09.tif",
+          "indices/rasters/VCI/VCI_2026-09.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      },
+      {
+        "period_id": "2026-10",
+        "observation_date": "2026-10-15",
+        "processed_at": "2026-10-16T19:22:49+05:30",
+        "status": "success",
+        "outputs": [
+          "indices/rasters/NDVI/NDVI_2026-10.tif",
+          "indices/rasters/VCI/VCI_2026-10.tif"
+        ],
+        "input_ids": [],
+        "cloud_pct": null,
+        "qc": {
+          "note": "village zonal NDVI/EVI/VCI/VHI"
+        },
+        "notes": ""
+      }
+    ]
+  },
+  "chirps": {
+    "schema": 1,
+    "source": "chirps",
+    "updated": "2026-10-18T15:34:39+05:30",
+    "entries": []
+  }
+}

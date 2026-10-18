@@ -36,6 +36,7 @@ const TEHSILS = [
 const METRICS: { id: MetricName; label: string; desc: string }[] = [
   { id: "cdi", label: "CDI Composite", desc: "Multi-Index Severity (0..1)" },
   { id: "ndvi", label: "NDVI", desc: "Normalized Difference Veg" },
+  { id: "evi", label: "EVI", desc: "Enhanced Vegetation Index" },
   { id: "vhi", label: "VHI", desc: "Vegetation Health Index" },
   { id: "vci", label: "VCI", desc: "Condition Index (0..100)" },
   { id: "spi1", label: "SPI-1", desc: "1-Mo Meteorological" },
@@ -99,9 +100,9 @@ export default function HomePage() {
           .catch(() => null);
       });
 
-    fetch("/api/v1/district-timeseries")
+    fetch("/data/village_timeseries.json")
       .then((res) => res.json())
-      .then((data) => setTimeseriesCache(data.series || []))
+      .then((data) => setTimeseriesCache(data))
       .catch(() => null);
   }, []);
 
@@ -474,6 +475,7 @@ export default function HomePage() {
               tehsil={tehsil}
               selectedVillageName={selectedVillageName}
               currentPeriod={currentPeriod}
+              timeseriesCache={timeseriesCache}
               onSelectVillage={(props) => {
                 setSelectedVillage(props);
                 const name = props.village || props.VILLAGE || props.name || "";

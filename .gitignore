@@ -74,4 +74,8 @@ output/spi/geotiff_*/
 .opencode/
 .antigravity/
 
+# Temporary / Local mirrors
+data/dashboard/
+
+
 

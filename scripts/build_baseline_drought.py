@@ -141,19 +141,35 @@ def add_anomaly_and_drought_flag(df, baseline, cfg):
     anomaly_cols = ["anomaly_NDVI", "anomaly_VCI", "anomaly_SPI3"]
     df["composite_anomaly"] = df[anomaly_cols].mean(axis=1)
 
-    # Drought flag: composite_anomaly < -1.0 (more than 1 std below baseline)
     thresholds = cfg["thresholds"]
+    # Rain-only meteorological drought fallback (WMO / Manual for Drought Management 2016):
+    # When optical satellite data is absent (cloud cover / gap), compute CDI from SPI3:
+    spi_fallback = (-df["SPI3"] / 3.0).clip(0.0, 1.0)
+    can_recover = df["composite_drought_score"].isna() & df["SPI3"].notna()
+    print(f"  [Fallback] recovering {can_recover.sum()} cloud-covered months using SPI-3 meteorological drought index")
+    df.loc[can_recover, "composite_drought_score"] = spi_fallback[can_recover].round(3)
+    df.loc[can_recover, "composite_drought_class"] = [
+        _classify_cdi(v, thresholds) for v in df.loc[can_recover, "composite_drought_score"]
+    ]
+    df.loc[can_recover, "data_quality_status"] = "rain_fallback"
+
+    # Drought flag: CDI >= 0.35 (D1 Moderate drought or worse) or anomaly < -1.0
     cdi = df["composite_drought_score"]
     df["drought_month"] = False
-    df.loc[cdi.notna() & (cdi >= 0.35), "drought_month"] = True  # D0 or worse
+    df.loc[cdi.notna() & (cdi >= 0.35), "drought_month"] = True  # D1 or worse
     # Also flag based on anomaly
     df.loc[
         df["composite_anomaly"].notna() & (df["composite_anomaly"] < -1.0),
         "drought_month",
     ] = True
 
-    # Drought severity class
-    def severity(v):
+    # Drought severity class aligned with WMO / US-DM / IMD standards
+    def severity(v, cls):
+        if cls in ("D4", "Exceptional"): return "Exceptional"
+        if cls in ("D3", "Extreme"): return "Extreme"
+        if cls in ("D2", "Severe"): return "Severe"
+        if cls in ("D1", "Moderate"): return "Moderate"
+        if cls in ("D0", "Mild"): return "Mild"
         if v is None or (isinstance(v, float) and math.isnan(v)):
             return "No data"
         if v < -2.0:
@@ -168,40 +184,54 @@ def add_anomaly_and_drought_flag(df, baseline, cfg):
             return "Mild"
         return "Normal"
 
-    df["drought_severity"] = [severity(v) for v in df["composite_anomaly"]]
+    df["drought_severity"] = [
+        severity(v, c) for v, c in zip(df["composite_anomaly"], df["composite_drought_class"])
+    ]
 
     return df
 
 
 def generate_village_geojson(df, latest_period, villages_src, out_geojson, out_json):
-    """Build village GeoJSON from centroids for the frontend map."""
+    """Build village GeoJSON with real boundary polygons for the frontend map."""
     print(f"\n[GeoJSON] building village GeoJSON for {latest_period} ...")
 
-    # Load village geometries for centroids
+    # Load village geometries from source GeoJSON
     gj = json.loads(villages_src.read_text(encoding="utf-8"))
+    village_geoms = {}
     village_centroids = {}
-    for feat in gj["features"]:
+    for i, feat in enumerate(gj["features"]):
         props = feat.get("properties", {})
-        vid = props.get("id") or props.get("village_idx")
-        name = props.get("village") or props.get("name") or props.get("NAME")
-        tehsil = props.get("tehsil") or props.get("TEHSIL") or ""
+        vid = props.get("id") or props.get("village_idx") or (i + 1)
+        name = props.get("village") or props.get("name") or props.get("NAME") or props.get("VILLAGE") or ""
+        tehsil = props.get("tehsil") or props.get("TEHSIL") or props.get("SUB_DIST") or ""
+        name = str(name).strip()
+        tehsil = str(tehsil).strip()
         geom = feat.get("geometry", {})
         coords = geom.get("coordinates", [])
-        if geom["type"] == "Polygon":
+        if geom.get("type") == "Polygon" and coords:
             ring = coords[0]
-        elif geom["type"] == "MultiPolygon":
+        elif geom.get("type") == "MultiPolygon" and coords and coords[0]:
             ring = coords[0][0]
         else:
-            continue
-        arr = np.asarray(ring, dtype="float64")
-        cx, cy = float(arr[:, 0].mean()), float(arr[:, 1].mean())
+            ring = []
+        if len(ring) > 0:
+            arr = np.asarray(ring, dtype="float64")
+            cx, cy = float(arr[:, 0].mean()), float(arr[:, 1].mean())
+        else:
+            cx, cy = 0.0, 0.0
+
+        entry = {
+            "village": name,
+            "tehsil": tehsil,
+            "lon": cx,
+            "lat": cy,
+        }
         if vid is not None:
-            village_centroids[int(vid)] = {
-                "village": str(name).strip() if name else "",
-                "tehsil": str(tehsil).strip(),
-                "lon": cx,
-                "lat": cy,
-            }
+            village_geoms[int(vid)] = geom
+            village_centroids[int(vid)] = entry
+        comp_key = (tehsil.lower(), name.lower())
+        village_geoms[comp_key] = geom
+        village_centroids[comp_key] = entry
 
     latest = df[df["date"] == latest_period].copy()
     print(f"  Villages in {latest_period}: {len(latest)}")
@@ -210,7 +240,22 @@ def generate_village_geojson(df, latest_period, villages_src, out_geojson, out_j
     json_villages = {}
     for _, r in latest.iterrows():
         vid = int(r["village_idx"]) if pd.notna(r.get("village_idx")) else None
-        cent = village_centroids.get(vid, {"village": "", "tehsil": "", "lon": 0.0, "lat": 0.0})
+        v_name = str(r.get("village", "")).strip()
+        t_name = str(r.get("tehsil", "")).strip()
+        comp_key = (t_name.lower(), v_name.lower())
+        cent = (
+            village_centroids.get(vid)
+            or village_centroids.get(comp_key)
+            or {"village": v_name, "tehsil": t_name, "lon": 0.0, "lat": 0.0}
+        )
+        geom = (
+            village_geoms.get(vid)
+            or village_geoms.get(comp_key)
+            or {
+                "type": "Point",
+                "coordinates": [cent["lon"], cent["lat"]],
+            }
+        )
 
         cdi = _num(r.get("composite_drought_score"))
         cdi_cls = r.get("composite_drought_class", "")
@@ -219,8 +264,8 @@ def generate_village_geojson(df, latest_period, villages_src, out_geojson, out_j
 
         props = {
             "id": vid,
-            "village": cent["village"] or r.get("village", ""),
-            "tehsil": cent["tehsil"] or r.get("tehsil", ""),
+            "village": v_name,
+            "tehsil": t_name,
             "date": latest_period,
             "period": latest_period,
             "NDVI": _num(r.get("NDVI")),
@@ -252,10 +297,7 @@ def generate_village_geojson(df, latest_period, villages_src, out_geojson, out_j
             "lon": cent["lon"],
             "lat": cent["lat"],
         }
-        features.append({"type": "Feature", "properties": props, "geometry": {
-            "type": "Point",
-            "coordinates": [cent["lon"], cent["lat"]],
-        }})
+        features.append({"type": "Feature", "properties": props, "geometry": geom})
         if vid is not None:
             json_villages[str(vid)] = props
 

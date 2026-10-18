@@ -52,6 +52,10 @@ interface TimeseriesPoint {
   SPI6?: number | null;
   spi12?: number | null;
   SPI12?: number | null;
+  evi?: number | null;
+  EVI?: number | null;
+  pci?: number | null;
+  PCI?: number | null;
 }
 
 const SEVERITY_INFO: Record<string, { bg: string; text: string; border: string; label: string; badge: string }> = {
@@ -96,25 +100,46 @@ export function PermanentSidebar({
   const [tsScope, setTsScope] = useState<"village" | "district">("village");
   const [loadingTs, setLoadingTs] = useState(false);
 
-  // Load district timeseries, baselines, and analytics on mount
+  // Load district timeseries, baselines, and analytics via API (fresh data on every load)
   useEffect(() => {
-    fetch("/data/district_monthly.json")
+    fetch("/api/v1/district-timeseries")
       .then((r) => r.json())
       .then((d) => setDistrictTs(d.series || []))
       .catch((e) => console.error("Error loading district timeseries:", e));
 
-    fetch("/data/village_baselines.json")
+    fetch("/api/v1/baselines")
       .then((r) => r.json())
       .then((d) => setBaselinesData(d))
-      .catch((e) => console.error("Error loading village baselines:", e));
+      .catch(() => {
+        fetch("/data/village_baselines.json")
+          .then((r2) => r2.json())
+          .then((d2) => setBaselinesData(d2))
+          .catch((e) => console.error("Error loading baselines:", e));
+      });
 
-    fetch("/data/tehsil_analytics.json")
+    fetch("/api/v1/tehsil-analytics")
       .then((r) => r.json())
       .then((d) => setAnalytics(d))
       .catch((e) => console.error("Error loading tehsil analytics:", e));
   }, []);
 
-  // Fetch village timeseries when village selection changes
+  // Update tehsil rankings dynamically whenever selectedPeriod changes
+  useEffect(() => {
+    if (!selectedPeriod) return;
+    fetch(`/api/v1/stats?period=${encodeURIComponent(selectedPeriod)}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data && data.tehsil_ranking) {
+          setAnalytics((prev: any) => ({
+            ...(prev || {}),
+            tehsil_ranking: data.tehsil_ranking,
+          }));
+        }
+      })
+      .catch(() => null);
+  }, [selectedPeriod]);
+
+  // Fetch village timeseries via API when village selection changes
   useEffect(() => {
     if (!village) {
       setVillageTs([]);
@@ -125,11 +150,10 @@ export function PermanentSidebar({
     if (!t || !v) return;
 
     setLoadingTs(true);
-    fetch("/data/village_timeseries.json")
+    fetch(`/api/v1/timeseries?tehsil=${encodeURIComponent(t)}&village=${encodeURIComponent(v)}`)
       .then((r) => r.json())
-      .then((fullCache) => {
-        const key = `${t.toLowerCase()}::${v.toLowerCase()}`;
-        setVillageTs(fullCache[key] || []);
+      .then((data: any[]) => {
+        setVillageTs(data || []);
       })
       .catch(() => setVillageTs([]))
       .finally(() => setLoadingTs(false));
@@ -154,8 +178,10 @@ export function PermanentSidebar({
           cdi: currentVillagePoint.cdi ?? village.CDI ?? null,
           cls: currentVillagePoint.cls ?? village.CDI_class ?? village.class ?? "None",
           ndvi: currentVillagePoint.ndvi ?? village.NDVI ?? null,
+          evi: currentVillagePoint.evi ?? village.EVI ?? null,
           vhi: currentVillagePoint.vhi ?? village.VHI ?? null,
           vci: currentVillagePoint.vci ?? village.VCI ?? null,
+          pci: currentVillagePoint.pci ?? village.PCI ?? null,
           rain: currentVillagePoint.rain ?? village.Rain_mm ?? null,
           spi1: currentVillagePoint.spi1 ?? village.SPI1 ?? null,
           spi3: currentVillagePoint.spi3 ?? village.SPI3 ?? null,
@@ -167,8 +193,10 @@ export function PermanentSidebar({
         cdi: village.CDI ?? null,
         cls: village.CDI_class ?? village.class ?? "None",
         ndvi: village.NDVI ?? null,
+        evi: village.EVI ?? null,
         vhi: village.VHI ?? null,
         vci: village.VCI ?? null,
+        pci: village.PCI ?? null,
         rain: village.Rain_mm ?? null,
         spi1: village.SPI1 ?? null,
         spi3: village.SPI3 ?? null,
@@ -182,8 +210,10 @@ export function PermanentSidebar({
         cdi: currentDistrictPoint.composite_drought_score ?? null,
         cls: currentDistrictPoint.composite_drought_class ?? (currentDistrictPoint.composite_drought_score >= 0.2 ? "D0" : "None"),
         ndvi: currentDistrictPoint.NDVI ?? null,
+        evi: currentDistrictPoint.EVI ?? null,
         vhi: currentDistrictPoint.VHI ?? null,
         vci: currentDistrictPoint.VCI ?? null,
+        pci: currentDistrictPoint.PCI ?? null,
         rain: currentDistrictPoint.Rain_mm ?? null,
         spi1: currentDistrictPoint.SPI1 ?? null,
         spi3: currentDistrictPoint.SPI3 ?? null,
@@ -301,6 +331,35 @@ export function PermanentSidebar({
   const rainDeltaPct = (currentRain != null && baselineRain != null && baselineRain > 0)
     ? Math.round(((currentRain - baselineRain) / baselineRain) * 100)
     : null;
+
+  // Manual for Drought Management (Statutory Framework) Trigger Evaluation
+  const spi3Val = activeMetrics.spi3 != null ? Number(activeMetrics.spi3) : null;
+  const t1SpiActive = spi3Val != null && spi3Val <= -1.0;
+  const t1RainActive = rainDeltaPct != null && rainDeltaPct <= -20;
+  const trigger1Active = t1SpiActive || t1RainActive;
+  const trigger1Severity = (spi3Val != null && spi3Val <= -1.5) || (rainDeltaPct != null && rainDeltaPct <= -60)
+    ? "Severe"
+    : trigger1Active
+    ? "Moderate"
+    : "Inactive";
+
+  const vciVal = activeMetrics.vci != null ? Number(activeMetrics.vci) : null;
+  const t2NdviActive = ndviDeltaPct != null && ndviDeltaPct <= -20;
+  const t2VciActive = vciVal != null && vciVal <= 40;
+  const trigger2Active = t2NdviActive || t2VciActive;
+  const trigger2Severity = (ndviDeltaPct != null && ndviDeltaPct <= -30) || (vciVal != null && vciVal <= 20)
+    ? "Severe"
+    : trigger2Active
+    ? "Moderate"
+    : "Inactive";
+
+  const statutoryStatus = (trigger1Active && trigger2Active)
+    ? (trigger1Severity === "Severe" || trigger2Severity === "Severe" ? "Crisis / Severe Drought" : "Moderate Drought")
+    : trigger1Active
+    ? "Trigger-1 Active (Met Deficit)"
+    : trigger2Active
+    ? "Trigger-2 Active (Crop Stress)"
+    : "Normal (No Trigger)";
 
 
   return (
@@ -561,9 +620,111 @@ export function PermanentSidebar({
                 </div>
                 <div className="text-[8px] text-slate-500">Condition</div>
               </div>
+
+              <div className="p-2 rounded-xl border border-slate-200 bg-white shadow-2xs">
+                <div className="text-[9px] font-bold text-slate-500 uppercase">EVI</div>
+                <div className="text-sm font-black text-slate-900 font-mono">
+                  {activeMetrics.evi != null ? Number(activeMetrics.evi).toFixed(3) : "—"}
+                </div>
+                <div className="text-[8px] text-slate-400">Enhanced Veg</div>
+              </div>
+
+              <div className="p-2 rounded-xl border border-slate-200 bg-white shadow-2xs">
+                <div className="text-[9px] font-bold text-slate-500 uppercase">PCI</div>
+                <div className="text-sm font-black text-slate-900 font-mono">
+                  {activeMetrics.pci != null ? Number(activeMetrics.pci).toFixed(2) : "—"}
+                </div>
+                <div className="text-[8px] text-slate-400">Precip Concentration</div>
+              </div>
             </div>
 
-            {/* Actionable Agricultural Directive */}
+            {/* Statutory Drought Assessment (Manual for Drought Management 2016/2020) */}
+            <div className={`p-3.5 rounded-xl border ${
+              trigger1Active && trigger2Active
+                ? (trigger1Severity === "Severe" || trigger2Severity === "Severe" ? "bg-red-50/80 border-red-300" : "bg-orange-50/80 border-orange-300")
+                : trigger1Active || trigger2Active
+                ? "bg-amber-50/70 border-amber-300"
+                : "bg-emerald-50/60 border-emerald-200"
+            } space-y-2.5`}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-[10px] font-black uppercase tracking-wider text-slate-800">
+                    Statutory Drought Assessment
+                  </div>
+                  <div className="text-[9px] text-slate-500 font-medium">
+                    Govt. of India / Maharashtra Manual Criteria
+                  </div>
+                </div>
+                <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-md border ${
+                  trigger1Active && trigger2Active
+                    ? (trigger1Severity === "Severe" || trigger2Severity === "Severe" ? "bg-red-600 text-white border-red-700" : "bg-orange-600 text-white border-orange-700")
+                    : trigger1Active || trigger2Active
+                    ? "bg-amber-500 text-white border-amber-600"
+                    : "bg-emerald-600 text-white border-emerald-700"
+                }`}>
+                  {statutoryStatus}
+                </span>
+              </div>
+
+              {/* Two Trigger Breakdown Cards */}
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                {/* Trigger 1: Meteorological */}
+                <div className="p-2 rounded-lg bg-white border border-slate-200 shadow-2xs">
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-[9px] font-bold uppercase text-slate-600">Trigger 1 · Met</span>
+                    <span className={`text-[8px] font-bold px-1.5 py-0.2 rounded ${
+                      trigger1Severity === "Severe" ? "bg-red-100 text-red-800" : trigger1Severity === "Moderate" ? "bg-amber-100 text-amber-800" : "bg-emerald-100 text-emerald-800"
+                    }`}>
+                      {trigger1Severity}
+                    </span>
+                  </div>
+                  <div className="text-[10px] space-y-0.5 text-slate-600">
+                    <div className="flex justify-between">
+                      <span>SPI-3:</span>
+                      <span className="font-mono font-semibold text-slate-800">{spi3Val != null ? spi3Val.toFixed(2) : "—"} (≤-1.0)</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Rain Deficit:</span>
+                      <span className="font-mono font-semibold text-slate-800">{rainDeltaPct != null ? `${rainDeltaPct}%` : "—"} (≤-20%)</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Trigger 2: Vegetation / Agricultural */}
+                <div className="p-2 rounded-lg bg-white border border-slate-200 shadow-2xs">
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-[9px] font-bold uppercase text-slate-600">Trigger 2 · Agri</span>
+                    <span className={`text-[8px] font-bold px-1.5 py-0.2 rounded ${
+                      trigger2Severity === "Severe" ? "bg-red-100 text-red-800" : trigger2Severity === "Moderate" ? "bg-amber-100 text-amber-800" : "bg-emerald-100 text-emerald-800"
+                    }`}>
+                      {trigger2Severity}
+                    </span>
+                  </div>
+                  <div className="text-[10px] space-y-0.5 text-slate-600">
+                    <div className="flex justify-between">
+                      <span>NDVI Δ:</span>
+                      <span className="font-mono font-semibold text-slate-800">{ndviDeltaPct != null ? `${ndviDeltaPct}%` : "—"} (≤-20%)</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>VCI:</span>
+                      <span className="font-mono font-semibold text-slate-800">{vciVal != null ? vciVal.toFixed(1) : "—"} (≤40)</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="text-[9px] text-slate-500 leading-tight">
+                {trigger1Active && trigger2Active
+                  ? "Both triggers activated. Unit qualifies for statutory declaration & State Disaster Response Fund (SDRF) relief."
+                  : trigger1Active
+                  ? "Meteorological deficit detected. Soil moisture and satellite vegetation indicators under continuous observation."
+                  : trigger2Active
+                  ? "Vegetation condition stress observed. Monitoring field ground truthing and moisture levels."
+                  : "Both meteorological and vegetative indicators are within normal climatological boundaries."}
+              </div>
+            </div>
+
+
             <div className="p-3.5 rounded-xl border border-amber-200 bg-amber-50/70">
               <div className="flex items-center gap-2 mb-1.5">
                 <span className="text-amber-900 font-extrabold text-xs uppercase tracking-wider">

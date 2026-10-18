@@ -78,11 +78,12 @@ export default function TimeseriesObservatoryPage() {
   const [availableVillages, setAvailableVillages] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Load timeseries and analytics datasets
+  // Load timeseries and analytics datasets via API (fresh data on every load)
   useEffect(() => {
     Promise.all([
-      fetch("/data/district_monthly.json").then((r) => r.json()).catch(() => ({ series: [] })),
-      fetch("/data/tehsil_analytics.json").then((r) => r.json()).catch(() => ({})),
+      fetch("/api/v1/district-timeseries").then((r) => r.json()).catch(() => ({ series: [] })),
+      fetch("/api/v1/tehsil-analytics").then((r) => r.json()).catch(() => ({})),
+      // villages_by_tehsil is a static boundary mapping - keep as static file
       fetch("/data/villages_by_tehsil.json").then((r) => r.json()).catch(() => ({})),
     ]).then(([dm, ta, vbt]) => {
       setDistrictSeries(dm?.series || []);

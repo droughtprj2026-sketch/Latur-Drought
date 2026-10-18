@@ -23,7 +23,8 @@ def build():
     df = pd.read_csv(MASTER_CSV, usecols=[
         "tehsil", "village", "observation_period",
         "composite_drought_score", "composite_drought_class",
-        "monthly_rainfall_mm", "NDVI", "VHI", "VCI", "SPI_3"
+        "monthly_rainfall_mm", "NDVI", "VHI", "VCI",
+        "SPI_1", "SPI_3", "SPI_6", "SPI_12"
     ])
 
     # Filter to village records only
@@ -51,6 +52,23 @@ def build():
         spi3 = r["SPI_3"]
         cls_code = r["composite_drought_class"]
 
+        # Rain-only meteorological drought fallback when clouds obscure optical sensors:
+        if (pd.isna(cdi) or cdi is None) and pd.notna(spi3):
+            s_val = min(max(-float(spi3) / 3.0, 0.0), 1.0)
+            cdi = round(s_val, 3)
+            if s_val < 0.20:
+                cls_code = "None"
+            elif s_val < 0.35:
+                cls_code = "D0"
+            elif s_val < 0.50:
+                cls_code = "D1"
+            elif s_val < 0.65:
+                cls_code = "D2"
+            elif s_val < 0.80:
+                cls_code = "D3"
+            else:
+                cls_code = "D4"
+
         ts_data[key].append({
             "p": r["observation_period"],
             "cdi": round(float(cdi), 3) if pd.notna(cdi) else None,
@@ -59,7 +77,10 @@ def build():
             "ndvi": round(float(ndvi), 3) if pd.notna(ndvi) else None,
             "vhi": round(float(vhi), 1) if pd.notna(vhi) else None,
             "vci": round(float(vci), 1) if pd.notna(vci) else None,
+            "spi1": round(float(r.get("SPI_1")), 2) if "SPI_1" in r and pd.notna(r.get("SPI_1")) else None,
             "spi3": round(float(spi3), 2) if pd.notna(spi3) else None,
+            "spi6": round(float(r.get("SPI_6")), 2) if "SPI_6" in r and pd.notna(r.get("SPI_6")) else None,
+            "spi12": round(float(r.get("SPI_12")), 2) if "SPI_12" in r and pd.notna(r.get("SPI_12")) else None,
         })
 
     print(f"Indexed {len(ts_data)} unique villages.")

@@ -31,6 +31,7 @@ export function AnimationPlayer({ index, from, to }: Props) {
 
   // Load the sequential frame catalog
   useEffect(() => {
+    cache.current.clear();
     getAnimation(index, from, to)
       .then((r) => {
         setFrames(r.frames || []);
@@ -44,8 +45,9 @@ export function AnimationPlayer({ index, from, to }: Props) {
     if (!frames.length) return;
     const f = frames[i];
     if (!f) return;
-    if (cache.current.has(f.period)) {
-      setData(cache.current.get(f.period)!);
+    const cacheKey = `${index}::${f.period}`;
+    if (cache.current.has(cacheKey)) {
+      setData(cache.current.get(cacheKey)!);
       return;
     }
     const parts = f.period.split("-");
@@ -54,7 +56,7 @@ export function AnimationPlayer({ index, from, to }: Props) {
     if (!year || !month) return;
 
     getIndexGeoJSON(index, year, month).then((fc) => {
-      cache.current.set(f.period, fc);
+      cache.current.set(cacheKey, fc);
       setData(fc);
     });
   }, [frames, i, index]);
@@ -69,7 +71,8 @@ export function AnimationPlayer({ index, from, to }: Props) {
   }, [playing, fps, frames.length]);
 
   const style = (f?: Feature): PathOptions => {
-    const v = f?.properties?.value as number | undefined;
+    const p = f?.properties || {};
+    const v = p.value != null && !isNaN(p.value) ? Number(p.value) : (p[index] != null && !isNaN(p[index]) ? Number(p[index]) : undefined);
     return {
       color: "#64748b",
       weight: 0.5,
@@ -134,6 +137,60 @@ export function AnimationPlayer({ index, from, to }: Props) {
             {hoveredVillage}
           </div>
         )}
+
+        {/* Dynamic Symbology Legend for Active Index */}
+        <div className="absolute bottom-3 right-3 z-[850] rounded-xl border border-slate-200 bg-white/95 px-3 py-2 text-[10px] font-semibold text-slate-700 shadow-md backdrop-blur-xs max-w-md">
+          <div className="font-bold text-slate-800 uppercase tracking-wider mb-1 flex items-center justify-between">
+            <span>
+              {index.startsWith("spi")
+                ? `WMO ${index.toUpperCase()} Scale`
+                : index === "ndvi" || index === "evi"
+                ? `${index.toUpperCase()} Vegetation Canopy`
+                : index === "vci" || index === "vhi"
+                ? `${index.toUpperCase()} Condition Index (%)`
+                : (index as string) === "rain" || index === "pci"
+                ? "Precipitation / PCI Scale"
+                : "CDI Drought Severity"}
+            </span>
+            <span className="font-mono text-amber-700 font-bold">{frames[i]?.period ?? "—"}</span>
+          </div>
+          {index.startsWith("spi") ? (
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded" style={{ background: "#7f1d1d" }} /> &le;-2</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded" style={{ background: "#dc2626" }} /> -1.5</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded" style={{ background: "#ea580c" }} /> -1.0</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded" style={{ background: "#eab308" }} /> -0.5</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded" style={{ background: "#cbd5e1" }} /> Norm</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded" style={{ background: "#38bdf8" }} /> Wet</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded" style={{ background: "#1d4ed8" }} /> &ge;2</span>
+            </div>
+          ) : index === "ndvi" || index === "evi" ? (
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded" style={{ background: "#854d0e" }} /> &lt;0.15 Bare</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded" style={{ background: "#ca8a04" }} /> 0.15–0.25 Stress</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded" style={{ background: "#a3e635" }} /> 0.25–0.35 Mod</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded" style={{ background: "#4ade80" }} /> 0.35–0.45 Normal</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded" style={{ background: "#15803d" }} /> &gt;0.45 Lush</span>
+            </div>
+          ) : index === "vci" || index === "vhi" ? (
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded" style={{ background: "#7f1d1d" }} /> &lt;10 Extreme</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded" style={{ background: "#dc2626" }} /> 10–20 Sev</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded" style={{ background: "#ea580c" }} /> 20–35 Mod</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded" style={{ background: "#eab308" }} /> 35–50 Mild</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded" style={{ background: "#22c55e" }} /> &ge;50 Good</span>
+            </div>
+          ) : (
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded" style={{ background: "#22c55e" }} /> None</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded" style={{ background: "#eab308" }} /> D0</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded" style={{ background: "#f59e0b" }} /> D1</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded" style={{ background: "#ea580c" }} /> D2</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded" style={{ background: "#dc2626" }} /> D3</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded" style={{ background: "#7f1d1d" }} /> D4</span>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Control Strip — Crisp White with Gold Accents */}

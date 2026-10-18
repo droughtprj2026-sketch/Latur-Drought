@@ -36,6 +36,13 @@ ROOT = HERE.parent
 OUT = Path(os.environ.get("OUTPUT_DIR", ROOT / "data" / "processed"))
 DASH = ROOT / "outputs" / "Dashboard"
 DASH.mkdir(parents=True, exist_ok=True)
+# Central single-source-of-truth directory for dashboard data.
+# The Python pipeline writes here; the frontend API reads from here.
+# From scripts/: ../data/dashboard/
+DASH_CENTRAL = ROOT / "data" / "dashboard"
+DASH_CENTRAL.mkdir(parents=True, exist_ok=True)
+(DASH_CENTRAL / "json").mkdir(parents=True, exist_ok=True)
+(DASH_CENTRAL / "csv").mkdir(parents=True, exist_ok=True)
 
 MASTER_COLUMNS = [
     "district", "tehsil", "village",
@@ -79,10 +86,11 @@ def _components_lookup() -> dict:
 
 
 def build_master() -> pd.DataFrame:
-    spi = _opt_csv("SPI_Latur_district_monthly.csv")
-    sen = _opt_csv("sentinel_Latur_district_monthly.csv")
-    cdi = _opt_csv("CDI_Latur_district_monthly.csv")
-    rain_t = _opt_csv("chirps_tehsil_monthly.csv")
+    cdi_dist = _opt_csv("CDI_Latur_district_monthly.csv")
+    vil_csv = OUT / "csv" / "village_with_baseline.csv"
+    if not vil_csv.exists():
+        vil_csv = OUT / "csv" / "village_Latur_monthly_indices.csv"
+    vil_df = pd.read_csv(vil_csv) if vil_csv.exists() else pd.DataFrame()
     components = _components_lookup()
     areas = _tehsil_areas()
 
@@ -90,59 +98,98 @@ def build_master() -> pd.DataFrame:
     chirps_last = manifest.latest_period(OUT, "chirps") or {}
 
     rows: list[dict] = []
-    for _, r in spi.iterrows():
-        period = r["date"]
-        year, month = int(r["year"]), int(r["month"])
 
-        cdi_row = cdi.loc[cdi["date"] == period]
-        cdi_val = float(cdi_row["CDI"].iloc[0]) if not cdi_row.empty and pd.notna(cdi_row["CDI"].iloc[0]) else None
-        cdi_cls = cdi_row["CDI_class"].iloc[0] if not cdi_row.empty else ""
-        cdi_fv = cdi_row["formula_version"].iloc[0] if not cdi_row.empty else ""
-        contrib = json.dumps(components.get(period, {}).get("contributions", {}))
-        dq = "success" if cdi_val is not None else "pending"
+    # 1. District and Tehsil Aggregate Rows from CDI_Latur_district_monthly.csv
+    if not cdi_dist.empty:
+        for _, r in cdi_dist.iterrows():
+            period = str(r["date"])
+            year = int(r.get("year", int(period[:4])))
+            month = int(r.get("month", int(period[5:7])))
 
-        base = {
-            "district": "Latur",
-            "observation_period": period, "year": year, "month": month,
-            "monthly_rainfall_mm": r.get("rain_mm_mean"),
-            "chirps_data_through": chirps_last.get("observation_date", ""),
-            "SPI_1":  r.get("SPI1"),  "SPI_3":  r.get("SPI3"),
-            "SPI_6":  r.get("SPI6"),  "SPI_12": r.get("SPI12"),
-            "SPI_reference_period": os.environ.get("SPI_REFERENCE_PERIOD", "1991-2020"),
-            "NDVI": sen.loc[sen["date"] == period, "NDVI"].mean() if not sen.empty else None,
-            "EVI":  sen.loc[sen["date"] == period, "EVI"].mean()  if not sen.empty else None,
-            "VCI":  sen.loc[sen["date"] == period, "VCI"].mean()  if not sen.empty else None,
-            "VHI":  sen.loc[sen["date"] == period, "VHI"].mean()  if not sen.empty else None,
-            "PCI":  None,
-            "composite_drought_score": cdi_val,
-            "composite_drought_class": cdi_cls,
-            "component_contributions": contrib,
-            "composite_formula_version": cdi_fv,
-            "sentinel2_observation_date": sen_last.get("observation_date", ""),
-            "sentinel2_cloud_percentage": sen_last.get("cloud_pct"),
-            "data_quality_status": dq,
-            "processing_timestamp": _ts(),
-            "processing_run_id": f"run-{period}",
-        }
+            cdi_val = float(r["CDI"]) if pd.notna(r.get("CDI")) else None
+            cdi_cls = str(r.get("CDI_class", "")) if pd.notna(r.get("CDI_class")) else ""
+            cdi_fv = str(r.get("formula_version", "")) if pd.notna(r.get("formula_version")) else ""
+            contrib = json.dumps(components.get(period, {}).get("contributions", {}))
+            dq = "success" if cdi_val is not None else "pending"
 
-        for tehsil, area in areas.items():
-            row = dict(base)
-            row["tehsil"] = tehsil
-            row["village"] = ""           # tehsil-level row
-            row["total_polygon_area_km2"] = area
-            rt = rain_t[(rain_t["period"] == period) & (rain_t["tehsil"] == tehsil)]
-            if not rt.empty:
-                row["monthly_rainfall_mm"] = round(float(rt["rain_mm"].iloc[0]), 2)
-            # Drought area and percentage from the D-code (coarse until
-            # per-pixel is wired in; the frontend reads this field as-is).
-            if cdi_cls in ("D0", "D1", "D2", "D3", "D4"):
-                pct = {"D0": 20, "D1": 40, "D2": 60, "D3": 80, "D4": 100}[cdi_cls]
-                row["drought_percentage"] = pct
-                row["drought_area_km2"] = round(area * pct / 100, 1)
-            else:
-                row["drought_percentage"] = 0 if cdi_cls == "None" else ""
-                row["drought_area_km2"] = 0 if cdi_cls == "None" else ""
-            rows.append(row)
+            base = {
+                "district": "Latur",
+                "observation_period": period, "year": year, "month": month,
+                "monthly_rainfall_mm": r.get("rain_mm_mean", r.get("Rain_mm")),
+                "chirps_data_through": chirps_last.get("observation_date", ""),
+                "SPI_1":  r.get("SPI1"),  "SPI_3":  r.get("SPI3", r.get("SPI")),
+                "SPI_6":  r.get("SPI6"),  "SPI_12": r.get("SPI12"),
+                "SPI_reference_period": os.environ.get("SPI_REFERENCE_PERIOD", "1991-2020"),
+                "NDVI": r.get("NDVI"),
+                "EVI":  r.get("EVI"),
+                "VCI":  r.get("VCI"),
+                "VHI":  r.get("VHI"),
+                "PCI":  r.get("PCI"),
+                "composite_drought_score": cdi_val,
+                "composite_drought_class": cdi_cls,
+                "component_contributions": contrib,
+                "composite_formula_version": cdi_fv,
+                "sentinel2_observation_date": sen_last.get("observation_date", ""),
+                "sentinel2_cloud_percentage": sen_last.get("cloud_pct"),
+                "data_quality_status": dq,
+                "processing_timestamp": _ts(),
+                "processing_run_id": f"run-{period}",
+            }
+
+            # District row (tehsil = "", village = "")
+            dist_row = dict(base)
+            dist_row["tehsil"] = ""
+            dist_row["village"] = ""
+            dist_row["total_polygon_area_km2"] = sum(areas.values())
+            rows.append(dist_row)
+
+            # Tehsil rows
+            for tehsil, area in areas.items():
+                t_row = dict(base)
+                t_row["tehsil"] = tehsil
+                t_row["village"] = ""
+                t_row["total_polygon_area_km2"] = area
+                rows.append(t_row)
+
+    # 2. Village Rows from vil_df
+    if not vil_df.empty:
+        for _, vr in vil_df.iterrows():
+            v_period = str(vr["date"])
+            v_cdi = float(vr["composite_drought_score"]) if pd.notna(vr.get("composite_drought_score")) else None
+            v_cls = str(vr.get("composite_drought_class", "")) if pd.notna(vr.get("composite_drought_class")) else ""
+            v_row = {
+                "district": "Latur",
+                "tehsil": vr.get("tehsil", ""),
+                "village": vr.get("village", vr.get("name", "")),
+                "observation_period": v_period,
+                "year": int(vr["year"]) if pd.notna(vr.get("year")) else int(v_period[:4]),
+                "month": int(vr["month"]) if pd.notna(vr.get("month")) else int(v_period[5:7]),
+                "monthly_rainfall_mm": vr.get("Rain_mm"),
+                "chirps_data_through": chirps_last.get("observation_date", ""),
+                "SPI_1": vr.get("SPI1"),
+                "SPI_3": vr.get("SPI3"),
+                "SPI_6": vr.get("SPI6"),
+                "SPI_12": vr.get("SPI12"),
+                "SPI_reference_period": os.environ.get("SPI_REFERENCE_PERIOD", "1991-2020"),
+                "NDVI": vr.get("NDVI"),
+                "EVI": vr.get("EVI"),
+                "VCI": vr.get("VCI"),
+                "VHI": vr.get("VHI"),
+                "PCI": vr.get("PCI"),
+                "composite_drought_score": v_cdi,
+                "composite_drought_class": v_cls,
+                "component_contributions": vr.get("component_contributions", "{}"),
+                "composite_formula_version": vr.get("formula_version", "cdi-v2026.10"),
+                "drought_area_km2": "",
+                "drought_percentage": "",
+                "total_polygon_area_km2": vr.get("AREA_SQKM", ""),
+                "sentinel2_observation_date": sen_last.get("observation_date", ""),
+                "sentinel2_cloud_percentage": sen_last.get("cloud_pct"),
+                "data_quality_status": vr.get("data_quality_status", "success"),
+                "processing_timestamp": _ts(),
+                "processing_run_id": f"run-{v_period}",
+            }
+            rows.append(v_row)
 
     df = pd.DataFrame(rows, columns=MASTER_COLUMNS)
     df = df.where(pd.notna(df), "")
@@ -353,6 +400,49 @@ def main():
     # and adds drought-month identification.
     from build_baseline_drought import main as build_baseline_main
     build_baseline_main()
+
+    # Mirror all dashboard outputs to the central single-source-of-truth
+    # directory so the frontend API reads fresh data (not stale committed
+    # copies in frontend/public/data/).
+    import shutil
+    for f in DASH.iterdir():
+        if f.is_file():
+            shutil.copy2(f, DASH_CENTRAL / f.name)
+        elif f.is_dir():
+            for sub in f.rglob("*"):
+                if sub.is_file():
+                    rel = sub.relative_to(f)
+                    dest = DASH_CENTRAL / rel.name
+                    dest.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(sub, dest)
+    print(f"  mirrored dashboard outputs -> {DASH_CENTRAL}")
+
+    # Also copy processed JSON files (district_monthly.json, manifest.json,
+    # composite_components.json) so the API can serve them.
+    PROCESSED_JSON = ROOT / "data" / "processed" / "json"
+    if PROCESSED_JSON.exists():
+        for f in PROCESSED_JSON.iterdir():
+            if f.is_file() and f.suffix == ".json":
+                shutil.copy2(f, DASH_CENTRAL / "json" / f.name)
+                print(f"  copied processed json -> {DASH_CENTRAL / 'json' / f.name}")
+
+    # Also copy all JSON data files to frontend/public/data/ so that pages
+    # which fetch directly from /data/ (bypassing the /api/v1/ route) also
+    # get fresh data instead of stale committed copies.
+    PUBLIC_DATA = ROOT / "frontend" / "public" / "data"
+    PUBLIC_DATA.mkdir(parents=True, exist_ok=True)
+    for f in DASH_CENTRAL.rglob("*"):
+        if f.is_file() and f.suffix == ".json":
+            rel = f.relative_to(DASH_CENTRAL)
+            dest = PUBLIC_DATA / rel.name
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(f, dest)
+            print(f"  copied -> {dest}")
+    # Also copy the village GeoJSON for the Leaflet map
+    village_gj = DASH / "village_latest.geojson"
+    if village_gj.exists():
+        shutil.copy2(village_gj, PUBLIC_DATA / "latur_villages_latest.geojson")
+        print(f"  village geojson -> {PUBLIC_DATA / 'latur_villages_latest.geojson'}")
 
     print("Done.")
 

@@ -44,12 +44,12 @@ D_LABELS = [
     "D4 — Exceptional drought",
 ]
 D_COLORS = [
-    "#FFFFFF",  # None
-    "#FFFF00",  # D0 yellow
-    "#FCD37F",  # D1 light orange
-    "#FFAA00",  # D2 dark orange
-    "#E60000",  # D3 red
-    "#730000",  # D4 maroon
+    "#22c55e",  # None — green (no drought)
+    "#eab308",  # D0 yellow
+    "#f59e0b",  # D1 light orange
+    "#ea580c",  # D2 dark orange
+    "#dc2626",  # D3 red
+    "#7f1d1d",  # D4 maroon
 ]
 
 # ---------------------------------------------------------------------
