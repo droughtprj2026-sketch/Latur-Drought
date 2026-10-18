@@ -33,7 +33,7 @@ jobs:
       - name: Install Scientific & Cloud Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install earthengine-api supabase pandas numpy geopandas shapely requests
+          pip install earthengine-api supabase pandas numpy geopandas shapely requests matplotlib
 
       - name: Execute Near-Realtime Drought Pipeline
         env:

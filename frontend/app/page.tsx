@@ -76,7 +76,9 @@ export default function HomePage() {
     droughtCount: number;
     d2PlusCount: number;
     avgCdi: number;
-  }>({ total: 954, droughtCount: 512, d2PlusCount: 148, avgCdi: 0.38 });
+  }>({ total: 0, droughtCount: 0, d2PlusCount: 0, avgCdi: 0 });
+
+  const [timeseriesCache, setTimeseriesCache] = useState<Record<string, any[]> | null>(null);
 
   // Load Tehsil village registry
   useEffect(() => {
@@ -84,6 +86,11 @@ export default function HomePage() {
       .then((res) => res.json())
       .then((data) => setVillagesByTehsil(data))
       .catch((err) => console.error("Failed to load villages by tehsil:", err));
+
+    fetch("/data/village_timeseries.json")
+      .then((res) => res.json())
+      .then((data) => setTimeseriesCache(data))
+      .catch(() => null);
   }, []);
 
   // Load continuous 98 observation periods from district series
@@ -99,43 +106,114 @@ export default function HomePage() {
       .catch((e) => console.error("Error loading periods:", e));
   }, []);
 
-  // Load summary stats from GeoJSON properties once
+  // Dynamically compute real-time statistics whenever currentPeriod, tehsil, or timeseriesCache changes
   useEffect(() => {
-    fetch("/data/latur_villages_latest.geojson")
-      .then((res) => res.json())
-      .then((gj) => {
-        const features = gj.features || [];
-        const total = features.length;
-        let droughtCount = 0;
-        let d2PlusCount = 0;
-        let cdiSum = 0;
-        let cdiCount = 0;
+    if (!timeseriesCache) {
+      fetch("/data/latur_villages_latest.geojson")
+        .then((res) => res.json())
+        .then((gj) => {
+          const features = gj.features || [];
+          const total = features.length;
+          let droughtCount = 0;
+          let d2PlusCount = 0;
+          let cdiSum = 0;
+          let cdiCount = 0;
 
-        for (const f of features) {
-          const p = f.properties || {};
-          const cdi = p.CDI;
-          const cls = p.CDI_class || p.class || "";
-          if (cdi != null) {
-            cdiSum += cdi;
-            cdiCount++;
-            if (cdi >= 0.20 || (cls && cls !== "None" && cls !== "ND")) {
-              droughtCount++;
-            }
-            if (["D2", "D3", "D4"].includes(cls)) {
-              d2PlusCount++;
+          for (const f of features) {
+            const p = f.properties || {};
+            const cdi = p.CDI;
+            const cls = p.CDI_class || p.class || "";
+            if (cdi != null) {
+              cdiSum += cdi;
+              cdiCount++;
+              if (cdi >= 0.20 || (cls && cls !== "None" && cls !== "ND")) {
+                droughtCount++;
+              }
+              if (["D2", "D3", "D4"].includes(cls)) {
+                d2PlusCount++;
+              }
             }
           }
-        }
 
-        setStats({
-          total,
-          droughtCount,
-          d2PlusCount,
-          avgCdi: cdiCount > 0 ? cdiSum / cdiCount : 0.38,
-        });
-      })
-      .catch((err) => console.error("Failed to compute stats:", err));
-  }, []);
+          setStats({
+            total,
+            droughtCount,
+            d2PlusCount,
+            avgCdi: cdiCount > 0 ? cdiSum / cdiCount : 0,
+          });
+        })
+        .catch(() => null);
+      return;
+    }
+
+    let total = 0;
+    let droughtCount = 0;
+    let d2PlusCount = 0;
+    let cdiSum = 0;
+    let cdiCount = 0;
+
+    for (const [key, pts] of Object.entries(timeseriesCache)) {
+      if (tehsil !== "All") {
+        const [t] = key.split("::");
+        if (t.toLowerCase() !== tehsil.toLowerCase()) continue;
+      }
+      total++;
+      const match = pts.find((x: any) => (x.p || x.date) === currentPeriod);
+      if (match) {
+        const cdi = match.cdi;
+        const cls = match.cls || "";
+        if (cdi != null && !isNaN(cdi)) {
+          cdiSum += cdi;
+          cdiCount++;
+          if (cdi >= 0.20 || (cls && cls !== "None" && cls !== "ND")) {
+            droughtCount++;
+          }
+          if (["D2", "D3", "D4"].includes(cls)) {
+            d2PlusCount++;
+          }
+        }
+      }
+    }
+
+    setStats({
+      total,
+      droughtCount,
+      d2PlusCount,
+      avgCdi: cdiCount > 0 ? cdiSum / cdiCount : 0,
+    });
+  }, [currentPeriod, tehsil, timeseriesCache]);
+
+  // Keep selected village in sync with currentPeriod
+  useEffect(() => {
+    if (!selectedVillageName || !timeseriesCache) return;
+    const keyMatch = Object.entries(timeseriesCache).find(([k]) => {
+      const [, v] = k.split("::");
+      return v.toLowerCase() === selectedVillageName.toLowerCase();
+    });
+    if (keyMatch) {
+      const [key, pts] = keyMatch;
+      const [tName] = key.split("::");
+      const match = pts.find((x: any) => (x.p || x.date) === currentPeriod);
+      if (match) {
+        setSelectedVillage((prev) => ({
+          ...(prev || {}),
+          ...match,
+          village: selectedVillageName,
+          tehsil: prev?.tehsil || tName,
+          CDI: match.cdi,
+          CDI_class: match.cls,
+          NDVI: match.ndvi,
+          VHI: match.vhi,
+          VCI: match.vci,
+          Rain_mm: match.rain,
+          SPI1: match.spi1,
+          SPI3: match.spi3,
+          SPI6: match.spi6,
+          SPI12: match.spi12,
+        }));
+      }
+    }
+  }, [currentPeriod, selectedVillageName, timeseriesCache]);
 
   // Filter available villages based on selected Tehsil
   const availableVillages = useMemo(() => {
@@ -165,7 +243,31 @@ export default function HomePage() {
           return name.toLowerCase() === vName.toLowerCase();
         });
         if (match) {
-          setSelectedVillage(match.properties);
+          let props = match.properties;
+          if (timeseriesCache) {
+            const t = (props.tehsil || props.TEHSIL || "").trim().toLowerCase();
+            const v = (props.village || props.VILLAGE || props.name || "").trim().toLowerCase();
+            const key = `${t}::${v}`;
+            const pts = timeseriesCache[key];
+            const cur = pts?.find((x: any) => (x.p || x.date) === currentPeriod);
+            if (cur) {
+              props = {
+                ...props,
+                ...cur,
+                CDI: cur.cdi,
+                CDI_class: cur.cls,
+                NDVI: cur.ndvi,
+                VHI: cur.vhi,
+                VCI: cur.vci,
+                Rain_mm: cur.rain,
+                SPI1: cur.spi1,
+                SPI3: cur.spi3,
+                SPI6: cur.spi6,
+                SPI12: cur.spi12,
+              };
+            }
+          }
+          setSelectedVillage(props);
         }
       })
       .catch(() => null);

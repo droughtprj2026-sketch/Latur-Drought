@@ -178,19 +178,24 @@ export default function LaturMap({
     [basemapId]
   );
 
-  // Load vector boundaries and timeseries cache
+  // Load vector boundaries and timeseries cache. Each fetch is
+  // independent so a missing file doesn't break the whole map.
   useEffect(() => {
     setLoading(true);
     Promise.all([
-      fetch("/data/latur_villages_latest.geojson").then((r) => r.json()),
-      fetch("/data/latur_district.geojson").then((r) => r.json()).catch(() => null),
-      fetch("/data/latur_tehsils.geojson").then((r) => r.json()).catch(() => null),
-      fetch("/data/village_timeseries.json").then((r) => r.json()).catch(() => null),
+      fetch("/data/latur_villages_latest.geojson")
+        .then((r) => r.json()).catch(() => null),
+      fetch("/data/latur_district.geojson")
+        .then((r) => r.json()).catch(() => null),
+      fetch("/data/latur_tehsils.geojson")
+        .then((r) => r.json()).catch(() => null),
+      fetch("/data/village_timeseries.json")
+        .then((r) => r.json()).catch(() => null),
     ])
       .then(([vil, dist, teh, ts]) => {
-        setVillagesData(vil);
-        setDistrictData(dist);
-        setTehsilsData(teh);
+        if (vil) setVillagesData(vil);
+        if (dist) setDistrictData(dist);
+        if (teh) setTehsilsData(teh);
         if (ts) setTimeseriesCache(ts);
         setLoading(false);
       })

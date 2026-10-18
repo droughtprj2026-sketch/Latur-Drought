@@ -18,7 +18,16 @@ from __future__ import annotations
 from pathlib import Path
 
 import numpy as np
-from matplotlib.colors import BoundaryNorm, ListedColormap
+
+# Matplotlib is optional — only needed for color map / norm objects used
+# in visualization. The classification logic itself does not require it.
+try:
+    from matplotlib.colors import BoundaryNorm, ListedColormap
+    _HAS_MATPLOTLIB = True
+except ImportError:
+    BoundaryNorm = None  # type: ignore
+    ListedColormap = None  # type: ignore
+    _HAS_MATPLOTLIB = False
 
 CONFIG_DIR = Path(__file__).resolve().parent.parent.parent / "config"
 
@@ -53,8 +62,14 @@ SPI_CODES  = D_CODES
 SPI_COLORS = D_COLORS
 
 # matplotlib convention wants ascending bounds for a BoundaryNorm.
-SPI_CMAP = ListedColormap(list(reversed(SPI_COLORS)))
-SPI_NORM = BoundaryNorm(sorted(SPI_BOUNDS), SPI_CMAP.N)
+# Only create these if matplotlib is available (needed for visualization,
+# not for classification logic).
+if _HAS_MATPLOTLIB:
+    SPI_CMAP = ListedColormap(list(reversed(SPI_COLORS)))
+    SPI_NORM = BoundaryNorm(sorted(SPI_BOUNDS), SPI_CMAP.N)  # type: ignore
+else:
+    SPI_CMAP = None  # type: ignore
+    SPI_NORM = None  # type: ignore
 
 MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
           "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]

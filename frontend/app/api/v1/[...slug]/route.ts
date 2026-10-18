@@ -5,45 +5,65 @@ import path from "node:path";
 // Path to static assets in public/data for standalone Vercel execution
 const PUBLIC_DATA_DIR = path.join(process.cwd(), "public/data");
 
-// In-memory caches for fast sub-millisecond responses on serverless instances
+// In-memory caches for fast sub-millisecond responses on serverless instances.
+// Invalidated when the source file mtime changes so the frontend never serves stale data.
 let villageTimeseriesCache: Record<string, any[]> | null = null;
+let villageTimeseriesCacheMtime: number | null = null;
 let districtMonthlyCache: any = null;
+let districtMonthlyCacheMtime: number | null = null;
 let tehsilAnalyticsCache: any = null;
+let tehsilAnalyticsCacheMtime: number | null = null;
+
+function _readJsonIfChanged(fPath: string, cache: any, mtime: number | null): { data: any; mtime: number } | null {
+  if (!fs.existsSync(fPath)) return null;
+  const stat = fs.statSync(fPath);
+  if (cache !== null && mtime !== null && stat.mtimeMs === mtime) {
+    return { data: cache, mtime };
+  }
+  try {
+    const data = JSON.parse(fs.readFileSync(fPath, "utf-8"));
+    return { data, mtime: stat.mtimeMs };
+  } catch (e) {
+    console.error(`[Vercel API] Error reading ${fPath}:`, e);
+    return null;
+  }
+}
 
 function getVillageTimeseries() {
-  if (!villageTimeseriesCache) {
-    const fPath = path.join(PUBLIC_DATA_DIR, "village_timeseries.json");
-    if (fs.existsSync(fPath)) {
-      try {
-        villageTimeseriesCache = JSON.parse(fs.readFileSync(fPath, "utf-8"));
-      } catch (e) {
-        console.error("[Vercel API] Error reading village_timeseries.json:", e);
-      }
-    }
+  const result = _readJsonIfChanged(
+    path.join(PUBLIC_DATA_DIR, "village_timeseries.json"),
+    villageTimeseriesCache,
+    villageTimeseriesCacheMtime,
+  );
+  if (result) {
+    villageTimeseriesCache = result.data;
+    villageTimeseriesCacheMtime = result.mtime;
   }
   return villageTimeseriesCache;
 }
 
 function getDistrictMonthly() {
-  if (!districtMonthlyCache) {
-    const fPath = path.join(PUBLIC_DATA_DIR, "district_monthly.json");
-    if (fs.existsSync(fPath)) {
-      try {
-        districtMonthlyCache = JSON.parse(fs.readFileSync(fPath, "utf-8"));
-      } catch {}
-    }
+  const result = _readJsonIfChanged(
+    path.join(PUBLIC_DATA_DIR, "district_monthly.json"),
+    districtMonthlyCache,
+    districtMonthlyCacheMtime,
+  );
+  if (result) {
+    districtMonthlyCache = result.data;
+    districtMonthlyCacheMtime = result.mtime;
   }
   return districtMonthlyCache;
 }
 
 function getTehsilAnalytics() {
-  if (!tehsilAnalyticsCache) {
-    const fPath = path.join(PUBLIC_DATA_DIR, "tehsil_analytics.json");
-    if (fs.existsSync(fPath)) {
-      try {
-        tehsilAnalyticsCache = JSON.parse(fs.readFileSync(fPath, "utf-8"));
-      } catch {}
-    }
+  const result = _readJsonIfChanged(
+    path.join(PUBLIC_DATA_DIR, "tehsil_analytics.json"),
+    tehsilAnalyticsCache,
+    tehsilAnalyticsCacheMtime,
+  );
+  if (result) {
+    tehsilAnalyticsCache = result.data;
+    tehsilAnalyticsCacheMtime = result.mtime;
   }
   return tehsilAnalyticsCache;
 }
@@ -65,7 +85,7 @@ export async function GET(
     });
   }
 
-  // 2. Status
+  // 2. Status — never fabricate "operational" when no real data exists
   if (route === "status") {
     const statusFile = path.join(PUBLIC_DATA_DIR, "latest_status.json");
     if (fs.existsSync(statusFile)) {
@@ -75,9 +95,9 @@ export async function GET(
     }
     return NextResponse.json({
       generated_at: new Date().toISOString(),
-      monitoring_status: "operational",
-      sentinel2: { latest_period_id: "2026-10", status: "operational" },
-      chirps: { latest_period_id: "2026-10", status: "operational" },
+      monitoring_status: "degraded",
+      sentinel2: { latest_period_id: null, status: "no_data" },
+      chirps: { latest_period_id: null, status: "no_data" },
       composite: { formula_version: "cdi-v2026.10" },
       region: { district: "Latur", state: "Maharashtra", centroid_lat: 18.4088, centroid_lon: 76.5604 },
     });
@@ -270,19 +290,39 @@ export async function GET(
   }
 
   // 13. Latest status for village or tehsil: /latest?tehsil=...&village=...
+  // Never return hardcoded fake CDI values when no data exists.
   if (route === "latest") {
     const tehsil = String(searchParams.get("tehsil") ?? "Latur");
     const village = String(searchParams.get("village") ?? "");
 
+    // Try village_latest.json first (has per-village latest data)
+    const vlPath = path.join(PUBLIC_DATA_DIR, "village_latest.json");
+    if (fs.existsSync(vlPath)) {
+      try {
+        const vl = JSON.parse(fs.readFileSync(vlPath, "utf-8"));
+        const villages = vl.villages || {};
+        for (const v of Object.values(villages) as any[]) {
+          if (
+            v.tehsil?.toLowerCase() === tehsil.toLowerCase() &&
+            (!village || v.village?.toLowerCase() === village.toLowerCase())
+          ) {
+            return NextResponse.json(v);
+          }
+        }
+      } catch {}
+    }
+
     return NextResponse.json({
       tehsil,
       village,
-      observation_period: "2026-10",
-      CDI: 0.35,
-      CDI_class: "D0",
-      NDVI: 0.35,
-      VHI: 25.0,
-      SPI_3: -0.75,
+      observation_period: null,
+      CDI: null,
+      CDI_class: null,
+      NDVI: null,
+      VHI: null,
+      SPI_3: null,
+      monitoring_status: "degraded",
+      message: "No latest observation data available",
     });
   }
 

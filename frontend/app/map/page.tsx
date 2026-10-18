@@ -50,17 +50,32 @@ export default function FullscreenMapPage() {
   const [selectedVillage, setSelectedVillage] = useState<VillageProperties | null>(null);
   const [periods, setPeriods] = useState<string[]>([]);
   const [currentPeriod, setCurrentPeriod] = useState<string>("2026-10");
+  const [monitoringStatus, setMonitoringStatus] = useState<"operational" | "degraded" | "no_data">("operational");
   const [showGeeLayer, setShowGeeLayer] = useState<boolean>(false);
   const [geeTileUrl] = useState<string>(
     "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
   );
 
   useEffect(() => {
+    // Load periods from district monthly data
     fetch("/data/district_monthly.json")
       .then((r) => r.json())
       .then((d) => {
         const pList = (d.series || []).map((s: any) => s.date).filter(Boolean);
         if (pList.length > 0) setPeriods(pList);
+      })
+      .catch(() => null);
+
+    // Load monitoring status to get the real latest period (never hardcode)
+    fetch("/api/v1/status")
+      .then((r) => r.json())
+      .then((status) => {
+        setMonitoringStatus(status.monitoring_status || "degraded");
+        if (status.sentinel2?.latest_period_id && status.monitoring_status !== "no_data") {
+          setCurrentPeriod(status.sentinel2.latest_period_id);
+        } else if (status.chirps?.latest_period_id && status.monitoring_status !== "no_data") {
+          setCurrentPeriod(status.chirps.latest_period_id);
+        }
       })
       .catch(() => null);
   }, []);

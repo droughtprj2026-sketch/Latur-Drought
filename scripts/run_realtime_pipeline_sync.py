@@ -20,6 +20,7 @@ import os
 import sys
 import json
 import argparse
+import subprocess
 from datetime import datetime, date
 from pathlib import Path
 
@@ -29,6 +30,7 @@ ROOT = HERE.parent
 PUBLIC_DATA = ROOT / "frontend" / "public" / "data"
 DASH_DIR = ROOT / "outputs" / "Dashboard"
 VECTOR_DIR = ROOT / "data" / "vector"
+SCRIPTS_DIR = ROOT / "scripts"
 
 # Centralized drought classification lookup (single source of truth:
 # config/composite.yaml). Never hardcode weights or thresholds here.
@@ -74,61 +76,138 @@ def init_earth_engine():
         print(f"  [!] Note: GEE Live credentials pending ({e}). Falling back to algorithmic raster engine.")
         return None
 
-def compute_realtime_indices(ee_instance, period_str):
-    """Fetches Sentinel-2 L2A composite and computes spectral indices + CDI classification.
+def _run_script(script_name: str, args: list[str] | None = None) -> tuple[bool, str]:
+    """Run a Python pipeline script and return (ok, message).
 
-    Uses the centralized drought classification lookup table (built from
-    config/composite.yaml) to decide drought / non-drought / wet status
-    from the computed CDI score. Never hardcodes weights or thresholds.
+    Passes through GEE and Supabase credentials so the subprocess can
+    authenticate to Earth Engine and Supabase in GitHub Actions.
     """
-    print(f"\n[STEP 2/5] Running Multi-Spectral Band Math for period: {period_str}...")
-    print("  -> Formula: CDI = weighted composite (config/composite.yaml)")
-    print("  -> Cloud Filter: SCL Scene Classification (Masking 3, 8, 9, 10)")
-    print("  -> Classification: centralized DROUGHT_LOOKUP table")
+    cmd = [sys.executable, str(SCRIPTS_DIR / script_name)]
+    if args:
+        cmd.extend(args)
+    print(f"  -> Running {script_name} {' '.join(args) if args else ''} ...")
+    # Inherit all env vars plus explicitly forward GEE/Supabase credentials
+    env = os.environ.copy()
+    for key in ("GEE_PROJECT", "GEE_SERVICE_ACCOUNT_KEY",
+                "SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_KEY",
+                "NEXT_PUBLIC_SUPABASE_URL", "DATABASE_URL", "OUTPUT_DIR"):
+        if os.environ.get(key):
+            env[key] = os.environ[key]
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True,
+                                timeout=60 * 30, env=env)
+        if result.returncode != 0:
+            return False, result.stderr[-500:] if result.stderr else "unknown error"
+        return True, result.stdout[-500:] if result.stdout else "ok"
+    except subprocess.TimeoutExpired:
+        return False, "timeout after 30 min"
+    except Exception as e:
+        return False, str(e)
 
-    # Synthetic/live index values (when GEE is unavailable these are
-    # placeholders; the real pipeline computes them from Sentinel-2 bands).
-    ndvi = 0.365
-    evi = 0.285
-    vci = 42.5
-    vhi = 40.0
-    pci = 45.0
-    spi_3 = -0.62
 
-    # Composite CDI (0..1 drought intensity) using weights from the YAML.
-    # SPI normalized via neg_clip; vegetation indices via robust_z anomaly.
-    # Here we approximate with the available live values.
-    import numpy as np
-    spi_norm = float(np.clip(-spi_3 / 3.0, 0.0, 1.0))          # neg_clip
-    vci_norm = float(np.clip(1.0 - vci / 100.0, 0.0, 1.0))      # inv_0_100
-    vhi_norm = float(np.clip(1.0 - vhi / 100.0, 0.0, 1.0))      # inv_0_100
-    ndvi_norm = float(np.clip((0.5 - ndvi) / 0.5, 0.0, 1.0))    # proxy robust_z
-    evi_norm  = float(np.clip((0.5 - evi) / 0.5, 0.0, 1.0))     # proxy robust_z
-    pci_norm  = float(np.clip((pci - 8.33) / (100 - 8.33), 0.0, 1.0))  # proxy robust_z
+def compute_realtime_indices(ee_instance, period_str):
+    """Orchestrate the real GEE + processing pipeline for one period.
 
-    weights = {"SPI": 0.30, "VHI": 0.20, "VCI": 0.15, "NDVI": 0.15, "EVI": 0.10, "PCI": 0.10}
-    components = {"SPI": spi_norm, "VHI": vhi_norm, "VCI": vci_norm,
-                  "NDVI": ndvi_norm, "EVI": evi_norm, "PCI": pci_norm}
+    Calls the actual processing scripts in order:
+      1. chirps_gee.py      - fetch CHIRPS rainfall from GEE
+      2. pipeline_gee.py    - fetch Sentinel-2 from GEE + zonal stats
+      3. composite_cdi.py   - fuse indices into CDI with lookup table
+      4. dashboard_master.py - build dashboard CSV + JSON outputs
 
-    num = sum(weights[k] * components[k] for k in weights)
-    den = sum(weights[k] for k in components if components[k] is not None and not np.isnan(components[k]))
-    cdi_score = round(num / den, 4) if den > 0 else None
+    Never uses hardcoded synthetic values.
+    """
+    print(f"\n[STEP 2/5] Running real GEE + processing pipeline for period: {period_str}...")
+    print("  -> Step 2a: CHIRPS rainfall from GEE")
+    ok, msg = _run_script("chirps_gee.py", ["--to", period_str])
+    if not ok:
+        print(f"  [!] CHIRPS step failed: {msg}")
+
+    print("  -> Step 2b: Sentinel-2 indices + zonal stats from GEE")
+    ok, msg = _run_script("pipeline_gee.py", ["--to", period_str])
+    if not ok:
+        print(f"  [!] Sentinel-2 step failed: {msg}")
+
+    print("  -> Step 2c: Village indices (batch raster path — may skip if no local rasters)")
+    ok, msg = _run_script("build_village_indices.py")
+    if not ok:
+        print(f"  [!] Village indices step skipped/failed: {msg}")
+        print("      (Expected on GitHub Actions — requires local raw rasters)")
+
+    print("  -> Step 2d: Composite CDI fusion (config/composite.yaml)")
+    cdi_csv = ROOT / "data" / "processed" / "csv" / "CDI_Latur_district_monthly.csv"
+    village_csv = ROOT / "data" / "processed" / "csv" / "village_Latur_monthly_indices.csv"
+    if village_csv.exists():
+        ok, msg = _run_script("composite_cdi.py")
+        if not ok:
+            print(f"  [!] CDI fusion failed: {msg}")
+    else:
+        print(f"  [!] CDI fusion skipped: {village_csv.name} not found")
+        print("      (Run build_village_indices.py locally with raw rasters to enable)")
+
+    print("  -> Step 2e: Dashboard master + status outputs")
+    ok, msg = _run_script("dashboard_master.py")
+    if not ok:
+        print(f"  [!] Dashboard master failed: {msg}")
+
+    # Read back the real computed results from the pipeline outputs
+    import json
+    from pathlib import Path
+
+    # Read latest_status.json for the real computed classification
+    status_path = DASH_DIR / "latest_status.json"
+    if status_path.exists():
+        with status_path.open() as f:
+            status = json.load(f)
+        composite = status.get("composite", {})
+        cdi_score = composite.get("composite_drought_score")
+        cdi_class = composite.get("composite_drought_class", "ND")
+        drought_severity = composite.get("drought_severity", "no_data")
+        is_drought = composite.get("is_drought", False)
+        is_no_drought = composite.get("is_no_drought", False)
+        is_wet = composite.get("is_wet", False)
+        weights = composite.get("weights", {"SPI": 0.30, "VHI": 0.20, "VCI": 0.15,
+                                             "NDVI": 0.15, "EVI": 0.10, "PCI": 0.10})
+        formula_version = composite.get("formula_version", "cdi-v2026.10")
+    else:
+        cdi_score = None
+        cdi_class = "ND"
+        drought_severity = "no_data"
+        is_drought = False
+        is_no_drought = False
+        is_wet = False
+        weights = {"SPI": 0.30, "VHI": 0.20, "VCI": 0.15, "NDVI": 0.15, "EVI": 0.10, "PCI": 0.10}
+        formula_version = "cdi-v2026.10"
+
+    # Read the CDI values for the period from the district CSV if available
+    indices = {"ndvi": None, "evi": None, "vci": None, "vhi": None, "pci": None, "spi_3": None}
+    csv_path = ROOT / "data" / "processed" / "csv" / "CDI_Latur_district_monthly.csv"
+    if csv_path.exists():
+        import pandas as pd
+        try:
+            df = pd.read_csv(csv_path)
+            row = df[df["date"] == period_str]
+            if not row.empty:
+                r = row.iloc[0]
+                indices = {
+                    "ndvi": float(r["NDVI"]) if pd.notna(r.get("NDVI")) else None,
+                    "evi": float(r["EVI"]) if pd.notna(r.get("EVI")) else None,
+                    "vci": float(r["VCI"]) if pd.notna(r.get("VCI")) else None,
+                    "vhi": float(r["VHI"]) if pd.notna(r.get("VHI")) else None,
+                    "pci": float(r["PCI"]) if pd.notna(r.get("PCI")) else None,
+                    "spi_3": float(r["SPI3"]) if pd.notna(r.get("SPI3")) else None,
+                }
+        except Exception:
+            pass
 
     # Classify using the centralized lookup table
     drought_status = classify_drought(cdi_score)
 
-    # Determine wet condition from SPI anomaly (separate from CDI drought)
-    is_wet = spi_3 is not None and spi_3 >= 1.0
-
     return {
         "period": period_str,
-        "formula_version": "cdi-v2026.10",
+        "formula_version": formula_version,
         "weights": weights,
         "status": "success",
-        "indices": {
-            "ndvi": ndvi, "evi": evi, "vci": vci, "vhi": vhi,
-            "pci": pci, "spi_3": spi_3,
-        },
+        "indices": indices,
         "composite_drought_score": cdi_score,
         "composite_drought_class": drought_status["code"],
         "composite_drought_label": drought_status["label"],

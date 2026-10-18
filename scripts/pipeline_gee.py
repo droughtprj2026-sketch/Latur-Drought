@@ -84,13 +84,34 @@ def _ensure_ee():
             "  pip install earthengine-api geemap geopandas"
         ) from e
     import ee
+
+    gee_project = os.environ.get("GEE_PROJECT")
+    service_account_key = os.environ.get("GEE_SERVICE_ACCOUNT_KEY")
+
     try:
-        ee.Initialize()
-    except Exception:
-        print("Earth Engine not authenticated — launching browser flow …")
+        if service_account_key:
+            # Service Account Authentication for GitHub Actions / CI
+            key_data = json.loads(service_account_key) if isinstance(service_account_key, str) and service_account_key.startswith("{") else json.load(open(service_account_key))
+            credentials = ee.ServiceAccountCredentials(
+                key_data.get("client_email"),
+                key_data=service_account_key
+            )
+            ee.Initialize(credentials, project=gee_project or key_data.get("project_id"))
+            print("  -> Earth Engine initialized with Service Account.")
+            return ee
+        elif gee_project:
+            ee.Initialize(project=gee_project)
+            print("  -> Earth Engine initialized with Project ID.")
+            return ee
+        else:
+            ee.Initialize()
+            print("  -> Earth Engine initialized with default credentials.")
+            return ee
+    except Exception as e:
+        print(f"  [!] Earth Engine init failed ({e}). Trying browser authenticate fallback.")
         ee.Authenticate()
         ee.Initialize()
-    return ee
+        return ee
 
 
 def _mask_s2_clouds(img):

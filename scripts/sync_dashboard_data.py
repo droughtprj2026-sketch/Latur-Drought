@@ -23,7 +23,7 @@ if sys_path_inserted not in sys.path:
     sys.path.insert(0, sys_path_inserted)
 from common.classify import code_for_cdi, label_for_cdi, classify_drought  # noqa: E402
 
-ROOT = Path(r"d:\Droughtprj@2026")
+ROOT = Path(__file__).resolve().parent.parent
 PROCESSED_CSV = ROOT / "data" / "processed" / "csv" / "village_Latur_monthly_indices.csv"
 DB_PATH = ROOT / "data" / "drought.db"
 DASH_DIR = ROOT / "outputs" / "Dashboard"
