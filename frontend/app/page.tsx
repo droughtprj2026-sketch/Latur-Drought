@@ -80,22 +80,34 @@ export default function HomePage() {
 
   const [timeseriesCache, setTimeseriesCache] = useState<Record<string, any[]> | null>(null);
 
-  // Load Tehsil village registry
+  // Load Tehsil village registry via API (reads fresh data, not stale static files)
   useEffect(() => {
-    fetch("/data/villages_by_tehsil.json")
+    fetch("/api/v1/tehsil-analytics")
       .then((res) => res.json())
-      .then((data) => setVillagesByTehsil(data))
-      .catch((err) => console.error("Failed to load villages by tehsil:", err));
+      .then((data) => {
+        // tehsil_analytics.json has tehsil_ranking, not villages_by_tehsil
+        // Fallback to static file for village registry mapping
+        fetch("/data/villages_by_tehsil.json")
+          .then((res2) => res2.json())
+          .then((data2) => setVillagesByTehsil(data2))
+          .catch(() => null);
+      })
+      .catch(() => {
+        fetch("/data/villages_by_tehsil.json")
+          .then((res2) => res2.json())
+          .then((data2) => setVillagesByTehsil(data2))
+          .catch(() => null);
+      });
 
-    fetch("/data/village_timeseries.json")
+    fetch("/api/v1/district-timeseries")
       .then((res) => res.json())
-      .then((data) => setTimeseriesCache(data))
+      .then((data) => setTimeseriesCache(data.series || []))
       .catch(() => null);
   }, []);
 
-  // Load continuous 98 observation periods from district series
+  // Load continuous observation periods from district timeseries via API
   useEffect(() => {
-    fetch("/data/district_monthly.json")
+    fetch("/api/v1/district-timeseries")
       .then((r) => r.json())
       .then((d) => {
         const pList = (d.series || []).map((s: any) => s.date).filter(Boolean);
@@ -103,13 +115,22 @@ export default function HomePage() {
           setPeriods(pList);
         }
       })
-      .catch((e) => console.error("Error loading periods:", e));
+      .catch(() => {
+        // Fallback to static file
+        fetch("/data/district_monthly.json")
+          .then((r2) => r2.json())
+          .then((d2) => {
+            const pList = (d2.series || []).map((s: any) => s.date).filter(Boolean);
+            if (pList.length > 0) setPeriods(pList);
+          })
+          .catch((e) => console.error("Error loading periods:", e));
+      });
   }, []);
 
   // Dynamically compute real-time statistics whenever currentPeriod, tehsil, or timeseriesCache changes
   useEffect(() => {
     if (!timeseriesCache) {
-      fetch("/data/latur_villages_latest.geojson")
+      fetch("/api/v1/villages")
         .then((res) => res.json())
         .then((gj) => {
           const features = gj.features || [];
@@ -153,6 +174,7 @@ export default function HomePage() {
     let cdiCount = 0;
 
     for (const [key, pts] of Object.entries(timeseriesCache)) {
+      if (!Array.isArray(pts)) continue;
       if (tehsil !== "All") {
         const [t] = key.split("::");
         if (t.toLowerCase() !== tehsil.toLowerCase()) continue;
@@ -186,31 +208,35 @@ export default function HomePage() {
   // Keep selected village in sync with currentPeriod
   useEffect(() => {
     if (!selectedVillageName || !timeseriesCache) return;
-    const keyMatch = Object.entries(timeseriesCache).find(([k]) => {
-      const [, v] = k.split("::");
-      return v.toLowerCase() === selectedVillageName.toLowerCase();
+    const keyMatch = Object.entries(timeseriesCache).find(([k, pts]) => {
+      if (!Array.isArray(pts)) return false;
+      const parts = k.split("::");
+      if (parts.length < 2) return false;
+      return parts[1].toLowerCase() === selectedVillageName.toLowerCase();
     });
     if (keyMatch) {
       const [key, pts] = keyMatch;
       const [tName] = key.split("::");
-      const match = pts.find((x: any) => (x.p || x.date) === currentPeriod);
-      if (match) {
-        setSelectedVillage((prev) => ({
-          ...(prev || {}),
-          ...match,
-          village: selectedVillageName,
-          tehsil: prev?.tehsil || tName,
-          CDI: match.cdi,
-          CDI_class: match.cls,
-          NDVI: match.ndvi,
-          VHI: match.vhi,
-          VCI: match.vci,
-          Rain_mm: match.rain,
-          SPI1: match.spi1,
-          SPI3: match.spi3,
-          SPI6: match.spi6,
-          SPI12: match.spi12,
-        }));
+      if (Array.isArray(pts)) {
+        const match = pts.find((x: any) => (x.p || x.date) === currentPeriod);
+        if (match) {
+          setSelectedVillage((prev) => ({
+            ...(prev || {}),
+            ...match,
+            village: selectedVillageName,
+            tehsil: prev?.tehsil || tName,
+            CDI: match.cdi,
+            CDI_class: match.cls,
+            NDVI: match.ndvi,
+            VHI: match.vhi,
+            VCI: match.vci,
+            Rain_mm: match.rain,
+            SPI1: match.spi1,
+            SPI3: match.spi3,
+            SPI6: match.spi6,
+            SPI12: match.spi12,
+          }));
+        }
       }
     }
   }, [currentPeriod, selectedVillageName, timeseriesCache]);
@@ -249,22 +275,24 @@ export default function HomePage() {
             const v = (props.village || props.VILLAGE || props.name || "").trim().toLowerCase();
             const key = `${t}::${v}`;
             const pts = timeseriesCache[key];
-            const cur = pts?.find((x: any) => (x.p || x.date) === currentPeriod);
-            if (cur) {
-              props = {
-                ...props,
-                ...cur,
-                CDI: cur.cdi,
-                CDI_class: cur.cls,
-                NDVI: cur.ndvi,
-                VHI: cur.vhi,
-                VCI: cur.vci,
-                Rain_mm: cur.rain,
-                SPI1: cur.spi1,
-                SPI3: cur.spi3,
-                SPI6: cur.spi6,
-                SPI12: cur.spi12,
-              };
+            if (Array.isArray(pts)) {
+              const cur = pts.find((x: any) => (x.p || x.date) === currentPeriod);
+              if (cur) {
+                props = {
+                  ...props,
+                  ...cur,
+                  CDI: cur.cdi,
+                  CDI_class: cur.cls,
+                  NDVI: cur.ndvi,
+                  VHI: cur.vhi,
+                  VCI: cur.vci,
+                  Rain_mm: cur.rain,
+                  SPI1: cur.spi1,
+                  SPI3: cur.spi3,
+                  SPI6: cur.spi6,
+                  SPI12: cur.spi12,
+                };
+              }
             }
           }
           setSelectedVillage(props);
