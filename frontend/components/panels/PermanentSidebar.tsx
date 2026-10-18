@@ -878,44 +878,97 @@ export function PermanentSidebar({
                 Calculated across 94,472 Latur observations (2016–2026). Strong negative correlation between VHI/SPI-3 and CDI confirms physical drought synchronization.
               </p>
 
-              {analytics?.correlation_matrix ? (
-                <div className="overflow-x-auto">
-                  <table className="border-collapse text-[10px] w-full text-center font-mono">
-                    <thead>
-                      <tr className="border-b border-slate-200 text-slate-500">
-                        <th className="p-1 text-left">Index</th>
-                        {analytics.correlation_matrix.indices.map((idx: string) => (
-                          <th key={idx} className="p-1 font-semibold">{idx}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {analytics.correlation_matrix.indices.map((rowIdx: string, rI: number) => (
-                        <tr key={rowIdx} className="border-b border-slate-100">
-                          <td className="p-1 text-left font-bold text-slate-700">{rowIdx}</td>
-                          {analytics.correlation_matrix.matrix[rI].map((cellVal: number, cI: number) => {
-                            let bg = "#ffffff";
-                            let textColor = "#0f172a";
-                            if (cellVal < -0.5) { bg = "#fee2e2"; textColor = "#991b1b"; }
-                            else if (cellVal < 0) { bg = "#ffedd5"; textColor = "#9a3412"; }
-                            else if (cellVal > 0.5) { bg = "#dcfce7"; textColor = "#166534"; }
-                            else if (cellVal > 0) { bg = "#f0fdf4"; textColor = "#15803d"; }
-                            return (
-                              <td
-                                key={cI}
-                                style={{ backgroundColor: bg, color: textColor }}
-                                className="p-1 font-semibold"
-                              >
-                                {cellVal.toFixed(2)}
-                              </td>
-                            );
-                          })}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : null}
+              {(() => {
+                const cm = analytics?.correlation_matrix;
+                if (!cm) return null;
+
+                if (Array.isArray(cm) && cm.length > 0) {
+                  const headers = Object.keys(cm[0]).filter((k) => k !== "index");
+                  return (
+                    <div className="overflow-x-auto">
+                      <table className="border-collapse text-[10px] w-full text-center font-mono">
+                        <thead>
+                          <tr className="border-b border-slate-200 text-slate-500">
+                            <th className="p-1 text-left">Index</th>
+                            {headers.map((h) => (
+                              <th key={h} className="p-1 font-semibold">{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {cm.map((row: any, rI: number) => (
+                            <tr key={row.index || rI} className="border-b border-slate-100">
+                              <td className="p-1 text-left font-bold text-slate-700">{row.index}</td>
+                              {headers.map((h) => {
+                                const cellVal = row[h];
+                                if (cellVal == null) return <td key={h} className="p-1 text-slate-300">—</td>;
+                                let bg = "#ffffff";
+                                let textColor = "#0f172a";
+                                if (cellVal < -0.5) { bg = "#fee2e2"; textColor = "#991b1b"; }
+                                else if (cellVal < 0) { bg = "#ffedd5"; textColor = "#9a3412"; }
+                                else if (cellVal > 0.5) { bg = "#dcfce7"; textColor = "#166534"; }
+                                else if (cellVal > 0) { bg = "#f0fdf4"; textColor = "#15803d"; }
+                                return (
+                                  <td
+                                    key={h}
+                                    style={{ backgroundColor: bg, color: textColor }}
+                                    className="p-1 font-semibold"
+                                  >
+                                    {Number(cellVal).toFixed(2)}
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  );
+                }
+
+                if (cm.indices && cm.matrix) {
+                  return (
+                    <div className="overflow-x-auto">
+                      <table className="border-collapse text-[10px] w-full text-center font-mono">
+                        <thead>
+                          <tr className="border-b border-slate-200 text-slate-500">
+                            <th className="p-1 text-left">Index</th>
+                            {cm.indices.map((idx: string) => (
+                              <th key={idx} className="p-1 font-semibold">{idx}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {cm.indices.map((rowIdx: string, rI: number) => (
+                            <tr key={rowIdx} className="border-b border-slate-100">
+                              <td className="p-1 text-left font-bold text-slate-700">{rowIdx}</td>
+                              {(cm.matrix[rI] || []).map((cellVal: number, cI: number) => {
+                                let bg = "#ffffff";
+                                let textColor = "#0f172a";
+                                if (cellVal < -0.5) { bg = "#fee2e2"; textColor = "#991b1b"; }
+                                else if (cellVal < 0) { bg = "#ffedd5"; textColor = "#9a3412"; }
+                                else if (cellVal > 0.5) { bg = "#dcfce7"; textColor = "#166534"; }
+                                else if (cellVal > 0) { bg = "#f0fdf4"; textColor = "#15803d"; }
+                                return (
+                                  <td
+                                    key={cI}
+                                    style={{ backgroundColor: bg, color: textColor }}
+                                    className="p-1 font-semibold"
+                                  >
+                                    {cellVal != null ? Number(cellVal).toFixed(2) : "—"}
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  );
+                }
+
+                return null;
+              })()}
             </div>
           </div>
         )}
