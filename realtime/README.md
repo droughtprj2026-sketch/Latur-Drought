@@ -52,7 +52,12 @@ To guarantee the dashboard **never breaks** or displays corrupt data during live
    - Enforces strict statutory classes according to the Manual for Drought Management (2016): `None` (Normal), `D0` (Mild), `D1` (Moderate), `D2` (Severe), `D3` (Extreme), `D4` (Exceptional).
 3. **Spatial Completeness**:
    - Rejects the entire run if village count falls below 900 (out of 954) or missing data exceeds 5%.
-4. **Atomic Buffer Swaps**:
+4. **Progressive Cloud Cover Acceptance Ladder (15% → 20% → 25%)**:
+   - **Tier 1 (Optimal Cloud-Free)**: First queries scenes with $\text{Cloud Cover} \le 15.0\%$. If found, accepted immediately.
+   - **Tier 2 (Acceptable)**: If 0 scenes meet Tier 1, escalates search to $\text{Cloud Cover} \le 20.0\%$.
+   - **Tier 3 (Maximum Statutory Ceiling)**: If 0 scenes meet Tier 2, escalates to $\text{Cloud Cover} \le 25.0\%$.
+   - **Strict Rejection Above 25%**: If every scene in the period has $> 25.0\%$ cloud cover, optical imagery is **strictly rejected**. The pipeline logs an explicit rejection warning, refuses to fabricate cloudy optical pixels, and operates in degraded meteorological mode relying on CHIRPS SPI.
+5. **Atomic Buffer Swaps**:
    - All files are staged in `.tmp` buffers first. If any step or test fails, the process aborts immediately, leaving live production files intact.
 
 ---

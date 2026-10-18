@@ -127,10 +127,52 @@ def get_overpass_schedule() -> dict[str, Any]:
     }
 
 
-def fetch_sentinel2_indices(ee: Any | None, period_str: str) -> dict[str, Any]:
-    """Fetches Sentinel-2 L2A BOA reflectance and calculates mean NDVI & EVI.
+CLOUD_ACCEPTANCE_TIERS = [
+    {"max_cloud": 15.0, "name": "Tier 1: Optimal", "tag": "tier_1_optimal"},
+    {"max_cloud": 20.0, "name": "Tier 2: Acceptable", "tag": "tier_2_acceptable"},
+    {"max_cloud": 25.0, "name": "Tier 3: Maximum Ceiling", "tag": "tier_3_ceiling"},
+]
+MAX_ACCEPTABLE_CLOUD_COVER = 25.0
+
+
+def evaluate_cloud_cover_acceptance(cloud_pct: float) -> dict[str, Any]:
+    """Evaluates a cloud cover percentage against the 15% -> 20% -> 25% acceptance ladder.
     
-    Identifies the exact overpass timestamp of the most recent cloud-free acquisition.
+    Returns:
+      dict with: accepted (bool), tier (str), max_threshold (float), reason (str)
+    """
+    for tier in CLOUD_ACCEPTANCE_TIERS:
+        if cloud_pct <= tier["max_cloud"]:
+            return {
+                "accepted": True,
+                "tier": tier["name"],
+                "tag": tier["tag"],
+                "threshold_applied": tier["max_cloud"],
+                "cloud_pct": round(cloud_pct, 2),
+                "reason": f"Accepted: Cloud cover {cloud_pct:.1f}% meets {tier['name']} (<= {tier['max_cloud']}%)."
+            }
+
+    return {
+        "accepted": False,
+        "tier": "Exceeded Maximum Ceiling",
+        "tag": "rejected_cloud_exceeded",
+        "threshold_applied": MAX_ACCEPTABLE_CLOUD_COVER,
+        "cloud_pct": round(cloud_pct, 2),
+        "reason": (
+            f"REJECTED: Cloud cover {cloud_pct:.1f}% exceeds statutory maximum ceiling of "
+            f"{MAX_ACCEPTABLE_CLOUD_COVER}%. Optical imagery rejected to prevent false drought artifacts."
+        )
+    }
+
+
+def fetch_sentinel2_indices(ee: Any | None, period_str: str) -> dict[str, Any]:
+    """Fetches Sentinel-2 L2A BOA reflectance using progressive step-by-step cloud filtering.
+    
+    Ladder:
+      1. Attempt <= 15% (Tier 1: Optimal)
+      2. Attempt <= 20% (Tier 2: Acceptable)
+      3. Attempt <= 25% (Tier 3: Maximum Ceiling)
+      4. If all scenes > 25%: REJECT optical imagery and report rejection.
     """
     if ee is None:
         return {}
@@ -140,37 +182,85 @@ def fetch_sentinel2_indices(ee: Any | None, period_str: str) -> dict[str, Any]:
         start_date = f"{y}-{m}-01"
         end_date = f"{y}-{int(m)+1:02d}-01" if int(m) < 12 else f"{int(y)+1}-01-01"
 
+        base_col = (
+            ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
+            .filterDate(start_date, end_date)
+            .filterBounds(ee.Geometry.BBox(*LATUR_BBOX))
+        )
+
+        total_scenes = base_col.size().getInfo()
+        if total_scenes == 0:
+            print(f"  [!] No Sentinel-2 scenes found for period {period_str}.")
+            return {"optical_status": "no_scenes", "cloud_rejected": True}
+
+        # Step-by-step tiered cloud cover search (15% -> 20% -> 25%)
+        accepted_col = None
+        applied_tier = None
+
+        for tier in CLOUD_ACCEPTANCE_TIERS:
+            threshold = tier["max_cloud"]
+            candidate_col = base_col.filter(ee.Filter.lte("CLOUDY_PIXEL_PERCENTAGE", threshold))
+            c_size = candidate_col.size().getInfo()
+            if c_size > 0:
+                accepted_col = candidate_col
+                applied_tier = tier
+                print(f"  -> Cloud Filter Check: {c_size} scene(s) passed {tier['name']} (<= {threshold}%).")
+                break
+            else:
+                print(f"  -> Cloud Filter Step: 0 scenes with <= {threshold}% cloud. Escalating to next tier...")
+
+        if accepted_col is None:
+            # All available scenes exceed the 25% ceiling
+            best_scene = base_col.sort("CLOUDY_PIXEL_PERCENTAGE", True).first()
+            best_props = best_scene.toDictionary(["CLOUDY_PIXEL_PERCENTAGE", "system:time_start"]).getInfo()
+            best_cloud = round(float(best_props.get("CLOUDY_PIXEL_PERCENTAGE", 99.9)), 2)
+
+            print("  " + "!" * 70)
+            print("  [!] SATELLITE REJECTION NOTICE: Optical scene REJECTED due to cloud cover.")
+            print(f"  [!] All {total_scenes} scene(s) exceed the 25% ceiling. Best available: {best_cloud}%.")
+            print("  [!] Optical NDVI/EVI will NOT be fabricated. Relying on CHIRPS precipitation.")
+            print("  " + "!" * 70)
+
+            return {
+                "optical_status": "rejected",
+                "cloud_rejected": True,
+                "best_available_cloud_pct": best_cloud,
+                "max_ceiling": MAX_ACCEPTABLE_CLOUD_COVER,
+                "reason": (
+                    f"Sentinel-2 imagery rejected: Best available scene had {best_cloud}% cloud cover, "
+                    f"which exceeds the maximum acceptable ceiling of {MAX_ACCEPTABLE_CLOUD_COVER}%."
+                )
+            }
+
+        # An image was accepted under 15%, 20%, or 25%
+        col = accepted_col.sort("system:time_start", False)  # Most recent first
+        first_img = col.first()
+        props = first_img.toDictionary(["system:time_start", "SPACECRAFT_NAME", "SENSING_ORBIT_NUMBER", "CLOUDY_PIXEL_PERCENTAGE"]).getInfo()
+        
+        latest_pass_info = {}
+        if props and "system:time_start" in props:
+            pass_ms = props["system:time_start"]
+            pass_dt = datetime.fromtimestamp(pass_ms / 1000.0, tz=timezone.utc)
+            cloud_pct = round(float(props.get("CLOUDY_PIXEL_PERCENTAGE", 0.0)), 2)
+            eval_res = evaluate_cloud_cover_acceptance(cloud_pct)
+            
+            latest_pass_info = {
+                "satellite": props.get("SPACECRAFT_NAME", "Sentinel-2"),
+                "overpass_datetime_utc": pass_dt.strftime("%Y-%m-%d %H:%M:%S UTC"),
+                "overpass_date": pass_dt.strftime("%Y-%m-%d"),
+                "overpass_time": pass_dt.strftime("%H:%M:%S UTC"),
+                "orbit": props.get("SENSING_ORBIT_NUMBER"),
+                "cloud_pct": cloud_pct,
+                "cloud_tier": applied_tier["name"],
+                "cloud_status": "accepted"
+            }
+            print(f"  -> ACCEPTED Sentinel-2 Scene: {latest_pass_info['satellite']} ({cloud_pct}% cloud <= {applied_tier['max_cloud']}%) on {latest_pass_info['overpass_datetime_utc']}")
+
         # SCL Cloud Masking (Keep vegetation, soil, water)
         def mask_s2(img):
             scl = img.select("SCL")
             mask = scl.neq(3).And(scl.neq(8)).And(scl.neq(9)).And(scl.neq(10))
             return img.updateMask(mask)
-
-        col = (
-            ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
-            .filterDate(start_date, end_date)
-            .filterBounds(ee.Geometry.BBox(*LATUR_BBOX))
-            .filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE", 30))
-            .sort("system:time_start", False)  # Most recent first
-        )
-
-        count = col.size().getInfo()
-        latest_pass_info = {}
-        if count > 0:
-            first_img = col.first()
-            props = first_img.toDictionary(["system:time_start", "SPACECRAFT_NAME", "SENSING_ORBIT_NUMBER", "CLOUDY_PIXEL_PERCENTAGE"]).getInfo()
-            if props and "system:time_start" in props:
-                pass_ms = props["system:time_start"]
-                pass_dt = datetime.fromtimestamp(pass_ms / 1000.0, tz=timezone.utc)
-                latest_pass_info = {
-                    "satellite": props.get("SPACECRAFT_NAME", "Sentinel-2"),
-                    "overpass_datetime_utc": pass_dt.strftime("%Y-%m-%d %H:%M:%S UTC"),
-                    "overpass_date": pass_dt.strftime("%Y-%m-%d"),
-                    "overpass_time": pass_dt.strftime("%H:%M:%S UTC"),
-                    "orbit": props.get("SENSING_ORBIT_NUMBER"),
-                    "cloud_pct": round(float(props.get("CLOUDY_PIXEL_PERCENTAGE", 0.0)), 2)
-                }
-                print(f"  -> Latest Sentinel-2 overpass: {latest_pass_info['satellite']} on {latest_pass_info['overpass_datetime_utc']} (Orbit {latest_pass_info.get('orbit')}, Cloud: {latest_pass_info['cloud_pct']}%)")
 
         masked_col = col.map(mask_s2)
         composite = masked_col.median()
@@ -198,6 +288,9 @@ def fetch_sentinel2_indices(ee: Any | None, period_str: str) -> dict[str, Any]:
         )
 
         res: dict[str, Any] = {
+            "optical_status": "accepted",
+            "cloud_rejected": False,
+            "cloud_tier": applied_tier["name"] if applied_tier else "Unknown",
             "ndvi": round(float(reduced.get("ndvi", 0.35)), 4),
             "evi": round(float(reduced.get("evi", 0.25)), 4),
         }

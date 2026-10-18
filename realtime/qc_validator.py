@@ -123,3 +123,25 @@ def test_json_integrity(json_path: Path) -> bool:
         raise QCValidationError(f"Integrity check failed: Malformed JSON at {json_path}: {exc}")
 
     return True
+
+
+def validate_cloud_cover_qc(cloud_info: dict[str, Any] | None) -> dict[str, Any]:
+    """Verifies that accepted optical observations do not exceed the 25% cloud cover ceiling.
+    
+    If cloud cover > 25%, raises QCValidationError if the scene was incorrectly accepted.
+    """
+    if not cloud_info:
+        return {"status": "skipped", "reason": "No optical cloud metadata provided"}
+
+    cloud_pct = cloud_info.get("cloud_pct")
+    status = cloud_info.get("cloud_status")
+
+    if status == "accepted" and cloud_pct is not None:
+        if cloud_pct > 25.0:
+            raise QCValidationError(
+                f"Cloud Cover Quality Failure: Accepted scene has {cloud_pct}% cloud cover, "
+                f"which exceeds the statutory 25.0% maximum ceiling."
+            )
+        return {"status": "passed", "cloud_pct": cloud_pct, "tier": cloud_info.get("cloud_tier")}
+
+    return {"status": "rejected_or_degraded", "cloud_pct": cloud_pct}

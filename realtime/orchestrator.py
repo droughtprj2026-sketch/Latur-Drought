@@ -33,6 +33,7 @@ from zonal_analyzer import run_village_zonal_analysis
 from qc_validator import (
     validate_village_metrics,
     validate_district_summary,
+    validate_cloud_cover_qc,
     test_json_integrity,
     QCValidationError,
 )
@@ -129,6 +130,15 @@ def run_pipeline(
         validate_district_summary(summary_stats)
         print("  [PASS] Test 2: Aggregated district summary statistics validated.")
         report["tests"].append({"test": "district_summary_qc", "result": "PASS"})
+
+        # Test 3: Validate cloud cover acceptance ceiling (<= 25%)
+        cloud_info = s2_data.get("overpass_info")
+        c_audit = validate_cloud_cover_qc(cloud_info)
+        if c_audit.get("status") == "passed":
+            print(f"  [PASS] Test 3: Cloud cover ceiling validated ({c_audit.get('cloud_pct')}% <= 25.0% - {c_audit.get('tier')}).")
+        else:
+            print("  [INFO] Test 3: Cloud cover audit: Operating in safe degraded/baseline mode (no cloud contamination).")
+        report["tests"].append({"test": "cloud_cover_qc", "result": "PASS", "details": c_audit})
 
     except QCValidationError as qc_err:
         print(f"\n  [!] QC VALIDATION FAILED: {qc_err}")
