@@ -158,7 +158,23 @@ CREATE TABLE IF NOT EXISTS public.master_row (
     CONSTRAINT uq_master_row_entry UNIQUE (tehsil, village, observation_period)
 );
 
--- 8. Processing Manifest Table (Incremental Tracking)
+-- 8. Drought Classification Lookup Table (Centralized Drought/Non-Drought/Wet Decisions)
+-- Built from config/composite.yaml thresholds. The near-real-time pipeline
+-- consults this table to classify CDI scores without hardcoding thresholds.
+CREATE TABLE IF NOT EXISTS public.drought_classification_lookup (
+    id SERIAL PRIMARY KEY,
+    min_score NUMERIC(8, 4) NOT NULL,
+    max_score NUMERIC(8, 4) NOT NULL,
+    code TEXT NOT NULL,           -- None, D0, D1, D2, D3, D4, ND
+    label TEXT NOT NULL,
+    severity TEXT NOT NULL,       -- no_drought | drought | no_data
+    color TEXT NOT NULL,
+    formula_version TEXT NOT NULL DEFAULT 'cdi-v2026.10',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT uq_lookup_code UNIQUE (code)
+);
+
+-- 9. Processing Manifest Table (Incremental Tracking)
 CREATE TABLE IF NOT EXISTS public.processing_manifest (
     id SERIAL PRIMARY KEY,
     source TEXT NOT NULL,
@@ -193,6 +209,8 @@ CREATE INDEX IF NOT EXISTS idx_realtime_time ON public.realtime_observations (se
 CREATE INDEX IF NOT EXISTS idx_master_row_lookup ON public.master_row (tehsil, village, observation_period);
 CREATE INDEX IF NOT EXISTS idx_master_row_period ON public.master_row (observation_period);
 
+CREATE INDEX IF NOT EXISTS idx_drought_lookup_code ON public.drought_classification_lookup (code);
+
 -- =============================================================================
 -- Row Level Security (RLS) Configuration
 -- =============================================================================
@@ -203,6 +221,7 @@ ALTER TABLE public.village_monthly_metrics ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.realtime_observations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.master_row ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.processing_manifest ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.drought_classification_lookup ENABLE ROW LEVEL SECURITY;
 
 -- Public Anonymous Read Policies
 CREATE POLICY "Public Read Tehsils" ON public.tehsils FOR SELECT TO anon, authenticated USING (true);
@@ -212,6 +231,7 @@ CREATE POLICY "Public Read Village Monthly" ON public.village_monthly_metrics FO
 CREATE POLICY "Public Read Realtime" ON public.realtime_observations FOR SELECT TO anon, authenticated USING (true);
 CREATE POLICY "Public Read Master Row" ON public.master_row FOR SELECT TO anon, authenticated USING (true);
 CREATE POLICY "Public Read Manifest" ON public.processing_manifest FOR SELECT TO anon, authenticated USING (true);
+CREATE POLICY "Public Read Drought Lookup" ON public.drought_classification_lookup FOR SELECT TO anon, authenticated USING (true);
 
 -- Service Role Full Management Policies
 CREATE POLICY "Service Role Tehsils" ON public.tehsils FOR ALL TO service_role USING (true) WITH CHECK (true);
@@ -221,6 +241,7 @@ CREATE POLICY "Service Role Village Monthly" ON public.village_monthly_metrics F
 CREATE POLICY "Service Role Realtime" ON public.realtime_observations FOR ALL TO service_role USING (true) WITH CHECK (true);
 CREATE POLICY "Service Role Master Row" ON public.master_row FOR ALL TO service_role USING (true) WITH CHECK (true);
 CREATE POLICY "Service Role Manifest" ON public.processing_manifest FOR ALL TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "Service Role Drought Lookup" ON public.drought_classification_lookup FOR ALL TO service_role USING (true) WITH CHECK (true);
 
 -- =============================================================================
 -- Spatial Helper RPC Functions for Live Frontend Consumption

@@ -139,8 +139,12 @@ def compute_realtime_indices(ee_instance, period_str):
         "lookup_table": DROUGHT_LOOKUP,
     }
 
-def update_local_geojson_and_timeseries(period_str):
-    """Updates frontend/public/data/ and outputs/Dashboard/ with latest metrics."""
+def update_local_geojson_and_timeseries(period_str, indices_result):
+    """Updates frontend/public/data/ and outputs/Dashboard/ with latest metrics.
+
+    Uses the computed indices_result (which includes the centralized
+    drought classification) instead of hardcoded values.
+    """
     print("\n[STEP 3/5] Updating Local Vector GeoJSON and Village Timeseries Cache...")
     geojson_path = PUBLIC_DATA / "latur_villages_latest.geojson"
     ts_path = PUBLIC_DATA / "village_timeseries.json"
@@ -159,13 +163,23 @@ def update_local_geojson_and_timeseries(period_str):
     village_count = len(ts)
     print(f"  -> Synchronized {feature_count} GeoJSON polygons with {village_count} village timeseries.")
     
-    # Write latest status
+    # Write latest status using the real computed classification
     status_payload = {
         "generated_at": datetime.utcnow().isoformat() + "Z",
         "monitoring_status": "operational",
         "sentinel2": {"latest_period_id": period_str, "status": "operational"},
         "chirps": {"latest_period_id": period_str, "status": "operational"},
-        "composite": {"formula_version": "cdi-v2026.10"},
+        "composite": {
+            "formula_version": indices_result["formula_version"],
+            "weights": indices_result["weights"],
+            "composite_drought_score": indices_result["composite_drought_score"],
+            "composite_drought_class": indices_result["composite_drought_class"],
+            "composite_drought_label": indices_result["composite_drought_label"],
+            "drought_severity": indices_result["drought_severity"],
+            "is_drought": indices_result["is_drought"],
+            "is_no_drought": indices_result["is_no_drought"],
+            "is_wet": indices_result["is_wet"],
+        },
         "region": {"district": "Latur", "state": "Maharashtra", "villages": village_count}
     }
     with open(DASH_DIR / "latest_status.json", "w", encoding="utf-8") as f:
@@ -173,11 +187,15 @@ def update_local_geojson_and_timeseries(period_str):
     with open(PUBLIC_DATA / "latest_status.json", "w", encoding="utf-8") as f:
         json.dump(status_payload, f, indent=2)
 
-    print("  -> SUCCESS: Dashboard latest_status.json updated.")
+    print(f"  -> SUCCESS: Dashboard latest_status.json updated (class={indices_result['composite_drought_class']}, severity={indices_result['drought_severity']}).")
     return True
 
-def sync_to_supabase(period_str):
-    """Pushes the realtime observation row to Supabase if credentials are present."""
+def sync_to_supabase(period_str, indices_result):
+    """Pushes the realtime observation row to Supabase if credentials are present.
+
+    Uses the computed indices_result (centralized drought classification)
+    instead of hardcoded values.
+    """
     print("\n[STEP 4/5] Synchronizing Real-Time Telemetry to Supabase...")
     supabase_url = os.environ.get("SUPABASE_URL") or os.environ.get("NEXT_PUBLIC_SUPABASE_URL")
     supabase_key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get("SUPABASE_KEY")
@@ -191,7 +209,8 @@ def sync_to_supabase(period_str):
         from supabase import create_client
         client = create_client(supabase_url, supabase_key)
         
-        # Test connection & insert telemetry record
+        idx = indices_result["indices"]
+        # Test connection & insert telemetry record with real classification
         record = {
             "source": "Sentinel-2 MSI Level-2A (GEE Live Ingestion)",
             "sensing_time": datetime.utcnow().isoformat() + "Z",
@@ -199,23 +218,31 @@ def sync_to_supabase(period_str):
             "tehsil": "Latur",
             "village": "Latur",
             "cloud_percentage": 5.2,
-            "ndvi": 0.365,
-            "evi": 0.285,
-            "vci": 42.5,
-            "vhi": 40.0,
-            "tci": 37.5,
-            "pci": 45.0,
-            "spi_1": -0.45,
-            "spi_3": -0.62,
-            "composite_drought_score": 0.325,
-            "composite_drought_class": "D0",
+            "ndvi": idx["ndvi"],
+            "evi": idx["evi"],
+            "vci": idx["vci"],
+            "vhi": idx["vhi"],
+            "tci": idx["vhi"],  # TCI proxy from VHI when thermal not available
+            "pci": idx["pci"],
+            "spi_1": idx["spi_3"],
+            "spi_3": idx["spi_3"],
+            "composite_drought_score": indices_result["composite_drought_score"],
+            "composite_drought_class": indices_result["composite_drought_class"],
             "gee_tile_url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
             "data_quality_status": "live_verified",
-            "raw_band_stats": {"source": "GEE Sentinel-2 MSI", "gee_project": os.environ.get("GEE_PROJECT", "ee-latur-drought")}
+            "raw_band_stats": {
+                "source": "GEE Sentinel-2 MSI",
+                "gee_project": os.environ.get("GEE_PROJECT", "ee-latur-drought"),
+                "drought_severity": indices_result["drought_severity"],
+                "is_drought": indices_result["is_drought"],
+                "is_no_drought": indices_result["is_no_drought"],
+                "is_wet": indices_result["is_wet"],
+                "lookup_table": indices_result["lookup_table"],
+            }
         }
         
         res = client.table("realtime_observations").upsert(record).execute()
-        print("  -> SUCCESS: Realtime telemetry record synced to Supabase `realtime_observations` table.")
+        print(f"  -> SUCCESS: Realtime telemetry synced to Supabase `realtime_observations` (class={indices_result['composite_drought_class']}, severity={indices_result['drought_severity']}).")
         return True
     except Exception as e:
         print(f"  [!] Supabase synchronization notice: {e}")
@@ -248,9 +275,9 @@ def main():
     print("=================================================================")
 
     ee = init_earth_engine()
-    compute_realtime_indices(ee, args.period)
-    update_local_geojson_and_timeseries(args.period)
-    sync_to_supabase(args.period)
+    indices_result = compute_realtime_indices(ee, args.period)
+    update_local_geojson_and_timeseries(args.period, indices_result)
+    sync_to_supabase(args.period, indices_result)
     print_github_secrets_summary()
     print("\n[DONE] Pipeline execution completed successfully.")
 

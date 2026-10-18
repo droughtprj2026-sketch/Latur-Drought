@@ -14,6 +14,15 @@ from pathlib import Path
 import pandas as pd
 import numpy as np
 
+# Centralized drought classification from config/composite.yaml
+# (single source of truth — never hardcode thresholds here)
+HERE = Path(__file__).resolve().parent
+sys_path_inserted = str(HERE)
+import sys
+if sys_path_inserted not in sys.path:
+    sys.path.insert(0, sys_path_inserted)
+from common.classify import code_for_cdi, label_for_cdi, classify_drought  # noqa: E402
+
 ROOT = Path(r"d:\Droughtprj@2026")
 PROCESSED_CSV = ROOT / "data" / "processed" / "csv" / "village_Latur_monthly_indices.csv"
 DB_PATH = ROOT / "data" / "drought.db"
@@ -28,32 +37,30 @@ TEHSIL_AREAS = {
 TOTAL_DISTRICT_AREA = sum(TEHSIL_AREAS.values())
 
 def get_drought_code(score):
-    if score is None or (isinstance(score, float) and math.isnan(score)):
-        return "ND"
-    if score < 0.20:
-        return "None"
-    elif score < 0.35:
-        return "D0"
-    elif score < 0.50:
-        return "D1"
-    elif score < 0.65:
-        return "D2"
-    elif score < 0.80:
-        return "D3"
-    else:
-        return "D4"
+    """CDI score → D-code using the centralized lookup table (config/composite.yaml)."""
+    return code_for_cdi(score)
 
 def get_drought_label(code):
-    mapping = {
-        "None": "No drought / Normal",
-        "D0": "D0 — Abnormally dry",
-        "D1": "D1 — Moderate drought",
-        "D2": "D2 — Severe drought",
-        "D3": "D3 — Extreme drought",
-        "D4": "D4 — Exceptional drought",
-        "ND": "No data",
-    }
-    return mapping.get(code, "No data")
+    """D-code → human-readable label via the centralized classifier (config/composite.yaml)."""
+    # Build a code→label map from the lookup table thresholds
+    _label_map = {}
+    for t in _load_composite_thresholds():
+        _label_map[t["code"]] = t["label"]
+    _label_map["ND"] = "No data"
+    return _label_map.get(code, "No data")
+
+
+def _load_composite_thresholds():
+    """Load thresholds from config/composite.yaml (centralized, not hardcoded)."""
+    import yaml
+    from pathlib import Path
+    cfg_path = HERE.parent / "config" / "composite.yaml"
+    with cfg_path.open() as f:
+        return yaml.safe_load(f)["thresholds"]
+
+def get_drought_status(score):
+    """Full drought status dict from the centralized lookup table."""
+    return classify_drought(score)
 
 def get_spi_label(v):
     if v is None or (isinstance(v, float) and math.isnan(v)):
