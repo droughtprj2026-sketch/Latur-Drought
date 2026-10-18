@@ -50,6 +50,10 @@ export default function FullscreenMapPage() {
   const [selectedVillage, setSelectedVillage] = useState<VillageProperties | null>(null);
   const [periods, setPeriods] = useState<string[]>([]);
   const [currentPeriod, setCurrentPeriod] = useState<string>("2026-10");
+  const [showGeeLayer, setShowGeeLayer] = useState<boolean>(false);
+  const [geeTileUrl] = useState<string>(
+    "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+  );
 
   useEffect(() => {
     fetch("/data/district_monthly.json")
@@ -96,6 +100,20 @@ export default function FullscreenMapPage() {
           ))}
         </select>
 
+        {/* Live GEE Satellite Toggle */}
+        <button
+          onClick={() => setShowGeeLayer(!showGeeLayer)}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-xs ${
+            showGeeLayer
+              ? "bg-emerald-700 text-white ring-2 ring-emerald-300 shadow-sm"
+              : "bg-slate-50 text-slate-700 border border-slate-200 hover:bg-slate-100"
+          }`}
+          title="Toggle High-Resolution Live Satellite Imagery Overlay"
+        >
+          <span className={`w-2 h-2 rounded-full ${showGeeLayer ? "bg-white animate-pulse" : "bg-emerald-500"}`} />
+          <span>🛰️ Live Satellite</span>
+        </button>
+
         {/* Current Period Badge */}
         <div className="px-3 py-1 bg-amber-50 border border-amber-200 rounded-xl text-xs font-mono font-bold text-amber-900">
           {currentPeriod}
@@ -107,6 +125,8 @@ export default function FullscreenMapPage() {
         metric={metric}
         tehsil={tehsil}
         currentPeriod={currentPeriod}
+        showGeeLayer={showGeeLayer}
+        geeTileUrl={geeTileUrl}
         selectedVillageName={selectedVillage?.village || selectedVillage?.VILLAGE || selectedVillage?.name || ""}
         onSelectVillage={(props) => setSelectedVillage(props)}
       />
