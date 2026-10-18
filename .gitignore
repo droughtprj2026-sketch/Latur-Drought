@@ -1,7 +1,16 @@
-# Secrets
+# Secrets & Credentials
 .env
 .env.*
 !.env.example
+*.json.key
+*service_account*.json
+*service-account*.json
+igneous-*.json
+*-*.json
+!package.json
+!package-lock.json
+!tsconfig.json
+!vercel.json
 
 # Raw data (large, external rasters)
 data/raw/
