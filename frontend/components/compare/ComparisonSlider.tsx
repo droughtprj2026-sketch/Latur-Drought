@@ -82,8 +82,8 @@ export function ComparisonSlider({ index, a, b }: Props) {
       {/* Underlying Map: Period A */}
       <MapContainer center={LATUR} zoom={10} className="h-full w-full" zoomControl={false}>
         <TileLayer
-          url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
-          attribution="&copy; OpenStreetMap contributors &copy; CARTO"
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution="&copy; <a href='https://openstreetmap.org/copyright'>OpenStreetMap</a> contributors"
         />
         {fA && <GeoJSON key={`a-${a.year}-${a.month}-${index}`} data={fA} style={style} onEachFeature={onEachFeature} />}
         <ZoomControl position="topright" />
@@ -109,7 +109,7 @@ export function ComparisonSlider({ index, a, b }: Props) {
           }}
         >
           <TileLayer
-            url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             attribution=""
           />
           {fB && <GeoJSON key={`b-${b.year}-${b.month}-${index}`} data={fB} style={style} />}

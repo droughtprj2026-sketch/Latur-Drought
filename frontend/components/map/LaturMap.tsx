@@ -211,7 +211,7 @@ export default function LaturMap({
   metric = "cdi", tehsil = "All", selectedVillageId = null, currentPeriod,
   onSelectVillage, aoi = null, showSatellite = false, rightInset = 0, onPeriodChange, topLeft, children,
 }: Props) {
-  const [basemapId, setBasemapId] = useState("carto-light");
+  const [basemapId, setBasemapId] = useState("osm");
   const [villages, setVillages] = useState<FeatureCollection | null>(null);
   const [tehsils, setTehsils] = useState<FeatureCollection | null>(null);
   const [district, setDistrict] = useState<FeatureCollection | null>(null);

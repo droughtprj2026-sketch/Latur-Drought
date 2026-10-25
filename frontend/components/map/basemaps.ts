@@ -11,14 +11,6 @@ export interface Basemap {
 
 export const BASEMAPS: Basemap[] = [
   {
-    id: "carto-light",
-    label: "Plain (best for choropleth)",
-    url: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
-    attribution:
-      '&copy; <a href="https://openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-    maxZoom: 19,
-  },
-  {
     id: "osm",
     label: "OpenStreetMap",
     url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",

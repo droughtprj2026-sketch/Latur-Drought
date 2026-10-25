@@ -107,8 +107,8 @@ export function AnimationPlayer({ index, from, to }: Props) {
       <div className="relative h-[560px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs">
         <MapContainer center={LATUR} zoom={10} className="h-full w-full" zoomControl={false}>
           <TileLayer
-            url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
-            attribution="&copy; OpenStreetMap contributors &copy; CARTO"
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            attribution="&copy; <a href='https://openstreetmap.org/copyright'>OpenStreetMap</a> contributors"
           />
           {data && (
             <GeoJSON
