@@ -126,3 +126,20 @@ def test_every_new_table_has_rls_and_no_anon_write():
 def test_bucket_is_service_write_only():
     assert "TO service_role" in SQL.rsplit("drought-data service write", 1)[1]
     assert "FOR SELECT TO anon" in SQL.rsplit("drought-data public read", 1)[1]
+
+
+def test_migration_defines_tables_before_functions_use_them():
+    schema = (ROOT / "supabase" / "schema.sql").read_text()
+    created = {m.group(1): m.start() for m in re.finditer(r"CREATE TABLE IF NOT EXISTS public\.(\w+)", SQL)}
+    existing = set(re.findall(r"CREATE TABLE IF NOT EXISTS public\.(\w+)", schema))
+    for m in re.finditer(r"CREATE (?:OR REPLACE )?FUNCTION public\.\w+.*?\$\$.*?\$\$;", SQL, re.S):
+        for t in set(re.findall(r"(?:FROM|JOIN) public\.(\w+)", m.group(0))):
+            assert t in existing or (t in created and created[t] < m.start()), \
+                f"function at offset {m.start()} uses public.{t} before it exists"
+
+
+def test_migration_runs_in_one_transaction_and_schema_policies_are_rerunnable():
+    assert SQL.lstrip().split("\n")[-1].strip() == "COMMIT;" or SQL.rstrip().endswith("COMMIT;")
+    assert "BEGIN;" in SQL
+    schema = (ROOT / "supabase" / "schema.sql").read_text()
+    assert len(re.findall(r"CREATE POLICY", schema)) == len(re.findall(r"DROP POLICY IF EXISTS", schema))

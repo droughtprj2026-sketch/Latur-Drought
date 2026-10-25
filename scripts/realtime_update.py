@@ -175,7 +175,8 @@ def fetch_s2(ee, feats, period: str, cloud_pct: int = 40) -> dict:
     values = {}
     for part in chunks(feats, 100):
         fc = comp.reduceRegions(ee.FeatureCollection(part), ee.Reducer.mean(), scale=30, tileScale=8)
-        for f in fc.getInfo()["features"]:
+        # numbers only: without this every batch also downloads each village's polygon outline
+        for f in fc.select(["id", "NDVI", "EVI"], None, False).getInfo()["features"]:
             p = f["properties"]
             values[str(p["id"])] = {"ndvi": p.get("NDVI"), "evi": p.get("EVI")}
     return {"scenes": scenes, "values": values}
@@ -197,7 +198,7 @@ def fetch_chirps(ee, feats, period: str) -> dict | None:
     values = {}
     for part in chunks(feats, 100):
         fc = total.reduceRegions(ee.FeatureCollection(part), ee.Reducer.mean(), scale=5566, tileScale=4)
-        for f in fc.getInfo()["features"]:
+        for f in fc.select(["id", "mean"], None, False).getInfo()["features"]:
             p = f["properties"]
             values[str(p["id"])] = p.get("mean", p.get("rain"))
     return values

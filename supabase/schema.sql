@@ -224,23 +224,39 @@ ALTER TABLE public.processing_manifest ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.drought_classification_lookup ENABLE ROW LEVEL SECURITY;
 
 -- Public Anonymous Read Policies
+DROP POLICY IF EXISTS "Public Read Tehsils" ON public.tehsils;
 CREATE POLICY "Public Read Tehsils" ON public.tehsils FOR SELECT TO anon, authenticated USING (true);
+DROP POLICY IF EXISTS "Public Read Villages" ON public.villages;
 CREATE POLICY "Public Read Villages" ON public.villages FOR SELECT TO anon, authenticated USING (true);
+DROP POLICY IF EXISTS "Public Read Tehsil Monthly" ON public.tehsil_monthly_metrics;
 CREATE POLICY "Public Read Tehsil Monthly" ON public.tehsil_monthly_metrics FOR SELECT TO anon, authenticated USING (true);
+DROP POLICY IF EXISTS "Public Read Village Monthly" ON public.village_monthly_metrics;
 CREATE POLICY "Public Read Village Monthly" ON public.village_monthly_metrics FOR SELECT TO anon, authenticated USING (true);
+DROP POLICY IF EXISTS "Public Read Realtime" ON public.realtime_observations;
 CREATE POLICY "Public Read Realtime" ON public.realtime_observations FOR SELECT TO anon, authenticated USING (true);
+DROP POLICY IF EXISTS "Public Read Master Row" ON public.master_row;
 CREATE POLICY "Public Read Master Row" ON public.master_row FOR SELECT TO anon, authenticated USING (true);
+DROP POLICY IF EXISTS "Public Read Manifest" ON public.processing_manifest;
 CREATE POLICY "Public Read Manifest" ON public.processing_manifest FOR SELECT TO anon, authenticated USING (true);
+DROP POLICY IF EXISTS "Public Read Drought Lookup" ON public.drought_classification_lookup;
 CREATE POLICY "Public Read Drought Lookup" ON public.drought_classification_lookup FOR SELECT TO anon, authenticated USING (true);
 
 -- Service Role Full Management Policies
+DROP POLICY IF EXISTS "Service Role Tehsils" ON public.tehsils;
 CREATE POLICY "Service Role Tehsils" ON public.tehsils FOR ALL TO service_role USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Service Role Villages" ON public.villages;
 CREATE POLICY "Service Role Villages" ON public.villages FOR ALL TO service_role USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Service Role Tehsil Monthly" ON public.tehsil_monthly_metrics;
 CREATE POLICY "Service Role Tehsil Monthly" ON public.tehsil_monthly_metrics FOR ALL TO service_role USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Service Role Village Monthly" ON public.village_monthly_metrics;
 CREATE POLICY "Service Role Village Monthly" ON public.village_monthly_metrics FOR ALL TO service_role USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Service Role Realtime" ON public.realtime_observations;
 CREATE POLICY "Service Role Realtime" ON public.realtime_observations FOR ALL TO service_role USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Service Role Master Row" ON public.master_row;
 CREATE POLICY "Service Role Master Row" ON public.master_row FOR ALL TO service_role USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Service Role Manifest" ON public.processing_manifest;
 CREATE POLICY "Service Role Manifest" ON public.processing_manifest FOR ALL TO service_role USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Service Role Drought Lookup" ON public.drought_classification_lookup;
 CREATE POLICY "Service Role Drought Lookup" ON public.drought_classification_lookup FOR ALL TO service_role USING (true) WITH CHECK (true);
 
 -- =============================================================================

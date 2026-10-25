@@ -126,8 +126,8 @@ def fetch_lst_sm(ee, feats, period: str, tcfg: dict) -> dict | None:
     values: dict[str, dict] = {}
     for part in chunks(feats, 100):
         fc = ee.FeatureCollection(part)
-        a = lst.reduceRegions(fc, ee.Reducer.mean(), scale=30, tileScale=8).getInfo()["features"]
-        b = vv_db.reduceRegions(fc, ee.Reducer.mean(), scale=30, tileScale=8).getInfo()["features"]
+        a = lst.reduceRegions(fc, ee.Reducer.mean(), scale=30, tileScale=8).select(["id", "mean"], None, False).getInfo()["features"]
+        b = vv_db.reduceRegions(fc, ee.Reducer.mean(), scale=30, tileScale=8).select(["id", "mean"], None, False).getInfo()["features"]
         for fa, fb in zip(a, b):
             pid = str(fa["properties"]["id"])
             values[pid] = {"lst": fa["properties"].get("mean", fa["properties"].get("lst")),

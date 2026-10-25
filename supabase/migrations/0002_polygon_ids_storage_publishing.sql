@@ -12,6 +12,8 @@
 --  * Every pipeline run should leave an auditable row.
 -- =============================================================================
 
+BEGIN;
+
 -- ---- 1. villages: key on polygon id ---------------------------------------
 ALTER TABLE public.villages ADD COLUMN IF NOT EXISTS polygon_id INT;
 ALTER TABLE public.villages DROP CONSTRAINT IF EXISTS uq_village_per_tehsil;
@@ -24,22 +26,6 @@ ALTER TABLE public.master_row ALTER COLUMN component_contributions DROP DEFAULT;
 ALTER TABLE public.master_row ALTER COLUMN spi_reference_period DROP DEFAULT;
 ALTER TABLE public.master_row ALTER COLUMN composite_formula_version DROP DEFAULT;
 ALTER TABLE public.realtime_observations ALTER COLUMN source DROP DEFAULT;
-DROP FUNCTION IF EXISTS public.get_realtime_drought_summary(TEXT);
-CREATE OR REPLACE FUNCTION public.get_realtime_drought_summary(p_period TEXT)   -- period is required, no default month
-RETURNS JSONB LANGUAGE sql STABLE AS $$
-    SELECT jsonb_build_object(
-        'observation_period', p_period,
-        'villages', COUNT(*),
-        'assessed', COUNT(cdi),
-        'mean_cdi', ROUND(AVG(cdi), 3),
-        'd0_count', COUNT(*) FILTER (WHERE cdi_class = 'D0'),
-        'd1_count', COUNT(*) FILTER (WHERE cdi_class = 'D1'),
-        'd2_count', COUNT(*) FILTER (WHERE cdi_class = 'D2'),
-        'd3_count', COUNT(*) FILTER (WHERE cdi_class = 'D3'),
-        'd4_count', COUNT(*) FILTER (WHERE cdi_class = 'D4'))
-    FROM public.village_monthly WHERE period = p_period;
-$$;
-GRANT EXECUTE ON FUNCTION public.get_realtime_drought_summary(TEXT) TO anon, authenticated;
 
 -- ---- 2. one row per village and month, keyed on polygon id ------------------
 CREATE TABLE IF NOT EXISTS public.village_monthly (
@@ -104,6 +90,24 @@ GRANT ALL ON public.village_monthly, public.pipeline_runs TO service_role;
 GRANT USAGE, SELECT ON SEQUENCE public.pipeline_runs_id_seq TO service_role;
 
 -- ---- 5. RPCs the frontend can call with the anon key -----------------------
+-- Summary counts for one month (period is required: no default month).
+DROP FUNCTION IF EXISTS public.get_realtime_drought_summary(TEXT);
+CREATE OR REPLACE FUNCTION public.get_realtime_drought_summary(p_period TEXT)   -- period is required, no default month
+RETURNS JSONB LANGUAGE sql STABLE AS $$
+    SELECT jsonb_build_object(
+        'observation_period', p_period,
+        'villages', COUNT(*),
+        'assessed', COUNT(cdi),
+        'mean_cdi', ROUND(AVG(cdi), 3),
+        'd0_count', COUNT(*) FILTER (WHERE cdi_class = 'D0'),
+        'd1_count', COUNT(*) FILTER (WHERE cdi_class = 'D1'),
+        'd2_count', COUNT(*) FILTER (WHERE cdi_class = 'D2'),
+        'd3_count', COUNT(*) FILTER (WHERE cdi_class = 'D3'),
+        'd4_count', COUNT(*) FILTER (WHERE cdi_class = 'D4'))
+    FROM public.village_monthly WHERE period = p_period;
+$$;
+GRANT EXECUTE ON FUNCTION public.get_realtime_drought_summary(TEXT) TO anon, authenticated;
+
 -- One month for every village (map snapshot) - ~954 rows.
 CREATE OR REPLACE FUNCTION public.get_period_snapshot(p_period TEXT)
 RETURNS SETOF public.village_monthly
@@ -131,6 +135,7 @@ LANGUAGE sql STABLE AS $$
            COUNT(*) FILTER (WHERE m.cdi_class IN ('D2','D3','D4'))
     FROM public.villages v
     LEFT JOIN public.village_monthly m ON m.village_id = v.polygon_id AND m.period = p_period
+    WHERE v.polygon_id IS NOT NULL            -- ignore legacy name-keyed rows from the old seed
     GROUP BY v.tehsil
     ORDER BY AVG(m.cdi) DESC NULLS LAST;
 $$;
@@ -155,3 +160,5 @@ CREATE POLICY "drought-data public read" ON storage.objects
 DROP POLICY IF EXISTS "drought-data service write" ON storage.objects;
 CREATE POLICY "drought-data service write" ON storage.objects
     FOR ALL TO service_role USING (bucket_id = 'drought-data') WITH CHECK (bucket_id = 'drought-data');
+
+COMMIT;
