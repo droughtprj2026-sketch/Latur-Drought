@@ -10,6 +10,9 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      # job-level so the step condition below can see it (a step's own env is not visible to its `if`)
+      HAS_VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN != '' }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -33,7 +36,7 @@ jobs:
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-          GEE_PROJECT: ${{ secrets.GEE_PROJECT }}
+          NEXT_PUBLIC_SUPABASE_BUCKET: drought-data
 
       - name: Deploy to Vercel
         uses: amondnet/vercel-action@v25
@@ -44,5 +47,3 @@ jobs:
           vercel-args: '--prod'
           working-directory: ./frontend
         if: env.HAS_VERCEL_TOKEN == 'true'
-        env:
-          HAS_VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN != '' }}

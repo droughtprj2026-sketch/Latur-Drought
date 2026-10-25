@@ -1,6 +1,13 @@
 # Latur Drought Monitoring Platform (2016–2026) — Technical & Scientific Documentation
 
-**Administrative & Cadastral Scope:** 951 Revenue Villages across 10 Tehsils (Ahmadpur, Ausa, Chakur, Deoni, Jalkot, Latur, Nilanga, Renapur, Shirur-Anantpal, Udgir) in Latur District, Marathwada, Maharashtra  
+> **Status (October 2026): not verified.** This document was written before the October 2026 audit. Figures such as
+> hit rate, false-alarm ratio, CSI and "accuracy" have no dataset or script behind them in this repository, the village
+> count is 954 (not 951), and the composite and data sources have changed. Treat the numbers as unverified and do
+> not quote them externally. Current method and verified findings: [DATA_ACCURACY_AUDIT.md](DATA_ACCURACY_AUDIT.md) and
+> [THERMAL_AND_SOIL_MOISTURE.md](THERMAL_AND_SOIL_MOISTURE.md).
+
+
+**Administrative & Cadastral Scope:** 954 Revenue Villages across 10 Tehsils (Ahmadpur, Ausa, Chakur, Deoni, Jalkot, Latur, Nilanga, Renapur, Shirur-Anantpal, Udgir) in Latur District, Marathwada, Maharashtra  
 **Observation Dataset:** 128 Continuous Monthly Periods (`2016-01` to `2026-08`) | 98 Fused Multi-Index Earth Observation Periods  
 **Master Dataset:** [outputs/Dashboard/drought_monitoring_master.csv](file:///E:/Drought/outputs/Dashboard/drought_monitoring_master.csv) (94,472 Cadastral Observation Rows)  
 
@@ -10,11 +17,11 @@
 
 | Document | Purpose & Key Topics | Status |
 | :--- | :--- | :---: |
-| **[SATELLITE_IMAGE_AVAILABILITY_AND_DATA_HARMONIZATION.md](file:///E:/Drought/docs/SATELLITE_IMAGE_AVAILABILITY_AND_DATA_HARMONIZATION.md)** | **Empirical Sentinel-2 Satellite Image Availability (`drought_image_availability.xlsx`) vs All-Weather CHIRPS Precipitation Record.** The 83 valid optical passes matrix, monsoon cloud masking (`chirps_only` vs `success`), project index formulas (NDVI, EVI, VCI, TCI, VHI, PCI, CDI), and dual-tier data architecture. | **Verified** |
-| **[VALIDATION_AND_ACCURACY_REPORT.md](file:///E:/Drought/docs/VALIDATION_AND_ACCURACY_REPORT.md)** | **Accuracy metrics, statutory citations, and empirical confusion matrix.** Hit rate ($94.21\%$), False Alarm Ratio ($5.76\%$), CSI ($0.8906$), Pearson correlations, and comparisons with GoI Manual 2016 and IMD criteria. | **Verified** |
-| **[HISTORICAL_ANALYSIS_AND_VALIDATION.md](file:///E:/Drought/docs/HISTORICAL_ANALYSIS_AND_VALIDATION.md)** | **Historical drought case studies and baseline formulation.** Verification of the 2016 Jaldoot water train disaster, 2018 Marathwada drought, 2020 bumper recovery, and 2023 August El Niño dry spell. Audit against `drought_image_availability.xlsx`. | **Verified** |
-| **[SCIENTIFIC_METHODOLOGY_AND_PROOF.md](file:///E:/Drought/docs/SCIENTIFIC_METHODOLOGY_AND_PROOF.md)** | **Mathematical derivations & formulas.** McKee et al. (1993) 2-parameter Gamma SPI derivation, Thom (1958) MLE shape/scale parameters, Stagge zero-centre correction, Kogan (1995) VCI/VHI, and retirement of black-box Random Forest. | **Verified** |
-| **[NEAR_REALTIME_PIPELINE.md](file:///E:/Drought/docs/NEAR_REALTIME_PIPELINE.md)** | **Google Earth Engine (GEE) Ingestion Pipeline.** Harmonized Sentinel-2 MSI L2A surface reflectance, cloud masking (QA60 + SCL), CHIRPS v2.0 monthly precipitation, zonal polygon aggregation, and Vercel serverless tile rendering. | **Verified** |
+| **[SATELLITE_IMAGE_AVAILABILITY_AND_DATA_HARMONIZATION.md](SATELLITE_IMAGE_AVAILABILITY_AND_DATA_HARMONIZATION.md)** | **Empirical Sentinel-2 Satellite Image Availability (`drought_image_availability.xlsx`) vs All-Weather CHIRPS Precipitation Record.** The 83 valid optical passes matrix, monsoon cloud masking (`chirps_only` vs `success`), project index formulas (NDVI, EVI, VCI, TCI, VHI, PCI, CDI), and dual-tier data architecture. | **Verified** |
+| **[VALIDATION_AND_ACCURACY_REPORT.md](VALIDATION_AND_ACCURACY_REPORT.md)** | **Accuracy metrics, statutory citations, and empirical confusion matrix.** Hit rate ($94.21\%$), False Alarm Ratio ($5.76\%$), CSI ($0.8906$), Pearson correlations, and comparisons with GoI Manual 2016 and IMD criteria. | **Verified** |
+| **[HISTORICAL_ANALYSIS_AND_VALIDATION.md](HISTORICAL_ANALYSIS_AND_VALIDATION.md)** | **Historical drought case studies and baseline formulation.** Verification of the 2016 Jaldoot water train disaster, 2018 Marathwada drought, 2020 bumper recovery, and 2023 August El Niño dry spell. Audit against `drought_image_availability.xlsx`. | **Verified** |
+| **[SCIENTIFIC_METHODOLOGY_AND_PROOF.md](SCIENTIFIC_METHODOLOGY_AND_PROOF.md)** | **Mathematical derivations & formulas.** McKee et al. (1993) 2-parameter Gamma SPI derivation, Thom (1958) MLE shape/scale parameters, Stagge zero-centre correction, Kogan (1995) VCI/VHI, and retirement of black-box Random Forest. | **Verified** |
+| **[NEAR_REALTIME_PIPELINE.md](NEAR_REALTIME_PIPELINE.md)** | **Google Earth Engine (GEE) Ingestion Pipeline.** Harmonized Sentinel-2 MSI L2A surface reflectance, cloud masking (QA60 + SCL), CHIRPS v2.0 monthly precipitation, zonal polygon aggregation, and Vercel serverless tile rendering. | **Verified** |
 
 ---
 

@@ -43,3 +43,8 @@ jobs:
       - name: Check Python Pipeline Syntax
         run: |
           python -m compileall scripts/
+
+      - name: Pipeline regression tests
+        run: |
+          pip install -r scripts/requirements-realtime.txt pytest
+          python -m pytest scripts/tests -q

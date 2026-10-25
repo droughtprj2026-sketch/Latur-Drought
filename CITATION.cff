@@ -1,0 +1,22 @@
+cff-version: 1.2.0
+message: "If you use this system, please cite it as below."
+title: "Near Real-Time Drought Monitoring System, Latur District, Marathwada"
+type: software
+authors:
+  - family-names: Kadam
+    given-names: Rajnandini U.
+  - family-names: Jagtap
+    given-names: Aishwarya B.
+  - family-names: Devkar
+    given-names: Pavan S.
+  - family-names: Gurav
+    given-names: Shital B.
+  - family-names: Jadhav
+    given-names: Trupti U.
+contributors:
+  - family-names: Panhalkar
+    given-names: Sachin S.
+    name-particle: Dr.
+    alias: "Project guide; Head of Department, Department of Geography"
+repository-code: "https://github.com/droughtprj2026-sketch/Latur-Drought"
+abstract: "Village-level near real-time drought monitoring for Latur district from Sentinel-1, Sentinel-2, Landsat 8/9 and CHIRPS, with a transparent composite index. Department of Geoinformatics, Shivaji University."

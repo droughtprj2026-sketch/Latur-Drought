@@ -1,0 +1,77 @@
+# Composite drought score WITH land-surface temperature and soil moisture.
+#
+# Selected with COMPOSITE_CONFIG=config/composite_thermal.yaml (see docs/THERMAL_AND_SOIL_MOISTURE.md).
+# config/composite.yaml (formula cdi-v2026.10) stays the default until the thermal history has been
+# backfilled and the team has reviewed the new maps; switching changes every published class.
+#
+# Inputs (all normalised to 0..1 drought intensity, 1 = most stressed; a missing input is dropped
+# from numerator AND denominator, never replaced by zero):
+#
+#   SPI   rainfall anomaly         CHIRPS (rainfall ground truth)       meteorological drought
+#   PCI   precipitation condition  CHIRPS min-max per village-month      meteorological drought
+#   SMI   soil moisture index      Sentinel-1 VV backscatter, min-max    agricultural drought (relative)
+#   VHI   vegetation health        0.5 * VCI + 0.5 * TCI (Kogan 1995)    vegetation + thermal stress (Landsat LST)
+#   NDVI  greenness anomaly        Sentinel-2                            vegetation
+#
+# VCI and TCI are NOT weighted separately: they are the two halves of VHI, so weighting them
+# as well would count the same pixels three times. EVI is excluded because the stored EVI
+# series is saturated (see docs/DATA_ACCURACY_AUDIT.md section 4).
+
+formula_version: "cdi-v2026.11-thermal"
+
+min_inputs: 3
+
+weights:
+  SPI:  0.25
+  PCI:  0.10
+  SMI:  0.20
+  VHI:  0.30
+  NDVI: 0.15
+
+normalisation:
+  SPI:  { method: neg_clip }
+  PCI:  { method: robust_z }
+  SMI:  { method: robust_z }
+  VHI:  { method: robust_z }
+  NDVI: { method: robust_z }
+
+spi_accumulation: "SPI-3"
+
+# Thermal / soil-moisture indices
+#
+# Sentinel-2 has no thermal band, so LST cannot come from it. The closest field-scale sources are used instead:
+#   LST            Landsat 8 + 9 Collection 2 Level 2 surface temperature (ST_B10, 100 m thermal resampled to 30 m),
+#                  daytime overpass ~10:30 local, clear-sky pixels only, monthly mean over the village polygon
+#   soil moisture  Sentinel-1 C-band VV backscatter (10 m, IW GRD), incidence-angle normalised, monthly mean of the
+#                  village polygon. Backscatter rises with soil wetness, so SMI is the village's own min-max
+#                  position of VV for that calendar month (change-detection principle). It is a RELATIVE index,
+#                  not volumetric soil moisture, and is influenced by crop cover and roughness; validate it
+#                  (see docs/THERMAL_AND_SOIL_MOISTURE.md) before relying on a single month.
+# CHIRPS stays the rainfall source (SPI, PCI).
+thermal:
+  lst_collections: ["LANDSAT/LC08/C02/T1_L2", "LANDSAT/LC09/C02/T1_L2"]
+  lst_band: "ST_B10"
+  lst_scale: 0.00341802           # DN -> kelvin
+  lst_offset: 149.0
+  lst_qa_band: "QA_PIXEL"         # masked: fill, dilated cloud, cirrus, cloud, cloud shadow, snow
+  lst_min_images: 1               # clear observations a month needs before an LST value is issued
+  vv_collection: "COPERNICUS/S1_GRD"
+  vv_band: "VV"
+  vv_reference_angle_deg: 40      # sigma0 is normalised to this incidence angle (cosine law)
+  vv_min_images: 2
+  # Months are used only once they are over and the archive has had time to ingest them.
+  publish_lag_days: 7
+  # TCI / SMI position of the month inside the village's own envelope for that calendar month
+  envelope_low_pct: 5
+  envelope_high_pct: 95
+  min_years: 5                    # need this many years of a calendar month before an index is issued
+  vhi_weight_vci: 0.5
+  vhi_weight_tci: 0.5
+
+thresholds:
+  - { max: 0.20, code: "None", label: "Not in drought" }
+  - { max: 0.35, code: "D0",   label: "Abnormally dry / Mild" }
+  - { max: 0.50, code: "D1",   label: "Moderate drought" }
+  - { max: 0.65, code: "D2",   label: "Severe drought" }
+  - { max: 0.80, code: "D3",   label: "Extreme drought" }
+  - { max: 1.01, code: "D4",   label: "Exceptional drought" }

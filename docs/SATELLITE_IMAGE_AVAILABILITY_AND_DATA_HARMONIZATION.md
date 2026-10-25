@@ -1,4 +1,11 @@
 # Satellite Image Availability & Multi-Source Data Harmonization Report
+
+> **Status (October 2026): not verified.** This document was written before the October 2026 audit. Figures such as
+> hit rate, false-alarm ratio, CSI and "accuracy" have no dataset or script behind them in this repository, the village
+> count is 954 (not 951), and the composite and data sources have changed. Treat the numbers as unverified and do
+> not quote them externally. Current method and verified findings: [DATA_ACCURACY_AUDIT.md](DATA_ACCURACY_AUDIT.md) and
+> [THERMAL_AND_SOIL_MOISTURE.md](THERMAL_AND_SOIL_MOISTURE.md).
+
 **Authoritative Documentation on Sentinel-2 Imagery Availability (`drought_image_availability.xlsx`) vs. CHIRPS Precipitation Record**  
 *Latur District Drought Intelligence Platform (2016–2026)*
 
@@ -100,7 +107,7 @@ flowchart TD
 | **NDVI** | $\frac{\text{NIR} - \text{Red}}{\text{NIR} + \text{Red}}$ | Sentinel-2: Band 8 (842 nm), Band 4 (665 nm) | $[-1.0, +1.0]$ | Base photosynthetic vigour indicator for VCI/VHI |
 | **EVI** | $2.5 \times \frac{\text{NIR} - \text{Red}}{\text{NIR} + 6\,\text{Red} - 7.5\,\text{Blue} + 1}$ | Sentinel-2: B8 (NIR), B4 (Red), B2 (Blue) | $[-1.0, +1.0]$ | Canopy structural validation; eliminates atmospheric haze |
 | **VCI** | $100 \times \frac{\text{NDVI} - \text{NDVI}_{\min}}{\text{NDVI}_{\max} - \text{NDVI}_{\min}}$ | Per-pixel, per-calendar-month historical min/max (2016–2026) | $[0, 100]\%$ | Vegetation health anomaly relative to historical potential |
-| **TCI** | $100 \times \frac{\text{BT}_{\max} - \text{BT}}{\text{BT}_{\max} - \text{BT}_{\min}}$ | Thermal Infrared / MODIS Land Surface Temp ($11\,\mu\text{m}$) | $[0, 100]\%$ | Thermal stress; high surface temperature suppresses TCI |
+| **TCI** | $100 \times \frac{\text{BT}_{\max} - \text{BT}}{\text{BT}_{\max} - \text{BT}_{\min}}$ | Landsat 8/9 ST_B10 land surface temperature ($11\,\mu\text{m}$) | $[0, 100]\%$ | Thermal stress; high surface temperature suppresses TCI |
 | **VHI** | $\alpha \cdot \text{VCI} + (1 - \alpha) \cdot \text{TCI} \quad (\alpha = 0.5)$ | Fused Vegetation-Thermal State (Kogan 1995) | $[0, 100]$ | Combined moisture and temperature crop stress |
 | **PCI** | $100 \times \frac{P - P_{\min}}{P_{\max} - P_{\min}}$ | CHIRPS v2.0 Monthly Rainfall Sum ($P$) | $[0, 100]\%$ | Direct precipitation anomaly scaling |
 | **CDI** | $w_1\,\text{PCI} + w_2\,\text{VCI} + w_3\,\text{TCI}$ | $w_1 = 0.50, \; w_2 = 0.25, \; w_3 = 0.25$ | $[0, 100]$ | Final Composite Drought Severity Index |

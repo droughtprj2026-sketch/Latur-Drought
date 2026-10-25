@@ -1,94 +1,39 @@
 import type { Config } from "tailwindcss";
 
+// Palette: survey-sheet paper, deep field-green ink, and a terracotta accent
+// taken from Marathwada's black-cotton-soil and baked-earth landscape.
+// `slate` and `amber` are remapped so every existing utility class
+// (text-slate-700, bg-amber-600 ...) picks up the new identity.
 const config: Config = {
-  content: [
-    "./app/**/*.{ts,tsx}",
-    "./components/**/*.{ts,tsx}",
-  ],
+  content: ["./app/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}"],
   theme: {
     extend: {
       colors: {
-        drought: {
-          50: "#fef3c2",
-          100: "#fde047",
-          200: "#facc15",
-          300: "#fbbf24",
-          400: "#f59e0b",
-          500: "#d97706",
-          600: "#b45309",
-          700: "#92400e",
-          800: "#78350f",
-          900: "#451a03",
-        },
-        spi: {
-          extreme: "#7f0000",
-          severe: "#d7301f",
-          moderate: "#fdae61",
-          normal: "#f7f7f7",
-          wet_mod: "#a6d96a",
-          wet_high: "#1a9850",
-          wet_ext: "#00441b",
-        },
-        cdi: {
-          none: "#22c55e",
-          d0: "#eab308",
-          d1: "#f59e0b",
-          d2: "#ea580c",
-          d3: "#dc2626",
-          d4: "#7f1d1d",
-        },
+        paper: "#F6F1E7",
+        ink: "#1D2B25",
+        clay: "#B4532A",
+        teal: { DEFAULT: "#0B6E6E" },
+        // drought classes, shared with lib/classify.ts
+        d0: "#F2E26B", d1: "#F6BC63", d2: "#E9822F", d3: "#C23B22", d4: "#6E1423",
         slate: {
-          50: "#f8fafc",
-          100: "#f1f5f9",
-          200: "#e2e8f0",
-          300: "#cbd5e1",
-          400: "#94a3b8",
-          500: "#64748b",
-          600: "#475569",
-          700: "#334155",
-          800: "#1e293b",
-          900: "#0f172a",
+          50: "#F8F5EE", 100: "#F0EBDF", 200: "#E1DAC8", 300: "#CBC3AC", 400: "#A39B84",
+          500: "#7A7462", 600: "#5A5646", 700: "#403F34", 800: "#2A2E27", 900: "#1D2B25", 950: "#121A16",
         },
         amber: {
-          50: "#fffbeb",
-          100: "#fef3c7",
-          200: "#fde68a",
-          300: "#fcd34d",
-          400: "#fbbf24",
-          500: "#d97706",
-          600: "#b45309",
-          700: "#92400e",
-          800: "#78350f",
-          900: "#451a03",
+          50: "#FBF0E6", 100: "#F6DFC8", 200: "#EFC3A0", 300: "#E5A173", 400: "#D77F4B",
+          500: "#C4642F", 600: "#A9501F", 700: "#8A3F17", 800: "#6B3114", 900: "#4F2410",
         },
       },
       fontFamily: {
-        sans: ["Inter", "system-ui", "sans-serif"],
-        mono: ["ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
-      },
-      borderRadius: {
-        sm: "0.25rem",
-        md: "0.375rem",
-        lg: "0.5rem",
-        xl: "0.75rem",
-        "2xl": "1rem",
-        "3xl": "1.5rem",
-        full: "9999rem",
+        sans: ['"IBM Plex Sans"', "system-ui", "sans-serif"],
+        display: ["Fraunces", "Georgia", "serif"],
+        mono: ['"IBM Plex Mono"', "ui-monospace", "monospace"],
       },
       boxShadow: {
-        sm: "0 1px 2px 0 rgb(0 0 0 / 0.05)",
-        md: "0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)",
-        lg: "0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)",
-        xl: "0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)",
-      },
-      spacing: {
-        "4.5": "1.125rem",
-        "5.5": "1.375rem",
-        "14": "3.5rem",
-        "18": "4.5rem",
+        card: "0 1px 0 rgba(29,43,37,.06), 0 6px 18px -8px rgba(29,43,37,.28)",
       },
     },
-    plugins: [],
   },
+  plugins: [],
 };
 export default config;

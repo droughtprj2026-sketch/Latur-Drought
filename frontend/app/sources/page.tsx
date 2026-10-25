@@ -45,17 +45,24 @@ export default function SourcesPage() {
             </tr>
             <tr>
               <td className="py-3 font-bold text-slate-900">UCSB CHIRPS Monthly v2.0</td>
-              <td className="py-3 font-mono text-[11px] text-amber-800">UCSB-CHG/CHIRPS/monthly</td>
+              <td className="py-3 font-mono text-[11px] text-amber-800">UCSB-CHG/CHIRPS/DAILY (summed per month)</td>
               <td className="py-3">SPI-1, SPI-3, SPI-6, SPI-12, Rain mm</td>
               <td className="py-3">Monthly</td>
               <td className="py-3 text-slate-500">Public Domain (UCSB)</td>
             </tr>
             <tr>
-              <td className="py-3 font-bold text-slate-900">NASA MODIS Terra LST</td>
-              <td className="py-3 font-mono text-[11px] text-amber-800">MODIS/061/MOD11A1</td>
-              <td className="py-3">Temperature Condition Index (TCI), VHI</td>
-              <td className="py-3">Daily</td>
-              <td className="py-3 text-slate-500">NASA Open Data</td>
+              <td className="py-3 font-bold text-slate-900">Landsat 8 + 9 surface temperature</td>
+              <td className="py-3 font-mono text-[11px] text-amber-800">LANDSAT/LC08/C02/T1_L2, LANDSAT/LC09/C02/T1_L2 (ST_B10)</td>
+              <td className="py-3">LST, Temperature Condition Index (TCI), VHI</td>
+              <td className="py-3">Monthly mean of clear observations (30 m)</td>
+              <td className="py-3 text-slate-500">USGS public domain</td>
+            </tr>
+            <tr>
+              <td className="py-3 font-bold text-slate-900">Sentinel-1 SAR backscatter</td>
+              <td className="py-3 font-mono text-[11px] text-amber-800">COPERNICUS/S1_GRD (IW, VV)</td>
+              <td className="py-3">Soil Moisture Index (relative, from VV)</td>
+              <td className="py-3">Monthly (10 m)</td>
+              <td className="py-3 text-slate-500">Copernicus open data</td>
             </tr>
             <tr>
               <td className="py-3 font-bold text-slate-900">Google Maps Platform Tiles</td>

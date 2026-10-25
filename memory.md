@@ -1,4 +1,6 @@
-# Repository Memory & Knowledge Base: Drought Project Latur (2016–2026)
+# Repository Memory & Knowledge Base: Near Real-Time Drought Monitoring System, Latur (Dept. of Geoinformatics, Shivaji University)
+
+> Current architecture and commands: `README.md`, `DEVELOPER.md`, `RUN.md`. Verified data issues: `docs/DATA_ACCURACY_AUDIT.md`. The paths below are the original Windows workstation layout and are kept for provenance only.
 
 > **MANDATORY INSTRUCTION FOR AI AGENTS**:
 > Always reference this `memory.md` file before planning, modifying, or executing tasks in this repository.
@@ -18,8 +20,10 @@
 * **Target Drought Indices Workflow**:
   $$\text{Precipitation (CHIRPS)} \implies \text{SPI} + \text{PCI}$$
   $$\text{Optical Imagery (Sentinel-2)} \implies \text{NDVI} + \text{EVI} \implies \text{VCI}$$
-  $$\text{Vegetation Health Index (VHI)} = 0.5 \times \text{VCI} + 0.5 \times \text{PCI}$$
-  $$\text{Combined Drought Index (CDI)} = 0.35 \times \text{SPI}_{\text{scaled}} + 0.35 \times \text{VCI} + 0.30 \times \text{PCI}$$
+  $$\text{VHI} = 0.5 \times \text{VCI} + 0.5 \times \text{TCI} \quad (\text{Kogan; TCI from Landsat 8/9 LST})$$
+  Composite drought index (CDI): weights are **not** fixed here. They live in `config/composite.yaml`
+  (`cdi-v2026.10`: SPI .30, VHI .20, VCI .15, NDVI .15, EVI .10, PCI .10) and `config/composite_thermal.yaml`
+  (`cdi-v2026.11-thermal`: SPI .25, PCI .10, SMI .20, VHI .30, NDVI .15). Always read the YAML.
 
 ---
 

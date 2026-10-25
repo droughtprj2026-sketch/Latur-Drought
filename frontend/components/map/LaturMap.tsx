@@ -1,640 +1,328 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useCallback } from "react";
-import {
-  GeoJSON,
-  MapContainer,
-  ScaleControl,
-  TileLayer,
-  ZoomControl,
-  useMap,
-} from "react-leaflet";
-import type { Feature, FeatureCollection } from "geojson";
-import type { Layer, PathOptions, LeafletMouseEvent } from "leaflet";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { MapContainer, TileLayer, useMap } from "react-leaflet";
+import type { FeatureCollection } from "geojson";
 import L from "leaflet";
 import { BASEMAPS } from "./basemaps";
-import { BasemapSwitcher } from "./BasemapSwitcher";
-import { LegendBar } from "./LegendBar";
-import { D_CODES, D_COLORS, codeForCDI, classifyValue, colorForValue } from "@/lib/classify";
-import type { VillageProperties } from "@/components/panels/VillageIntelligenceDrawer";
+import { MapLegend } from "./MapLegend";
+import { MapControls } from "./MapChrome";
+import {
+  METRICS, binFor, colorFor, formatValue, NO_DATA_COLOR,
+  type ActiveVillage, type MetricName,
+} from "@/lib/metrics";
+import {
+  activeVillage, loadBaselines, loadDistrict, loadTehsils, loadTimeseries, loadVillages,
+  type Baselines, type TimeseriesById, type VillageFeatureProps,
+} from "@/lib/data";
 
-export type MetricName =
-  | "cdi"
-  | "cdi_class"
-  | "ndvi"
-  | "evi"
-  | "vci"
-  | "vhi"
-  | "spi1"
-  | "spi3"
-  | "spi6"
-  | "spi12"
-  | "rain";
+export type { MetricName };
 
 interface Props {
   metric: MetricName;
   tehsil?: string;
-  selectedVillageName?: string;
-  currentPeriod?: string;
-  onSelectVillage?: (props: VillageProperties) => void;
-  geeTileUrl?: string | null;
-  showGeeLayer?: boolean;
-  timeseriesCache?: Record<string, any[]> | null;
+  /** Polygon id of the selected village (ids are unique; names are not). */
+  selectedVillageId?: number | null;
+  currentPeriod: string;
+  onSelectVillage?: (v: ActiveVillage) => void;
+  /** Uploaded area of interest, drawn above the villages. */
+  aoi?: FeatureCollection | null;
+  showSatellite?: boolean;
+  /** Pixels of the right edge covered by a side panel. */
+  rightInset?: number;
+  /** Lets the legend offer "jump to the last month that has data" for sparse layers. */
+  onPeriodChange?: (period: string) => void;
+  /** Slot for page controls pinned top-left. */
+  topLeft?: ReactNode;
+  /** Slot docked bottom, beside the legend (e.g. the timeline). */
+  children?: ReactNode;
 }
 
 const LATUR_CENTER: [number, number] = [18.4088, 76.5604];
-const DEFAULT_ZOOM = 9;
+const INK = "#1d2b25";
 
-function getMetricColor(p: any, metric: MetricName): string {
-  if (!p) return "#94a3b8";
-  let val: number | null | undefined = undefined;
+const esc = (s: unknown) =>
+  String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
 
-  switch (metric) {
-    case "cdi":
-    case "cdi_class":
-      val = p.CDI ?? p.cdi ?? (p.value != null ? Number(p.value) : undefined);
-      if (val == null && (p.CDI_class || p.class || p.cls)) {
-        const c = String(p.CDI_class || p.class || p.cls);
-        const idx = D_CODES.indexOf(c as any);
-        if (idx >= 0) return D_COLORS[idx];
-      }
-      break;
-    case "ndvi":
-      val = p.NDVI ?? p.ndvi ?? (p.value != null ? Number(p.value) : undefined);
-      break;
-    case "evi":
-      val = p.EVI ?? p.evi ?? (p.value != null ? Number(p.value) : undefined);
-      break;
-    case "vci":
-      val = p.VCI ?? p.vci ?? (p.value != null ? Number(p.value) : undefined);
-      break;
-    case "vhi":
-      val = p.VHI ?? p.vhi ?? (p.value != null ? Number(p.value) : undefined);
-      break;
-    case "spi1":
-      val = p.SPI1 ?? p.spi1 ?? (p.value != null ? Number(p.value) : undefined);
-      break;
-    case "spi3":
-      val = p.SPI3 ?? p.spi3 ?? (p.value != null ? Number(p.value) : undefined);
-      break;
-    case "spi6":
-      val = p.SPI6 ?? p.spi6 ?? (p.value != null ? Number(p.value) : undefined);
-      break;
-    case "spi12":
-      val = p.SPI12 ?? p.spi12 ?? (p.value != null ? Number(p.value) : undefined);
-      break;
-    case "rain":
-      val = p.Rain_mm ?? p.rain ?? p.pci ?? (p.value != null ? Number(p.value) : undefined);
-      break;
-    default:
-      val = p.CDI ?? p.cdi ?? (p.value != null ? Number(p.value) : undefined);
-  }
+/** Imperative village layer: built once, restyled in place on every
+ *  metric / month / selection change (no remount of 954 polygons). */
+function VillageLayer(props: {
+  data: FeatureCollection;
+  records: Map<number, ActiveVillage>;
+  metric: MetricName;
+  tehsil: string;
+  selectedId: number | null;
+  onSelect?: (v: ActiveVillage) => void;
+}) {
+  const map = useMap();
+  const layerRef = useRef<L.GeoJSON | null>(null);
+  const hoverRef = useRef<number | null>(null);
+  const live = useRef(props);
+  live.current = props;
 
-  return colorForValue(val, metric);
+  const styleFor = (id: number): L.PathOptions => {
+    const { records, metric, tehsil, selectedId } = live.current;
+    const rec = records.get(id);
+    const spec = METRICS[metric];
+    const inTehsil = tehsil === "All" || rec?.tehsil.toLowerCase() === tehsil.toLowerCase();
+    const selected = selectedId === id;
+    const hovered = hoverRef.current === id;
+    return {
+      fillColor: rec ? colorFor(spec, rec) : NO_DATA_COLOR,
+      fillOpacity: selected || hovered ? 0.95 : inTehsil ? 0.82 : 0.14,
+      color: selected ? INK : hovered ? INK : "#ffffff",
+      weight: selected ? 3 : hovered ? 2 : 0.5,
+      opacity: inTehsil || selected ? 1 : 0.35,
+    };
+  };
+
+  // Build once per geometry.
+  useEffect(() => {
+    if (!map.getPane("villages")) {
+      const pane = map.createPane("villages");
+      pane.style.zIndex = "450";
+    }
+    const layer = L.geoJSON(props.data, {
+      pane: "villages",
+      style: (f) => styleFor(Number(f?.properties?.id)),
+      onEachFeature: (f, l) => {
+        const id = Number(f.properties?.id);
+        l.bindTooltip(
+          () => {
+            const { records, metric } = live.current;
+            const rec = records.get(id);
+            if (!rec) return esc(f.properties?.village);
+            const spec = METRICS[metric];
+            const v = spec.value(rec);
+            const b = binFor(spec, v);
+            const cdiBin = binFor(METRICS.cdi, rec.cdi);
+            return `<div class="vt">
+              <div class="vt-name">${esc(rec.village)}</div>
+              <div class="vt-sub">${esc(rec.tehsil)} tehsil · ${esc(rec.period)}</div>
+              <div class="vt-row"><i style="background:${b ? b.color : NO_DATA_COLOR}"></i>
+                <b>${esc(spec.title.split(" (")[0])}</b>
+                <span>${esc(formatValue(spec, v))}${b ? " · " + esc(b.label) : ""}</span></div>
+              ${metric !== "cdi" ? `<div class="vt-row"><i style="background:${cdiBin ? cdiBin.color : NO_DATA_COLOR}"></i>
+                <b>CDI</b><span>${rec.cdi != null ? rec.cdi.toFixed(3) + " · " + esc(cdiBin?.label) : "no data"}</span></div>` : ""}
+            </div>`;
+          },
+          { sticky: false, direction: "top", offset: [0, -6], opacity: 1, className: "village-tip" },
+        );
+        l.on({
+          mouseover: () => {
+            hoverRef.current = id;
+            (l as L.Path).setStyle(styleFor(id));
+            (l as L.Path).bringToFront();
+          },
+          mouseout: () => {
+            hoverRef.current = null;
+            (l as L.Path).setStyle(styleFor(id));
+          },
+          click: () => {
+            const rec = live.current.records.get(id);
+            if (rec) live.current.onSelect?.(rec);
+          },
+        });
+      },
+    }).addTo(map);
+    layerRef.current = layer;
+    return () => { layer.remove(); layerRef.current = null; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [map, props.data]);
+
+  // Restyle in place.
+  useEffect(() => {
+    const layer = layerRef.current;
+    if (!layer) return;
+    layer.eachLayer((l) => {
+      const id = Number((l as any).feature?.properties?.id);
+      (l as L.Path).setStyle(styleFor(id));
+      if (live.current.selectedId === id) (l as L.Path).bringToFront();
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [props.records, props.metric, props.tehsil, props.selectedId]);
+
+  return null;
 }
 
-function MapAutoZoomer({
-  geojson,
-  tehsil,
-  selectedVillageName,
-}: {
-  geojson: FeatureCollection | null;
-  tehsil: string;
-  selectedVillageName?: string;
+/** Tehsil + district outlines and the uploaded AOI. Non-interactive so they
+ *  never swallow hover or click events meant for villages. */
+function Overlays({ tehsils, district, aoi }: {
+  tehsils: FeatureCollection | null; district: FeatureCollection | null; aoi: FeatureCollection | null;
 }) {
   const map = useMap();
   useEffect(() => {
-    if (!geojson?.features?.length) return;
-    if (selectedVillageName) {
-      const match = geojson.features.find((f) => {
-        const v = f.properties?.village || f.properties?.VILLAGE || f.properties?.name || "";
-        return v.toLowerCase() === selectedVillageName.toLowerCase();
-      });
-      if (match) {
-        const layer = L.geoJSON(match as any);
-        map.fitBounds(layer.getBounds(), { padding: [60, 60], maxZoom: 13 });
-        return;
-      }
+    if (!map.getPane("outlines")) {
+      const pane = map.createPane("outlines");
+      pane.style.zIndex = "460";
+      pane.style.pointerEvents = "none";
     }
-    if (tehsil && tehsil !== "All") {
-      const filtered = geojson.features.filter((f) => {
-        const t = f.properties?.tehsil || f.properties?.TEHSIL || "";
-        return t.toLowerCase() === tehsil.toLowerCase();
-      });
-      if (filtered.length) {
-        const layer = L.geoJSON({ type: "FeatureCollection", features: filtered } as any);
-        map.fitBounds(layer.getBounds(), { padding: [30, 30], maxZoom: 12 });
-        return;
-      }
+    const made: L.Layer[] = [];
+    if (tehsils) made.push(L.geoJSON(tehsils, { pane: "outlines", interactive: false,
+      style: () => ({ fill: false, color: INK, weight: 1.1, opacity: 0.55, dashArray: "5 4" }) }).addTo(map));
+    if (district) made.push(L.geoJSON(district, { pane: "outlines", interactive: false,
+      style: () => ({ fill: false, color: INK, weight: 2.4, opacity: 0.95 }) }).addTo(map));
+    return () => made.forEach((l) => l.remove());
+  }, [map, tehsils, district]);
+
+  useEffect(() => {
+    if (!aoi?.features?.length) return;
+    if (!map.getPane("aoi")) {
+      const pane = map.createPane("aoi");
+      pane.style.zIndex = "470";
+      pane.style.pointerEvents = "none";
     }
-    map.setView(LATUR_CENTER, DEFAULT_ZOOM);
-  }, [geojson, tehsil, selectedVillageName, map]);
+    const layer = L.geoJSON(aoi, { pane: "aoi", interactive: false,
+      style: () => ({ color: "#0b6e6e", weight: 3, dashArray: "8 5", fillColor: "#0b6e6e", fillOpacity: 0.08 }) }).addTo(map);
+    const b = layer.getBounds();
+    if (b.isValid()) map.fitBounds(b, { padding: [50, 50], maxZoom: 13 });
+    return () => { layer.remove(); };
+  }, [map, aoi]);
+  return null;
+}
+
+function Framing({ data, tehsil, selectedId }: {
+  data: FeatureCollection | null; tehsil: string; selectedId: number | null;
+}) {
+  const map = useMap();
+  // Reserve room for the controls (top), the legend/timeline dock (bottom) and
+  // the basemap/zoom stack (right) so framed polygons are never hidden behind them.
+  const pad = { paddingTopLeft: L.point(24, 64), paddingBottomRight: L.point(80, 190) };
+  useEffect(() => {
+    if (!data) return;
+    const fit = (g: any, maxZoom: number) => map.fitBounds(L.geoJSON(g).getBounds(), { ...pad, maxZoom });
+    if (selectedId != null) {
+      const f = data.features.find((x) => Number(x.properties?.id) === selectedId);
+      if (f) return void fit(f, 13);
+    }
+    if (tehsil !== "All") {
+      const fs = data.features.filter(
+        (x) => String(x.properties?.tehsil).toLowerCase() === tehsil.toLowerCase());
+      if (fs.length) return void fit({ type: "FeatureCollection", features: fs }, 12);
+    }
+    fit(data, 11);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, tehsil, selectedId, map]);
   return null;
 }
 
 export default function LaturMap({
-  metric = "cdi",
-  tehsil = "All",
-  selectedVillageName = "",
-  currentPeriod = "2026-10",
-  onSelectVillage,
-  geeTileUrl,
-  showGeeLayer = false,
-  timeseriesCache,
+  metric = "cdi", tehsil = "All", selectedVillageId = null, currentPeriod,
+  onSelectVillage, aoi = null, showSatellite = false, rightInset = 0, onPeriodChange, topLeft, children,
 }: Props) {
-  const rootRef = useRef<HTMLDivElement>(null);
-  const [basemapId, setBasemapId] = useState<string>("google-terrain");
-  const [villagesData, setVillagesData] = useState<FeatureCollection | null>(null);
-  const [districtData, setDistrictData] = useState<FeatureCollection | null>(null);
-  const [tehsilsData, setTehsilsData] = useState<FeatureCollection | null>(null);
-  const [indexValues, setIndexValues] = useState<Record<string, any>>({});
-  const [indexRevision, setIndexRevision] = useState(0);
-  const [internalTs, setInternalTs] = useState<Record<string, any[]> | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [indexLoading, setIndexLoading] = useState(false);
-  const [hoveredVillage, setHoveredVillage] = useState<string | null>(null);
-  const geoJsonRef = useRef<L.GeoJSON | null>(null);
+  const [basemapId, setBasemapId] = useState("carto-light");
+  const [villages, setVillages] = useState<FeatureCollection | null>(null);
+  const [tehsils, setTehsils] = useState<FeatureCollection | null>(null);
+  const [district, setDistrict] = useState<FeatureCollection | null>(null);
+  const [ts, setTs] = useState<TimeseriesById | null>(null);
+  const [baselines, setBaselines] = useState<Baselines | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const basemap = useMemo(
-    () => BASEMAPS.find((b) => b.id === basemapId) ?? BASEMAPS.find((b) => b.id === "google-terrain") ?? BASEMAPS[0],
-    [basemapId]
-  );
-
-  // Load static vector boundaries once
   useEffect(() => {
-    setLoading(true);
-    Promise.all([
-      fetch("/data/latur_villages_latest.geojson")
-        .then((r) => r.json()).catch(() => null),
-      fetch("/data/latur_district.geojson")
-        .then((r) => r.json()).catch(() => null),
-      fetch("/data/latur_tehsils.geojson")
-        .then((r) => r.json()).catch(() => null),
-    ])
-      .then(([vil, dist, teh]) => {
-        if (vil) setVillagesData(vil);
-        if (dist) setDistrictData(dist);
-        if (teh) setTehsilsData(teh);
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error("Failed to load map data:", err);
-        setLoading(false);
-      });
+    let alive = true;
+    Promise.all([loadVillages(), loadTimeseries(), loadBaselines()])
+      .then(([v, t, b]) => { if (alive) { setVillages(v); setTs(t); setBaselines(b); } })
+      .catch((e) => alive && setError(String(e)));
+    loadTehsils().then((d) => alive && setTehsils(d)).catch(() => null);
+    loadDistrict().then((d) => alive && setDistrict(d)).catch(() => null);
+    return () => { alive = false; };
   }, []);
 
-  // Pre-load full village timeseries for instant 60fps timeline scrubbing
-  useEffect(() => {
-    if (timeseriesCache) return;
-    fetch("/data/village_timeseries.json")
-      .then((r) => r.json())
-      .then((d) => setInternalTs(d))
-      .catch(() => null);
-  }, [timeseriesCache]);
+  const records = useMemo(() => {
+    const m = new Map<number, ActiveVillage>();
+    if (!villages) return m;
+    for (const f of villages.features) {
+      const p = f.properties as unknown as VillageFeatureProps;
+      m.set(Number(p.id), activeVillage(p, ts, baselines, currentPeriod));
+    }
+    return m;
+  }, [villages, ts, baselines, currentPeriod]);
 
-  const activeTs = timeseriesCache || internalTs;
-
-  // Load index-specific values from API as secondary verification
-  useEffect(() => {
-    if (!currentPeriod) return;
-    const [y, m] = currentPeriod.split("-");
-    const year = Number(y);
-    const month = Number(m);
-    if (!year || !month) return;
-
-    setIndexLoading(true);
-    fetch(`/api/v1/indices/${metric}/${year}/${month}`)
-      .then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json();
-      })
-      .then((gj: FeatureCollection) => {
-        const lookup: Record<string, any> = {};
-        gj.features?.forEach((f: any) => {
-          const p = f.properties || {};
-          const t = (p.tehsil || p.TEHSIL || "").trim().toLowerCase();
-          const v = (p.village || p.VILLAGE || p.name || "").trim().toLowerCase();
-          const key = `${t}::${v}`;
-          lookup[key] = {
-            value: p.value,
-            class: p.class,
-            cdi: p.cdi,
-            spi1: p.spi1,
-            spi3: p.spi3,
-            spi6: p.spi6,
-            spi12: p.spi12,
-            ndvi: p.ndvi,
-            evi: p.evi,
-            vci: p.vci,
-            vhi: p.vhi,
-            pci: p.pci ?? null,
-            rain: p.rain,
-            period: p.period,
-          };
-        });
-        setIndexValues(lookup);
-        setIndexRevision((prev) => prev + 1);
-        setIndexLoading(false);
-      })
-      .catch((err) => {
-        setIndexLoading(false);
-      });
-  }, [metric, currentPeriod]);
-
-  // Synchronously merge index values with village properties (Instant during scrubbing)
-  const getActiveVillageProps = useCallback(
-    (p: any) => {
-      if (!p) return {};
-      const vName = (p.village || p.VILLAGE || p.name || "").trim().toLowerCase();
-      const tName = (p.tehsil || p.TEHSIL || "").trim().toLowerCase();
-      const key = `${tName}::${vName}`;
-
-      // 1. Fast in-memory timeseries lookup (instantaneous 60fps animation)
-      if (activeTs && activeTs[key]) {
-        const pts = activeTs[key];
-        const match = Array.isArray(pts) ? pts.find((x: any) => (x.p || x.date) === currentPeriod) : null;
-        if (match) {
-          let metricVal: number | null | undefined = undefined;
-          switch (metric) {
-            case "cdi":
-            case "cdi_class":
-              metricVal = match.cdi;
-              break;
-            case "ndvi":
-              metricVal = match.ndvi;
-              break;
-            case "evi":
-              metricVal = match.evi ?? match.ndvi;
-              break;
-            case "vci":
-              metricVal = match.vci;
-              break;
-            case "vhi":
-              metricVal = match.vhi;
-              break;
-            case "spi1":
-              metricVal = match.spi1;
-              break;
-            case "spi3":
-              metricVal = match.spi3;
-              break;
-            case "spi6":
-              metricVal = match.spi6;
-              break;
-            case "spi12":
-              metricVal = match.spi12;
-              break;
-            case "rain":
-              metricVal = match.rain;
-              break;
-            default:
-              metricVal = match.cdi;
-          }
-
-          return {
-            ...p,
-            ...match,
-            value: metricVal,
-            CDI: match.cdi,
-            cdi: match.cdi,
-            CDI_class: match.cls || "None",
-            class: match.cls || "None",
-            cls: match.cls || "None",
-            NDVI: match.ndvi,
-            ndvi: match.ndvi,
-            EVI: match.evi ?? match.ndvi,
-            evi: match.evi ?? match.ndvi,
-            VCI: match.vci,
-            vci: match.vci,
-            VHI: match.vhi,
-            vhi: match.vhi,
-            SPI1: match.spi1,
-            spi1: match.spi1,
-            SPI3: match.spi3,
-            spi3: match.spi3,
-            SPI6: match.spi6,
-            spi6: match.spi6,
-            SPI12: match.spi12,
-            spi12: match.spi12,
-            Rain_mm: match.rain,
-            rain: match.rain,
-            period: currentPeriod,
-            date: currentPeriod,
-          };
-        } else {
-          // No satellite / rainfall observation available for this specific period (e.g. cloudy month / missing year)
-          return {
-            ...p,
-            value: null,
-            CDI: null,
-            cdi: null,
-            CDI_class: "ND",
-            class: "ND",
-            cls: "ND",
-            NDVI: null,
-            ndvi: null,
-            EVI: null,
-            evi: null,
-            VCI: null,
-            vci: null,
-            VHI: null,
-            vhi: null,
-            SPI1: null,
-            spi1: null,
-            SPI3: null,
-            spi3: null,
-            SPI6: null,
-            spi6: null,
-            SPI12: null,
-            spi12: null,
-            Rain_mm: null,
-            rain: null,
-            period: currentPeriod,
-            date: currentPeriod,
-          };
-        }
-      }
-
-      // 2. Fallback to API index values lookup
-      const idx = indexValues[key];
-      if (idx) {
-        return {
-          ...p,
-          ...idx,
-          CDI: idx.cdi ?? p.CDI,
-          cdi: idx.cdi ?? p.cdi,
-          CDI_class: idx.class ?? idx.cls ?? p.CDI_class,
-          class: idx.class ?? idx.cls ?? p.class,
-          NDVI: idx.ndvi ?? p.NDVI,
-          ndvi: idx.ndvi ?? p.ndvi,
-          EVI: idx.evi ?? p.EVI,
-          evi: idx.evi ?? p.evi,
-          VCI: idx.vci ?? p.VCI,
-          vci: idx.vci ?? p.vci,
-          VHI: idx.vhi ?? p.VHI,
-          vhi: idx.vhi ?? p.vhi,
-          SPI1: idx.spi1 ?? p.SPI1,
-          spi1: idx.spi1 ?? p.spi1,
-          SPI3: idx.spi3 ?? p.SPI3,
-          spi3: idx.spi3 ?? p.spi3,
-          SPI6: idx.spi6 ?? p.SPI6,
-          spi6: idx.spi6 ?? p.spi6,
-          SPI12: idx.spi12 ?? p.SPI12,
-          spi12: idx.spi12 ?? p.spi12,
-          Rain_mm: idx.rain ?? p.Rain_mm,
-          rain: idx.rain ?? p.rain,
-          value: idx.value,
-          period: currentPeriod,
-          date: currentPeriod,
-        };
-      }
-      return p;
-    },
-    [activeTs, indexValues, currentPeriod, metric]
-  );
-
-  // Keep selected village in sync
-  useEffect(() => {
-    if (!selectedVillageName || !onSelectVillage || !villagesData) return;
-    const match = villagesData.features.find((f) => {
-      const v = f.properties?.village || f.properties?.VILLAGE || f.properties?.name || "";
-      return v.toLowerCase() === selectedVillageName.toLowerCase();
+  const spec = METRICS[metric];
+  const legend = useMemo(() => {
+    const counts = spec.bins.map(() => 0);
+    let noData = 0, total = 0;
+    records.forEach((r) => {
+      if (tehsil !== "All" && r.tehsil.toLowerCase() !== tehsil.toLowerCase()) return;
+      total++;
+      const b = binFor(spec, spec.value(r));
+      if (!b) noData++; else counts[spec.bins.indexOf(b)]++;
     });
-    if (match) {
-      const active = getActiveVillageProps(match.properties);
-      onSelectVillage(active as VillageProperties);
+    return { counts, noData, total };
+  }, [records, spec, tehsil]);
+
+  // Newest month in which at least half the villages carry a value for this layer.
+  const lastWithData = useMemo(() => {
+    if (!ts || !villages || legend.total === 0 || legend.noData / legend.total <= 0.5) return null;
+    const counts = new Map<string, number>();
+    for (const pts of Object.values(ts)) {
+      for (const pt of pts) {
+        const rec = { ...pt, id: 0, village: "", tehsil: "", period: pt.p } as unknown as ActiveVillage;
+        // baseline layers need the village record; only plain layers are scanned here
+        if (spec.group === "Baseline") return null;
+        if (spec.value(rec) != null) counts.set(pt.p, (counts.get(pt.p) ?? 0) + 1);
+      }
     }
-  }, [selectedVillageName, villagesData, getActiveVillageProps, onSelectVillage]);
+    const ok = [...counts].filter(([, n]) => n >= 0.5 * Object.keys(ts).length).map(([p]) => p).sort();
+    return ok.length ? ok[ok.length - 1] : null;
+  }, [ts, villages, spec, legend]);
 
-  // Polygon styling
-  const styleVillage = useCallback(
-    (f?: Feature): PathOptions => {
-      const rawProps = f?.properties || {};
-      const p = getActiveVillageProps(rawProps);
-      const vName = p.village || p.VILLAGE || p.name || "";
-      const tName = p.tehsil || p.TEHSIL || "";
-      const isSelected = selectedVillageName && vName.toLowerCase() === selectedVillageName.toLowerCase();
-      const isHovered = hoveredVillage && vName.toLowerCase() === hoveredVillage.toLowerCase();
-
-      const matchesTehsil = tehsil === "All" || tName.toLowerCase() === tehsil.toLowerCase();
-      const fillColor = getMetricColor(p, metric);
-
-      return {
-        fillColor,
-        fillOpacity: isSelected ? 0.95 : isHovered ? 0.9 : matchesTehsil ? 0.78 : 0.15,
-        color: isSelected ? "#f59e0b" : isHovered ? "#ffffff" : matchesTehsil ? "#1e293b" : "#334155",
-        weight: isSelected ? 3 : isHovered ? 2 : 0.6,
-        opacity: matchesTehsil ? 0.8 : 0.2,
-      };
-    },
-    [metric, tehsil, selectedVillageName, hoveredVillage, getActiveVillageProps]
-  );
-
-  // Instantly re-style all 954 village polygons on every scrub frame without DOM destruction
-  useEffect(() => {
-    if (geoJsonRef.current) {
-      geoJsonRef.current.setStyle(styleVillage);
-    }
-  }, [styleVillage]);
-
-  const onEachVillage = useCallback(
-    (f: Feature, layer: Layer) => {
-      const rawProps = f.properties || {};
-      const p = getActiveVillageProps(rawProps);
-      const vName = p.village || p.VILLAGE || p.name || "Village";
-      const tName = p.tehsil || p.TEHSIL || "Tehsil";
-      const cdi = p.CDI != null ? Number(p.CDI).toFixed(3) : "—";
-      const cdiClass = p.CDI_class || p.class || "None";
-      const ndvi = p.NDVI != null ? Number(p.NDVI).toFixed(3) : "—";
-      const rain = p.Rain_mm != null ? `${Number(p.Rain_mm).toFixed(1)} mm` : "—";
-      const spi3 = p.SPI3 != null ? Number(p.SPI3).toFixed(2) : "—";
-      const vci = p.VCI != null ? `${Number(p.VCI).toFixed(1)}%` : "—";
-
-      const esc = (s: unknown) => {
-        const str = s == null ? "" : String(s);
-        return str
-          .replace(/&/g, "&amp;")
-          .replace(/</g, "&lt;")
-          .replace(/>/g, "&gt;")
-          .replace(/"/g, "&quot;")
-          .replace(/'/g, "&#039;");
-      };
-      layer.bindTooltip(
-        `<div class="font-sans text-xs">
-          <div class="font-extrabold text-slate-900 text-sm leading-tight">${esc(vName)}</div>
-          <div class="text-[11px] text-slate-600 font-medium">${esc(tName)} Tehsil · <span class="font-mono font-bold text-amber-700">CDI: ${esc(cdi)} (${esc(cdiClass)})</span></div>
-          <div class="text-[10px] text-slate-500 mt-0.5">
-            <span class="mr-2">NDVI: <b class="text-emerald-700">${esc(ndvi)}</b></span>
-            <span class="mr-2">VCI: <b class="text-amber-700">${esc(vci)}</b></span>
-            <span class="mr-2">SPI-3: <b class="text-blue-700">${esc(spi3)}</b></span>
-            <span>Rain: <b class="text-blue-700">${esc(rain)}</b></span>
-          </div>
-        </div>`,
-        { sticky: true, className: "custom-leaflet-tooltip" }
-      );
-
-      layer.on({
-        mouseover: () => setHoveredVillage(vName),
-        mouseout: () => setHoveredVillage(null),
-        click: (e: LeafletMouseEvent) => {
-          if (onSelectVillage) {
-            onSelectVillage(p as VillageProperties);
-          }
-          const map = (e.target as any)._map;
-          if (map) {
-            map.fitBounds((layer as any).getBounds(), { padding: [60, 60], maxZoom: 13 });
-          }
-        },
-      });
-    },
-    [onSelectVillage, getActiveVillageProps]
-  );
+  const basemap = BASEMAPS.find((b) => b.id === basemapId) ?? BASEMAPS[0];
 
   return (
-    <div ref={rootRef} className="relative h-full w-full overflow-hidden bg-slate-100">
-      {loading && (
-        <div className="absolute inset-0 z-[1000] flex items-center justify-center bg-white/80 backdrop-blur-sm">
-          <div className="flex flex-col items-center gap-2">
-            <div className="w-8 h-8 border-2 border-amber-600 border-t-transparent rounded-full animate-spin" />
-            <span className="text-xs font-semibold text-slate-700">Loading map data...</span>
-          </div>
+    <div className="relative h-full w-full overflow-hidden bg-[#e9e6dc]">
+      {!villages && !error && (
+        <div className="absolute inset-0 z-[1000] flex items-center justify-center bg-paper/80">
+          <p className="font-mono text-xs text-ink/70">Loading village polygons…</p>
+        </div>
+      )}
+      {error && (
+        <div className="absolute inset-x-0 top-16 z-[1000] mx-auto w-fit rounded border border-d4/40 bg-paper px-3 py-2 text-xs text-d4 shadow-card">
+          Could not load map data: {error}
         </div>
       )}
 
       <MapContainer
-        center={LATUR_CENTER}
-        zoom={DEFAULT_ZOOM}
-        minZoom={8}
-        maxZoom={15}
-        zoomControl={false}
-        scrollWheelZoom
-        className="h-full w-full"
+        center={LATUR_CENTER} zoom={9} minZoom={8} maxZoom={15}
+        zoomControl={false} scrollWheelZoom className="h-full w-full"
       >
-        <TileLayer
-          key={basemap.id}
-          url={basemap.url}
-          attribution={basemap.attribution}
-          maxZoom={basemap.maxZoom ?? 19}
-        />
-
-        {showGeeLayer && geeTileUrl && (
+        <TileLayer key={basemap.id} url={basemap.url} attribution={basemap.attribution} maxZoom={basemap.maxZoom ?? 19} />
+        {showSatellite && (
           <TileLayer
-            key={geeTileUrl}
-            url={geeTileUrl}
-            opacity={0.7}
-            attribution="Google Earth Engine Sentinel-2"
+            url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+            opacity={0.55}
+            attribution="Imagery &copy; Esri, Maxar, Earthstar Geographics"
           />
         )}
-
-        {/* Village Polygons Choropleth — Dynamic key ensures instant repainting on any frame/metric change */}
-        {villagesData && (
-          <GeoJSON
-            ref={geoJsonRef as any}
-            key={`villages-${metric}-${currentPeriod}-${tehsil}-${selectedVillageName}-rev${indexRevision}-${activeTs ? "cached" : "api"}`}
-            data={villagesData}
-            style={styleVillage}
-            onEachFeature={onEachVillage}
+        {villages && (
+          <VillageLayer
+            data={villages} records={records} metric={metric} tehsil={tehsil}
+            selectedId={selectedVillageId} onSelect={onSelectVillage}
           />
         )}
-
-        {/* Tehsil Outer Outlines */}
-        {tehsilsData && (
-          <GeoJSON
-            key="tehsils-overlay"
-            data={tehsilsData}
-            style={() => ({
-              fillColor: "transparent",
-              color: "#b45309",
-              weight: 1.8,
-              dashArray: "4 4",
-              opacity: 0.8,
-            })}
-          />
-        )}
-
-        {/* District Boundary */}
-        {districtData && (
-          <GeoJSON
-            key="district-boundary"
-            data={districtData}
-            style={() => ({
-              fillColor: "transparent",
-              color: "#0f172a",
-              weight: 2.5,
-              opacity: 0.9,
-            })}
-          />
-        )}
-
-        <ZoomControl position="topright" />
-        <ScaleControl position="bottomleft" imperial={false} />
-        <MapAutoZoomer geojson={villagesData} tehsil={tehsil} selectedVillageName={selectedVillageName} />
+        <Overlays tehsils={tehsils} district={district} aoi={aoi} />
+        <Framing data={villages} tehsil={tehsil} selectedId={selectedVillageId} />
+        <MapControls basemapId={basemapId} onBasemap={setBasemapId} rightInset={rightInset} />
       </MapContainer>
 
-      {/* Floating Basemap Selector */}
-      <div className="absolute top-4 left-4 z-[900]">
-        <BasemapSwitcher value={basemapId} onChange={setBasemapId} />
-      </div>
-
-      {/* Floating Bottom Legend — Tailored specifically to the active metric */}
-      <div className="absolute bottom-6 left-4 z-[900] bg-white/95 backdrop-blur-md px-3.5 py-2.5 rounded-xl border border-slate-200 shadow-md max-w-lg text-slate-800">
-        <div className="text-[11px] font-bold text-slate-700 mb-1.5 flex items-center justify-between">
-          <span className="uppercase tracking-wider">
-            {metric.startsWith("spi")
-              ? `WMO ${metric.toUpperCase()} Rainfall Anomaly Scale`
-              : metric === "cdi"
-              ? "CDI Multi-Index Drought Severity"
-              : metric === "ndvi" || metric === "evi"
-              ? `${metric.toUpperCase()} Vegetation Canopy Greenness Scale`
-              : metric === "vci" || metric === "vhi"
-              ? `${metric.toUpperCase()} Vegetation Health Condition (%)`
-              : "Rainfall Volume (mm)"}
-          </span>
-          <span className="text-[10px] text-amber-700 font-mono font-bold">Latur Cadastral ({currentPeriod})</span>
+      {topLeft && (
+        <div className="pointer-events-none absolute left-3 top-3 z-[600] max-w-[calc(100%-250px-24px)]">
+          <div className="pointer-events-auto">{topLeft}</div>
         </div>
+      )}
 
-        {metric.startsWith("spi") ? (
-          <div className="flex flex-wrap items-center gap-2 text-[10px] font-semibold text-slate-700">
-            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded" style={{ background: "#7f1d1d" }} /> &le; -2.0 Extr. Dry</span>
-            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded" style={{ background: "#dc2626" }} /> -1.5 Sev. Dry</span>
-            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded" style={{ background: "#ea580c" }} /> -1.0 Mod. Dry</span>
-            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded" style={{ background: "#eab308" }} /> -0.5 Abnorm. Dry</span>
-            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded" style={{ background: "#cbd5e1" }} /> &plusmn;1.0 Normal</span>
-            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded" style={{ background: "#38bdf8" }} /> &ge; 1.0 Wet</span>
-            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded" style={{ background: "#1d4ed8" }} /> &ge; 2.0 Extr. Wet</span>
-          </div>
-        ) : metric === "ndvi" || metric === "evi" ? (
-          <div className="flex flex-wrap items-center gap-2 text-[10px] font-semibold text-slate-700">
-            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded" style={{ background: "#854d0e" }} /> &lt; 0.15 Bare / Dry</span>
-            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded" style={{ background: "#ca8a04" }} /> 0.15–0.25 Stressed</span>
-            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded" style={{ background: "#a3e635" }} /> 0.25–0.35 Moderate</span>
-            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded" style={{ background: "#4ade80" }} /> 0.35–0.45 Normal</span>
-            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded" style={{ background: "#15803d" }} /> &gt; 0.45 Lush Canopy</span>
-          </div>
-        ) : metric === "vci" || metric === "vhi" ? (
-          <div className="flex flex-wrap items-center gap-2 text-[10px] font-semibold text-slate-700">
-            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded" style={{ background: "#7f1d1d" }} /> &lt; 10 Extreme</span>
-            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded" style={{ background: "#dc2626" }} /> 10–20 Severe</span>
-            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded" style={{ background: "#ea580c" }} /> 20–35 Moderate</span>
-            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded" style={{ background: "#eab308" }} /> 35–50 Mild Dry</span>
-            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded" style={{ background: "#22c55e" }} /> &ge; 50 Normal / Good</span>
-          </div>
-        ) : metric === "rain" ? (
-          <div className="flex flex-wrap items-center gap-2 text-[10px] font-semibold text-slate-700">
-            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded" style={{ background: "#f59e0b" }} /> &lt; 20 mm Deficit</span>
-            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded" style={{ background: "#38bdf8" }} /> 20–50 mm Moderate</span>
-            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded" style={{ background: "#0284c7" }} /> &gt; 50 mm Adequate</span>
-          </div>
-        ) : (
-          <div className="flex flex-wrap items-center gap-2 text-[10px] font-semibold text-slate-700">
-            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded" style={{ background: "#22c55e" }} /> &lt; 0.20 None</span>
-            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded" style={{ background: "#eab308" }} /> 0.20–0.35 D0</span>
-            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded" style={{ background: "#f59e0b" }} /> 0.35–0.50 D1</span>
-            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded" style={{ background: "#ea580c" }} /> 0.50–0.65 D2</span>
-            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded" style={{ background: "#dc2626" }} /> 0.65–0.80 D3</span>
-            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded" style={{ background: "#7f1d1d" }} /> &ge; 0.80 D4</span>
-          </div>
-        )}
+      {/* Bottom dock: legend and timeline sit side by side, never on top of each other. */}
+      <div
+        className="pointer-events-none absolute bottom-7 left-3 z-[600] flex flex-col items-stretch gap-3 transition-[right] duration-200 md:flex-row md:items-end"
+        style={{ right: 12 + rightInset }}
+      >
+        <MapLegend
+          spec={spec} counts={legend.counts} noData={legend.noData} total={legend.total}
+          period={currentPeriod} tehsilLabel={tehsil === "All" ? "all tehsils" : tehsil}
+          jumpTo={lastWithData && onPeriodChange ? { period: lastWithData, go: () => onPeriodChange(lastWithData) } : null}
+        />
+        {children && <div className="pointer-events-auto min-w-0 flex-1">{children}</div>}
       </div>
     </div>
   );

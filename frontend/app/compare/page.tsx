@@ -1,7 +1,8 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { districtCdiByPeriod, latestCoveredPeriod, loadTimeseries } from "@/lib/data";
 import { IndexDropdown, type IndexName } from "@/components/ui/IndexDropdown";
 
 const ComparisonSlider = dynamic(
@@ -10,20 +11,42 @@ const ComparisonSlider = dynamic(
 );
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-const YEARS = [2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026];
 
 export default function ComparePage() {
   const [index, setIndex] = useState<IndexName>("cdi");
-  const [ay, setAY] = useState(2018);
-  const [am, setAM] = useState(5);
-  const [by, setBY] = useState(2026);
-  const [bm, setBM] = useState(10);
+  const [years, setYears] = useState<number[]>([]);
+  const [ay, setAY] = useState(0);
+  const [am, setAM] = useState(1);
+  const [by, setBY] = useState(0);
+  const [bm, setBM] = useState(1);
+  const [presets, setPresets] = useState<{ label: string; a: string; b: string }[]>([]);
 
-  const setPreset = (y1: number, m1: number, y2: number, m2: number) => {
-    setAY(y1);
-    setAM(m1);
-    setBY(y2);
-    setBM(m2);
+  // Everything offered here comes from the village record: no month or event is assumed.
+  useEffect(() => {
+    loadTimeseries().then((ts) => {
+      const d = districtCdiByPeriod(ts);
+      const latest = latestCoveredPeriod(ts);
+      if (!d.length || !latest) return;
+      const worst = d.reduce((x, y) => (y.cdi > x.cdi ? y : x)).p;
+      const mild = d.reduce((x, y) => (y.cdi < x.cdi ? y : x)).p;
+      const [ly, lm] = latest.split("-").map(Number);
+      const yearAgo = `${ly - 1}-${String(lm).padStart(2, "0")}`;
+      const list = [
+        { label: `Highest CDI (${worst}) vs latest (${latest})`, a: worst, b: latest },
+        { label: `Lowest CDI (${mild}) vs latest (${latest})`, a: mild, b: latest },
+        ...(d.some((x) => x.p === yearAgo) ? [{ label: `Same month last year (${yearAgo}) vs latest`, a: yearAgo, b: latest }] : []),
+      ];
+      setPresets(list);
+      setYears([...new Set(d.map((x) => Number(x.p.slice(0, 4))))].sort());
+      const [wy, wm] = worst.split("-").map(Number);
+      setAY(wy); setAM(wm); setBY(ly); setBM(lm);
+    }).catch(() => null);
+  }, []);
+
+  const setPreset = (pa: string, pb: string) => {
+    const [y1, m1] = pa.split("-").map(Number);
+    const [y2, m2] = pb.split("-").map(Number);
+    setAY(y1); setAM(m1); setBY(y2); setBM(m2);
   };
 
   return (
@@ -45,27 +68,14 @@ export default function ComparePage() {
           </p>
         </div>
 
-        {/* Quick Presets */}
-        <div className="flex items-center gap-1.5 text-xs font-semibold">
-          <span className="text-slate-400 mr-1 text-[11px]">Benchmarks:</span>
-          <button
-            onClick={() => setPreset(2016, 5, 2020, 9)}
-            className="px-2.5 py-1 rounded-lg border border-rose-200 bg-rose-50 text-rose-800 hover:bg-rose-100 shadow-2xs transition-colors"
-          >
-            '16 Crisis vs '20 Monsoon
-          </button>
-          <button
-            onClick={() => setPreset(2018, 5, 2021, 9)}
-            className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 shadow-2xs transition-colors"
-          >
-            '18 Drought vs '21 Bumper
-          </button>
-          <button
-            onClick={() => setPreset(2023, 8, 2026, 10)}
-            className="px-2.5 py-1 rounded-lg border border-amber-200 bg-amber-50 text-amber-900 hover:bg-amber-100 shadow-2xs transition-colors"
-          >
-            '23 Deficit vs '26 Current
-          </button>
+        {/* Presets computed from the record */}
+        <div className="flex flex-wrap items-center gap-1.5 text-xs font-semibold">
+          {presets.map((pr) => (
+            <button key={pr.label} onClick={() => setPreset(pr.a, pr.b)}
+              className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 shadow-2xs">
+              {pr.label}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -75,8 +85,8 @@ export default function ComparePage() {
           <div className="md:col-span-1">
             <IndexDropdown value={index} onChange={setIndex} />
           </div>
-          <PeriodPicker label="Underlying Layer (Period A)" y={ay} m={am} setY={setAY} setM={setAM} />
-          <PeriodPicker label="Overlying Layer (Period B)" y={by} m={bm} setY={setBY} setM={setBM} />
+          <PeriodPicker years={years} label="Underlying Layer (Period A)" y={ay} m={am} setY={setAY} setM={setAM} />
+          <PeriodPicker years={years} label="Overlying Layer (Period B)" y={by} m={bm} setY={setBY} setM={setBM} />
         </div>
       </div>
 
@@ -93,15 +103,15 @@ export default function ComparePage() {
             Period B: {MONTHS[bm - 1]} {by} ▶
           </span>
         </div>
-        <ComparisonSlider index={index} a={{ year: ay, month: am }} b={{ year: by, month: bm }} />
+        {ay > 0 && by > 0 && <ComparisonSlider index={index} a={{ year: ay, month: am }} b={{ year: by, month: bm }} />}
       </div>
     </div>
   );
 }
 
 function PeriodPicker({
-  label, y, m, setY, setM,
-}: { label: string; y: number; m: number;
+  label, y, m, setY, setM, years,
+}: { label: string; y: number; m: number; years: number[];
      setY: (n: number) => void; setM: (n: number) => void }) {
   return (
     <div className="md:col-span-2">
@@ -112,7 +122,7 @@ function PeriodPicker({
           onChange={(e) => setY(Number(e.target.value))}
           className="flex-1 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-1 focus:ring-amber-500 cursor-pointer"
         >
-          {YEARS.map((yy) => <option key={yy} value={yy}>{yy}</option>)}
+          {years.map((yy) => <option key={yy} value={yy}>{yy}</option>)}
         </select>
         <select
           value={m}

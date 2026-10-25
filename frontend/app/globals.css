@@ -2,54 +2,60 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Leaflet CSS */
 @import "leaflet/dist/leaflet.css";
 
 :root {
-  --background: #ffffff;
-  --foreground: #0f172a;
+  --paper: #f6f1e7;
+  --ink: #1d2b25;
 }
 
 html, body {
-  background: #f8fafc;
-  color: #0f172a;
+  background: var(--paper);
+  color: var(--ink);
   min-height: 100%;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family: "IBM Plex Sans", system-ui, sans-serif;
+  font-feature-settings: "tnum" 1;
 }
 
-.leaflet-container {
-  width: 100%;
-  height: 100%;
-  background: #f1f5f9 !important;
-}
+h1, h2, h3 { font-family: Fraunces, Georgia, serif; }
 
-/* Custom Sleek Light Leaflet Tooltip */
-.custom-leaflet-tooltip {
-  background: rgba(255, 255, 255, 0.96) !important;
-  border: 1px solid rgba(226, 232, 240, 1) !important;
-  color: #0f172a !important;
-  border-radius: 8px !important;
-  padding: 8px 12px !important;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05) !important;
-  backdrop-filter: blur(8px) !important;
-}
+:focus-visible { outline: 2px solid #0b6e6e; outline-offset: 2px; }
 
-.custom-leaflet-tooltip::before {
-  border-top-color: rgba(255, 255, 255, 0.96) !important;
-}
+/* ---- Map cursors -------------------------------------------------------
+   Open hand on empty map, pointing hand only over a village polygon,
+   closed hand while dragging. Panes that must not catch events are inert. */
+.leaflet-container { background: #e9e6dc !important; font-family: inherit; cursor: grab; }
+.leaflet-dragging .leaflet-container,
+.leaflet-container.leaflet-drag-target { cursor: grabbing; }
+.leaflet-interactive { cursor: pointer; }
+.leaflet-dragging .leaflet-interactive { cursor: grabbing; }
+.leaflet-pane.leaflet-outlines-pane, .leaflet-aoi-pane { pointer-events: none; }
 
-/* Custom Gold and Slate Scrollbars */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+/* ---- Village tooltip --------------------------------------------------- */
+.village-tip {
+  background: var(--paper) !important;
+  border: 1px solid rgba(29,43,37,.25) !important;
+  border-radius: 6px !important;
+  box-shadow: 0 6px 18px -6px rgba(29,43,37,.4) !important;
+  color: var(--ink) !important;
+  padding: 7px 9px !important;
+  pointer-events: none;
 }
-::-webkit-scrollbar-track {
-  background: #f1f5f9;
-}
-::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 4px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+.village-tip::before { display: none; }
+.vt { min-width: 180px; font-size: 11px; line-height: 1.35; }
+.vt-name { font: 600 14px/1.2 Fraunces, Georgia, serif; }
+.vt-sub { color: rgba(29,43,37,.6); font: 10px "IBM Plex Mono", monospace; margin-bottom: 4px; }
+.vt-row { display: grid; grid-template-columns: 10px auto 1fr; gap: 6px; align-items: center; padding: 1px 0; }
+.vt-row i { width: 10px; height: 10px; border-radius: 2px; border: 1px solid rgba(29,43,37,.3); }
+.vt-row span { text-align: right; font-family: "IBM Plex Mono", monospace; }
+
+.leaflet-control-attribution { background: rgba(246,241,231,.85) !important; font-size: 10px; }
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: #efe9da; }
+::-webkit-scrollbar-thumb { background: #c9bfa6; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #a39b84; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }

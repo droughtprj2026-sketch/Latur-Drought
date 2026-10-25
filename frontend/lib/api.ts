@@ -46,7 +46,7 @@ export interface LatestStatus {
   };
   region: {
     district: string;
-    state: string;
+    state?: string;
     centroid_lat: number;
     centroid_lon: number;
   };

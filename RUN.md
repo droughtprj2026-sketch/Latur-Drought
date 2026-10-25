@@ -1,78 +1,81 @@
-# Running the Pipelines
+# Running the pipeline
 
-The repository is organized into two dedicated pipelines:
-- **`historical/`**: 10-year climatological baseline, raster calibration, and historical validation.
-- **`realtime/`**: Near-real-time GEE satellite ingestion, pre-flight safety testing, and automated dashboard updates.
-
----
-
-## 1. Near-Real-Time Pipeline (`realtime/`)
-
-### Quick Run
-```bash
-# Run unit & pre-integration safety tests
-python realtime/test_realtime_pipeline.py
-
-# Run live end-to-end ingestion and atomic dashboard JSON update
-python realtime/orchestrator.py
-
-# Run for a specific period
-python realtime/orchestrator.py --period 2026-10
-
-# Test run without touching disk
-python realtime/orchestrator.py --dry-run
-```
-
-### Background Daemon / Cron Scheduler
-```bash
-# Start background daemon running every 6 hours
-python realtime/scheduler.py --daemon --interval-hours 6
-
-# Or run one-shot scheduled cycle
-python realtime/scheduler.py --once
-```
-
----
-
-## 2. Historical Baseline Pipeline (`historical/`)
+All commands run from the repository root. Python 3.11+.
 
 ```bash
-# 1. Pull CHIRPS monthly & calculate SPI-1/3/6/12
-python historical/latur_chirps_spi.py
-
-# 2. Compute Sentinel-2 vegetation indices
-python historical/latur_sentinel_indices.py
-
-# 3. Transparent multi-index composite CDI fusion
-python historical/composite_cdi.py
-
-# 4. Generate master dataset and historical dashboard status
-python historical/dashboard_master.py
-
-# 5. Run historical validation against government disaster declarations
-python historical/validate_historical_analysis.py
+pip install -r scripts/requirements-realtime.txt pytest
+python -m pytest scripts/tests -q          # must pass before and after any change
 ```
 
----
+## Credentials (environment variables, never committed)
 
-## 3. Web Dashboard
+| Variable | Use |
+|---|---|
+| `GEE_PROJECT` | Earth Engine Cloud project id |
+| `GEE_SERVICE_ACCOUNT_KEY` | JSON text (or path) of a service-account key registered for Earth Engine |
+| `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | publishing (service role is server-side only) |
+| `COMPOSITE_CONFIG` | optional, e.g. `config/composite_thermal.yaml` |
+
+Locally, `GEE_PROJECT` plus a prior `earthengine authenticate` is enough.
+
+## Monthly update (what the weekly Action runs)
 
 ```bash
-cd frontend && pnpm dev   # http://localhost:3000
+python scripts/realtime_update.py                 # every month that is due
+python scripts/realtime_update.py --period 2026-09   # force one month
 ```
 
----
+Per month it fetches Sentinel-2 and CHIRPS (and Landsat + Sentinel-1 when the thermal formula is active),
+recomputes SPI, scores the month, rebuilds the history files, writes `latest_status.json` and publishes to
+Supabase when the Supabase variables are set. It exits non-zero if a due month produced nothing.
+A month is used only when its sources fully cover it; otherwise it is skipped and shows as "no data".
 
-## 4. Configuration
+## Switching on the thermal / soil-moisture formula
 
-Edit `config/composite.yaml` to adjust CDI component weights or thresholds:
-
-```yaml
-weights:
-  SPI:  0.30
-  VHI:  0.20
-  VCI:  0.15
-  NDVI: 0.15
-  EVI:  0.10
-  PCI:  0.10
+```bash
+python scripts/backfill_thermal.py                                   # Earth Engine, resumable
+COMPOSITE_CONFIG=config/composite_thermal.yaml python scripts/rescore_panel.py   # offline
 ```
+
+then set `COMPOSITE_CONFIG` for the scheduled job. Details: `docs/THERMAL_AND_SOIL_MOISTURE.md`.
+
+## Publishing to Supabase
+
+```bash
+python scripts/publish_supabase.py --full      # first load / repair: all files + all rows
+python scripts/publish_supabase.py             # files only
+python scripts/publish_supabase.py --period 2026-09 --period 2026-10
+```
+
+## Rebuilding derived files offline
+
+```bash
+python scripts/build_baseline_drought.py       # village_with_baseline.csv
+python scripts/build_village_timeseries.py     # frontend/public/data/village_timeseries.json
+python scripts/build_village_registry.py       # villages_by_tehsil.json, village_baselines.json
+```
+
+## Frontend
+
+```bash
+cd frontend && npm install
+npm run dev        # development
+npm run build      # production build (also type-checks)
+```
+
+## Tests
+
+`scripts/tests/` covers: palette/threshold parity between Python, TypeScript and YAML, one history per polygon,
+exact reproduction of stored CDI and SPI, rain-table gap protection, TCI/SMI/VHI maths, the publisher against a
+fake Supabase server, the SQL migration's security rules, and the refusal to run synthetic fixtures.
+
+## Testing the plumbing without Earth Engine
+
+`--fixture file.json` feeds invented numbers. It is refused unless `ALLOW_SYNTHETIC_FIXTURE=1` and must only be
+used on a scratch copy of the repository: the run rewrites data files and marks the status as synthetic.
+
+## Raw-raster batch scripts (local, need rasters under `output/`)
+
+`scripts/build_village_indices.py` builds the village panel from Sentinel-2 composites and CHIRPS rasters;
+`scripts/latur_chirps_spi.py` computes SPI from rasters. These produced the historical record and are not part of
+the weekly job.

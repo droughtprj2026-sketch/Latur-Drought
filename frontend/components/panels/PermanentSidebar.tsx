@@ -18,19 +18,16 @@ import {
   Area,
 } from "recharts";
 import type { VillageProperties } from "./VillageIntelligenceDrawer";
+import { codeForCDI, colorForValue } from "@/lib/classify";
+import { loadBaselines, loadDistrictMonthly, loadTehsilAnalytics, loadTimeseries, loadVillageIndex, type TimeseriesById, type VillagesByTehsil } from "@/lib/data";
 
 interface Props {
   village: VillageProperties | null;
   selectedTehsil: string;
   selectedPeriod: string;
   onSelectTehsil: (t: string) => void;
-  onSelectVillageByName: (name: string) => void;
-  stats?: {
-    total: number;
-    droughtCount: number;
-    d2PlusCount: number;
-    avgCdi: number;
-  };
+  onSelectVillageByName?: (name: string) => void;
+  summary?: { total: number; assessed: number; inDrought: number; d2plus: number; mean: number | null; means: Record<string, number | null> } | null;
 }
 
 interface TimeseriesPoint {
@@ -58,14 +55,10 @@ interface TimeseriesPoint {
   SPI6?: number | null;
   spi12?: number | null;
   SPI12?: number | null;
-  evi?: number | null;
-  EVI?: number | null;
-  pci?: number | null;
-  PCI?: number | null;
 }
 
 const SEVERITY_INFO: Record<string, { bg: string; text: string; border: string; label: string; badge: string }> = {
-  None: { bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-200", label: "Normal (No Drought)", badge: "bg-emerald-100 text-emerald-800 border-emerald-300" },
+  None: { bg: "bg-slate-100", text: "text-slate-700", border: "border-slate-300", label: "Not in drought", badge: "bg-slate-200 text-slate-800 border-slate-300" },
   D0: { bg: "bg-yellow-50", text: "text-amber-700", border: "border-amber-200", label: "D0 · Abnormally Dry", badge: "bg-amber-100 text-amber-800 border-amber-300" },
   D1: { bg: "bg-amber-50", text: "text-amber-800", border: "border-amber-300", label: "D1 · Moderate Drought", badge: "bg-amber-200 text-amber-900 border-amber-400" },
   D2: { bg: "bg-orange-50", text: "text-orange-800", border: "border-orange-300", label: "D2 · Severe Drought", badge: "bg-orange-200 text-orange-900 border-orange-400" },
@@ -96,7 +89,7 @@ export function PermanentSidebar({
   selectedPeriod,
   onSelectTehsil,
   onSelectVillageByName,
-  stats,
+  summary = null,
 }: Props) {
   const [tab, setTab] = useState<"overview" | "comparisons" | "rankings" | "heatmap">("overview");
   const [chartSubMode, setChartSubMode] = useState<"spi_multiscale" | "cdi_trajectory" | "climatology_envelope">("spi_multiscale");
@@ -104,64 +97,57 @@ export function PermanentSidebar({
   const [districtTs, setDistrictTs] = useState<any[]>([]);
   const [baselinesData, setBaselinesData] = useState<any>(null);
   const [analytics, setAnalytics] = useState<any>(null);
+  const [allTs, setAllTs] = useState<TimeseriesById | null>(null);
+  const [vIndex, setVIndex] = useState<VillagesByTehsil | null>(null);
+  useEffect(() => {
+    loadTimeseries().then(setAllTs).catch(() => null);
+    loadVillageIndex().then(setVIndex).catch(() => null);
+  }, []);
+  // Tehsil league table for the month on screen (replaces the frozen latest-month file).
+  const ranking = useMemo(() => {
+    if (!allTs || !vIndex) return null;
+    return Object.entries(vIndex).map(([tehsil, vs]) => {
+      let n = 0, sum = 0, drought = 0, d2 = 0;
+      for (const v of vs) {
+        const pt = allTs[String(v.id)]?.find((x) => x.p === selectedPeriod);
+        if (!pt || pt.cdi == null) continue;
+        n++; sum += pt.cdi;
+        const c = codeForCDI(pt.cdi);
+        if (c !== "None") drought++;
+        if (c === "D2" || c === "D3" || c === "D4") d2++;
+      }
+      return { tehsil, villages: vs.length, assessed: n, avg_cdi: n ? sum / n : 0,
+               drought_pct: n ? (100 * drought) / n : 0, d2_plus: d2 };
+    }).sort((a, b) => b.avg_cdi - a.avg_cdi);
+  }, [allTs, vIndex, selectedPeriod]);
   const [tsScope, setTsScope] = useState<"village" | "district">("village");
   const [loadingTs, setLoadingTs] = useState(false);
 
-  // Load district timeseries, baselines, and analytics via API (fresh data on every load)
+  // Load district timeseries, baselines, and analytics on mount
   useEffect(() => {
-    fetch("/api/v1/district-timeseries")
-      .then((r) => r.json())
+    loadDistrictMonthly()
       .then((d) => setDistrictTs(d.series || []))
       .catch((e) => console.error("Error loading district timeseries:", e));
 
-    fetch("/api/v1/baselines")
-      .then((r) => r.json())
+    loadBaselines()
       .then((d) => setBaselinesData(d))
-      .catch(() => {
-        fetch("/data/village_baselines.json")
-          .then((r2) => r2.json())
-          .then((d2) => setBaselinesData(d2))
-          .catch((e) => console.error("Error loading baselines:", e));
-      });
+      .catch((e) => console.error("Error loading village baselines:", e));
 
-    fetch("/api/v1/tehsil-analytics")
-      .then((r) => r.json())
+    loadTehsilAnalytics()
       .then((d) => setAnalytics(d))
       .catch((e) => console.error("Error loading tehsil analytics:", e));
   }, []);
 
-  // Update tehsil rankings dynamically whenever selectedPeriod changes
-  useEffect(() => {
-    if (!selectedPeriod) return;
-    fetch(`/api/v1/stats?period=${encodeURIComponent(selectedPeriod)}`)
-      .then((r) => r.json())
-      .then((data) => {
-        if (data && data.tehsil_ranking) {
-          setAnalytics((prev: any) => ({
-            ...(prev || {}),
-            tehsil_ranking: data.tehsil_ranking,
-          }));
-        }
-      })
-      .catch(() => null);
-  }, [selectedPeriod]);
-
-  // Fetch village timeseries via API when village selection changes
+  // Fetch village timeseries when village selection changes
   useEffect(() => {
     if (!village) {
       setVillageTs([]);
       return;
     }
-    const t = (village.tehsil || village.TEHSIL || "").trim();
-    const v = (village.village || village.VILLAGE || village.name || "").trim();
-    if (!t || !v) return;
-
+    if (village.id == null) return;
     setLoadingTs(true);
-    fetch(`/api/v1/timeseries?tehsil=${encodeURIComponent(t)}&village=${encodeURIComponent(v)}`)
-      .then((r) => r.json())
-      .then((data: any[]) => {
-        setVillageTs(data || []);
-      })
+    loadTimeseries()
+      .then((all) => setVillageTs(all[String(village.id)] || []))
       .catch(() => setVillageTs([]))
       .finally(() => setLoadingTs(false));
   }, [village]);
@@ -185,10 +171,8 @@ export function PermanentSidebar({
           cdi: currentVillagePoint.cdi ?? village.CDI ?? null,
           cls: currentVillagePoint.cls ?? village.CDI_class ?? village.class ?? "None",
           ndvi: currentVillagePoint.ndvi ?? village.NDVI ?? null,
-          evi: currentVillagePoint.evi ?? village.EVI ?? null,
           vhi: currentVillagePoint.vhi ?? village.VHI ?? null,
           vci: currentVillagePoint.vci ?? village.VCI ?? null,
-          pci: currentVillagePoint.pci ?? village.PCI ?? null,
           rain: currentVillagePoint.rain ?? village.Rain_mm ?? null,
           spi1: currentVillagePoint.spi1 ?? village.SPI1 ?? null,
           spi3: currentVillagePoint.spi3 ?? village.SPI3 ?? null,
@@ -200,10 +184,8 @@ export function PermanentSidebar({
         cdi: village.CDI ?? null,
         cls: village.CDI_class ?? village.class ?? "None",
         ndvi: village.NDVI ?? null,
-        evi: village.EVI ?? null,
         vhi: village.VHI ?? null,
         vci: village.VCI ?? null,
-        pci: village.PCI ?? null,
         rain: village.Rain_mm ?? null,
         spi1: village.SPI1 ?? null,
         spi3: village.SPI3 ?? null,
@@ -212,15 +194,25 @@ export function PermanentSidebar({
       };
     }
 
+    // No village selected: describe the villages on screen (district or chosen tehsil),
+    // the same population the KPI strip and the map legend count.
+    if (summary && summary.assessed > 0) {
+      const m = summary.means;
+      return {
+        cdi: summary.mean,
+        cls: summary.mean != null ? codeForCDI(summary.mean) : "None",
+        ndvi: m.ndvi ?? null, vhi: m.vhi ?? null, vci: m.vci ?? null, rain: m.rain ?? null,
+        spi1: m.spi1 ?? null, spi3: m.spi3 ?? null, spi6: m.spi6 ?? null, spi12: m.spi12 ?? null,
+      };
+    }
+
     if (currentDistrictPoint) {
       return {
         cdi: currentDistrictPoint.composite_drought_score ?? null,
         cls: currentDistrictPoint.composite_drought_class ?? (currentDistrictPoint.composite_drought_score >= 0.2 ? "D0" : "None"),
         ndvi: currentDistrictPoint.NDVI ?? null,
-        evi: currentDistrictPoint.EVI ?? null,
         vhi: currentDistrictPoint.VHI ?? null,
         vci: currentDistrictPoint.VCI ?? null,
-        pci: currentDistrictPoint.PCI ?? null,
         rain: currentDistrictPoint.Rain_mm ?? null,
         spi1: currentDistrictPoint.SPI1 ?? null,
         spi3: currentDistrictPoint.SPI3 ?? null,
@@ -233,16 +225,26 @@ export function PermanentSidebar({
       cdi: null, cls: "None", ndvi: null, vhi: null, vci: null,
       rain: null, spi1: null, spi3: null, spi6: null, spi12: null,
     };
-  }, [village, currentVillagePoint, currentDistrictPoint]);
+  }, [village, currentVillagePoint, currentDistrictPoint, summary]);
+
+  // Thermal / soil-moisture readings (present once the Landsat LST + Sentinel-1 history has been backfilled).
+  const thermalMetrics = useMemo(() => {
+    const pt: any = currentVillagePoint;
+    const v: any = village;
+    const m = summary?.means;
+    const t = village
+      ? { tci: pt?.tci ?? v?.TCI ?? null, smi: pt?.smi ?? v?.SMI ?? null, lst: pt?.lst ?? v?.LST ?? null }
+      : { tci: m?.tci ?? null, smi: m?.smi ?? null, lst: m?.lst ?? null };
+    return t.tci != null || t.smi != null || t.lst != null ? t : null;
+  }, [village, currentVillagePoint, summary]);
 
   const villageName = village?.village || village?.VILLAGE || village?.name || (selectedTehsil !== "All" ? `${selectedTehsil} Tehsil Aggregate` : "Latur District Aggregate");
   const tehsilName = village?.tehsil || village?.TEHSIL || (selectedTehsil !== "All" ? selectedTehsil : "All 10 Tehsils");
   
   // Resolve accurate drought severity class
-  const rawClass = activeMetrics.cls && activeMetrics.cls !== "ND" ? activeMetrics.cls : "None";
-  const cdiClass = rawClass === "None" && activeMetrics.cdi != null && activeMetrics.cdi >= 0.2
-    ? (activeMetrics.cdi >= 0.8 ? "D4" : activeMetrics.cdi >= 0.6 ? "D3" : activeMetrics.cdi >= 0.4 ? "D2" : activeMetrics.cdi >= 0.2 ? "D1" : "D0")
-    : rawClass;
+  // Class always follows the CDI thresholds in config/composite.yaml (same as the map).
+  const derived = activeMetrics.cdi != null ? codeForCDI(activeMetrics.cdi) : "None";
+  const cdiClass = activeMetrics.cdi != null ? derived : "None";
 
   const sev = SEVERITY_INFO[cdiClass] || SEVERITY_INFO["None"];
 
@@ -256,10 +258,7 @@ export function PermanentSidebar({
   const currentBaseline = useMemo(() => {
     if (!baselinesData) return null;
     if (village) {
-      const t = (village.tehsil || village.TEHSIL || "").trim().toLowerCase();
-      const v = (village.village || village.VILLAGE || village.name || "").trim().toLowerCase();
-      const key = `${t}::${v}`;
-      const vBaselines = baselinesData.villages?.[key];
+      const vBaselines = baselinesData.villages?.[String(village.id)];
       if (vBaselines && vBaselines[currentMonthInt]) {
         return vBaselines[currentMonthInt];
       }
@@ -314,8 +313,8 @@ export function PermanentSidebar({
 
       return {
         month: mName,
-        normal_ndvi: b.ndvi_mean ?? 0.35,
-        normal_rain: b.rain_mean ?? 50,
+        normal_ndvi: b.ndvi_mean ?? null,
+        normal_rain: b.rain_mean ?? null,
         observed_ndvi: observed?.ndvi ?? null,
         observed_rain: observed?.rain ?? null,
         observed_cdi: observed?.cdi ?? null,
@@ -338,35 +337,6 @@ export function PermanentSidebar({
   const rainDeltaPct = (currentRain != null && baselineRain != null && baselineRain > 0)
     ? Math.round(((currentRain - baselineRain) / baselineRain) * 100)
     : null;
-
-  // Manual for Drought Management (Statutory Framework) Trigger Evaluation
-  const spi3Val = activeMetrics.spi3 != null ? Number(activeMetrics.spi3) : null;
-  const t1SpiActive = spi3Val != null && spi3Val <= -1.0;
-  const t1RainActive = rainDeltaPct != null && rainDeltaPct <= -20;
-  const trigger1Active = t1SpiActive || t1RainActive;
-  const trigger1Severity = (spi3Val != null && spi3Val <= -1.5) || (rainDeltaPct != null && rainDeltaPct <= -60)
-    ? "Severe"
-    : trigger1Active
-    ? "Moderate"
-    : "Inactive";
-
-  const vciVal = activeMetrics.vci != null ? Number(activeMetrics.vci) : null;
-  const t2NdviActive = ndviDeltaPct != null && ndviDeltaPct <= -20;
-  const t2VciActive = vciVal != null && vciVal <= 40;
-  const trigger2Active = t2NdviActive || t2VciActive;
-  const trigger2Severity = (ndviDeltaPct != null && ndviDeltaPct <= -30) || (vciVal != null && vciVal <= 20)
-    ? "Severe"
-    : trigger2Active
-    ? "Moderate"
-    : "Inactive";
-
-  const statutoryStatus = (trigger1Active && trigger2Active)
-    ? (trigger1Severity === "Severe" || trigger2Severity === "Severe" ? "Crisis / Severe Drought" : "Moderate Drought")
-    : trigger1Active
-    ? "Trigger-1 Active (Met Deficit)"
-    : trigger2Active
-    ? "Trigger-2 Active (Crop Stress)"
-    : "Normal (No Trigger)";
 
 
   return (
@@ -440,7 +410,7 @@ export function PermanentSidebar({
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-                    {tehsilName} Tehsil · Revenue Village
+                    {village ? `${tehsilName} tehsil · revenue village` : selectedTehsil !== "All" ? `${tehsilName} tehsil` : "District"}
                   </span>
                   <h3 className="text-base font-extrabold text-slate-900 leading-tight">
                     {villageName}
@@ -480,7 +450,7 @@ export function PermanentSidebar({
                 <div className="p-2.5 rounded-lg border border-slate-200 bg-white shadow-2xs">
                   <div className="flex justify-between items-center text-[10px] text-slate-500 font-bold uppercase mb-1">
                     <span>NDVI Vegetation</span>
-                    <span className="font-mono text-slate-700">Baseline μ: {baselineNDVI ?? "0.39"}</span>
+                    <span className="font-mono text-slate-700">Baseline μ: {baselineNDVI ?? "n/a"}</span>
                   </div>
                   <div className="flex items-baseline justify-between">
                     <span className="text-base font-black font-mono text-slate-900">
@@ -506,7 +476,7 @@ export function PermanentSidebar({
                 <div className="p-2.5 rounded-lg border border-slate-200 bg-white shadow-2xs">
                   <div className="flex justify-between items-center text-[10px] text-slate-500 font-bold uppercase mb-1">
                     <span>CHIRPS Rain</span>
-                    <span className="font-mono text-slate-700">Baseline μ: {baselineRain ?? "126"} mm</span>
+                    <span className="font-mono text-slate-700">Baseline μ: {baselineRain ?? "n/a"} mm</span>
                   </div>
                   <div className="flex items-baseline justify-between">
                     <span className="text-base font-black font-mono text-blue-900">
@@ -530,69 +500,88 @@ export function PermanentSidebar({
               </div>
             </div>
 
-            {/* Official Government Drought Notice & District Distress Callout */}
-            <div className="p-3 rounded-xl border border-rose-300 bg-gradient-to-r from-rose-50 to-amber-50 shadow-2xs space-y-1">
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-rose-600 animate-pulse" />
-                <span className="text-xs font-black text-rose-900 uppercase tracking-wide">
-                  Official Government Drought Zone Notice
-                </span>
+            {/* Situation summary, computed from the villages on screen */}
+            <div className="rounded-lg border border-ink/15 bg-paper p-3 shadow-card">
+              <div className="font-mono text-[10px] uppercase tracking-wider text-ink/55">
+                {selectedTehsil === "All" ? "Latur district" : `${selectedTehsil} tehsil`} · {selectedPeriod}
               </div>
-              <p className="text-[11px] text-rose-950 leading-relaxed font-medium">
-                District status for {selectedPeriod}: <strong>{stats?.droughtCount ?? 490} monitored villages ({Math.round(((stats?.droughtCount ?? 490) / (stats?.total || 954)) * 100)}%)</strong> in verified drought stress; <strong>{stats?.d2PlusCount ?? 228} revenue villages</strong> facing Critical (D2–D4) agricultural and hydrological deficit.
-              </p>
-            </div>
-
-            {/* FULL MULTI-SCALE SPI SUITE (SPI-1, SPI-3, SPI-6, SPI-12) */}
-            <div>
-              <div className="text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-2 flex items-center justify-between">
-                <span>Multi-Scale Precipitation Anomalies (WMO SPI Suite)</span>
-                <span className="text-[9px] font-mono text-slate-400">CHIRPS 1..12 Mo Windows</span>
-              </div>
-              <div className="grid grid-cols-4 gap-2 text-center">
-                {/* SPI-1 */}
-                <div className="p-2 rounded-xl border border-slate-200 bg-white shadow-2xs">
-                  <div className="text-[9px] font-bold text-slate-500 uppercase">SPI-1</div>
-                  <div className="text-sm font-black font-mono text-cyan-800">
-                    {activeMetrics.spi1 != null ? Number(activeMetrics.spi1).toFixed(2) : <span className="text-[10px] text-slate-400 font-sans">Pending</span>}
-                  </div>
-                  <div className="text-[8px] text-slate-400">1-Mo Met</div>
-                </div>
-
-                {/* SPI-3 */}
-                <div className="p-2 rounded-xl border border-blue-200 bg-blue-50/50 shadow-2xs">
-                  <div className="text-[9px] font-bold text-blue-700 uppercase">SPI-3</div>
-                  <div className="text-sm font-black font-mono text-blue-900">
-                    {activeMetrics.spi3 != null ? Number(activeMetrics.spi3).toFixed(2) : <span className="text-[10px] text-amber-700 font-sans font-bold">Pending*</span>}
-                  </div>
-                  <div className="text-[8px] text-blue-700/80">3-Mo Agri</div>
-                </div>
-
-                {/* SPI-6 */}
-                <div className="p-2 rounded-xl border border-indigo-200 bg-indigo-50/50 shadow-2xs">
-                  <div className="text-[9px] font-bold text-indigo-700 uppercase">SPI-6</div>
-                  <div className="text-sm font-black font-mono text-indigo-900">
-                    {activeMetrics.spi6 != null ? Number(activeMetrics.spi6).toFixed(2) : <span className="text-[10px] text-slate-400 font-sans">Pending</span>}
-                  </div>
-                  <div className="text-[8px] text-indigo-700/80">6-Mo Hydro</div>
-                </div>
-
-                {/* SPI-12 */}
-                <div className="p-2 rounded-xl border border-purple-200 bg-purple-50/50 shadow-2xs">
-                  <div className="text-[9px] font-bold text-purple-700 uppercase">SPI-12</div>
-                  <div className="text-sm font-black font-mono text-purple-900">
-                    {activeMetrics.spi12 != null ? Number(activeMetrics.spi12).toFixed(2) : <span className="text-[10px] text-slate-400 font-sans">Pending</span>}
-                  </div>
-                  <div className="text-[8px] text-purple-700/80">12-Mo Ground</div>
-                </div>
-              </div>
-              {activeMetrics.spi3 == null && (
-                <div className="text-[10px] text-amber-800 mt-1.5 font-medium flex items-center gap-1">
-                  <span>*</span>
-                  <span>CHIRPS precipitation for {selectedPeriod} awaiting release by UCSB/NOAA. Optical Sentinel-2 indices (NDVI/VHI) active.</span>
-                </div>
+              {summary && summary.assessed > 0 ? (
+                <p className="mt-1 text-[12px] leading-relaxed text-ink">
+                  <strong>{summary.inDrought}</strong> of <strong>{summary.assessed}</strong> assessed villages are in
+                  drought (D0–D4); <strong>{summary.d2plus}</strong> are severe or worse (D2–D4).
+                  {summary.total > summary.assessed && (
+                    <> {summary.total - summary.assessed} of {summary.total} villages have no composite score this month (cloud cover or missing inputs).</>
+                  )}
+                </p>
+              ) : (
+                <p className="mt-1 text-[12px] text-ink/70">No composite scores are available for this month.</p>
               )}
             </div>
+
+            {/* Current rainfall condition. Long-term SPIs live in the disclosure below: they accumulate
+                3-12 months of rain, change only when a new month is published, and are not weekly
+                indicators, so they do not belong in the headline numbers of a near-real-time view. */}
+            <div>
+              <div className="text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-2 flex items-center justify-between">
+                <span>Rainfall this month</span>
+                <span className="text-[9px] font-mono text-slate-400">CHIRPS · monthly</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-center">
+                <div className="p-2 rounded-xl border border-slate-200 bg-white shadow-2xs">
+                  <div className="text-[9px] font-bold text-slate-500 uppercase">SPI-1</div>
+                  <div className="text-sm font-black font-mono text-slate-900">
+                    {activeMetrics.spi1 != null ? Number(activeMetrics.spi1).toFixed(2) : <span className="text-[10px] text-slate-400 font-sans">not yet published</span>}
+                  </div>
+                  <div className="text-[8px] text-slate-400">rain vs normal, this month</div>
+                </div>
+                <div className="p-2 rounded-xl border border-slate-200 bg-white shadow-2xs">
+                  <div className="text-[9px] font-bold text-slate-500 uppercase">Rainfall</div>
+                  <div className="text-sm font-black font-mono text-slate-900">
+                    {activeMetrics.rain != null ? `${Number(activeMetrics.rain).toFixed(1)} mm` : <span className="text-[10px] text-slate-400 font-sans">not yet published</span>}
+                  </div>
+                  <div className="text-[8px] text-slate-400">month total</div>
+                </div>
+              </div>
+              {activeMetrics.spi1 == null && (
+                <div className="text-[10px] text-amber-800 mt-1.5 font-medium">
+                  CHIRPS rainfall for {selectedPeriod} has not been published yet. Vegetation indices for this month are current.
+                </div>
+              )}
+
+              <details className="mt-2 rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-2">
+                <summary className="cursor-pointer text-[11px] font-bold text-slate-700">
+                  Long-term rainfall deficit (SPI-3, 6, 12) · updated monthly
+                </summary>
+                <p className="mt-1.5 text-[10px] leading-snug text-slate-600">
+                  These add up rainfall over the last 3, 6 and 12 months, so they move slowly and only when a new
+                  month of CHIRPS is published. They describe accumulated deficit (soil moisture, tank and
+                  groundwater storage), not week-to-week change.
+                </p>
+                <div className="mt-2 grid grid-cols-3 gap-2 text-center">
+                  {([["SPI-3", activeMetrics.spi3, "3 months"], ["SPI-6", activeMetrics.spi6, "6 months"], ["SPI-12", activeMetrics.spi12, "12 months"]] as const).map(([lbl, v, win]) => (
+                    <div key={lbl} className="p-2 rounded-lg border border-slate-200 bg-white">
+                      <div className="text-[9px] font-bold text-slate-500 uppercase">{lbl}</div>
+                      <div className="text-sm font-black font-mono text-slate-900">
+                        {v != null ? Number(v).toFixed(2) : <span className="text-[10px] text-slate-400 font-sans">–</span>}
+                      </div>
+                      <div className="text-[8px] text-slate-400">window {win}</div>
+                    </div>
+                  ))}
+                </div>
+              </details>
+            </div>
+
+            {thermalMetrics && (
+              <div className="grid grid-cols-3 gap-2 text-center">
+                {([["LST", thermalMetrics.lst, "°C day", 1], ["TCI", thermalMetrics.tci, "temp. condition", 1], ["SMI", thermalMetrics.smi, "soil moisture", 1]] as const).map(([lbl, v, note, d]) => (
+                  <div key={lbl} className="p-2 rounded-xl border border-slate-200 bg-white shadow-2xs">
+                    <div className="text-[9px] font-bold text-slate-500 uppercase">{lbl}</div>
+                    <div className="text-sm font-black text-slate-900 font-mono">{v != null ? Number(v).toFixed(d) : "—"}</div>
+                    <div className="text-[8px] text-slate-500">{note}</div>
+                  </div>
+                ))}
+              </div>
+            )}
 
             {/* Key Spectral Indices (NDVI, VHI, VCI, CDI) */}
             <div className="grid grid-cols-4 gap-2 text-center">
@@ -627,111 +616,9 @@ export function PermanentSidebar({
                 </div>
                 <div className="text-[8px] text-slate-500">Condition</div>
               </div>
-
-              <div className="p-2 rounded-xl border border-slate-200 bg-white shadow-2xs">
-                <div className="text-[9px] font-bold text-slate-500 uppercase">EVI</div>
-                <div className="text-sm font-black text-slate-900 font-mono">
-                  {activeMetrics.evi != null ? Number(activeMetrics.evi).toFixed(3) : "—"}
-                </div>
-                <div className="text-[8px] text-slate-400">Enhanced Veg</div>
-              </div>
-
-              <div className="p-2 rounded-xl border border-slate-200 bg-white shadow-2xs">
-                <div className="text-[9px] font-bold text-slate-500 uppercase">PCI</div>
-                <div className="text-sm font-black text-slate-900 font-mono">
-                  {activeMetrics.pci != null ? Number(activeMetrics.pci).toFixed(2) : "—"}
-                </div>
-                <div className="text-[8px] text-slate-400">Precip Concentration</div>
-              </div>
             </div>
 
-            {/* Statutory Drought Assessment (Manual for Drought Management 2016/2020) */}
-            <div className={`p-3.5 rounded-xl border ${
-              trigger1Active && trigger2Active
-                ? (trigger1Severity === "Severe" || trigger2Severity === "Severe" ? "bg-red-50/80 border-red-300" : "bg-orange-50/80 border-orange-300")
-                : trigger1Active || trigger2Active
-                ? "bg-amber-50/70 border-amber-300"
-                : "bg-emerald-50/60 border-emerald-200"
-            } space-y-2.5`}>
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-[10px] font-black uppercase tracking-wider text-slate-800">
-                    Statutory Drought Assessment
-                  </div>
-                  <div className="text-[9px] text-slate-500 font-medium">
-                    Govt. of India / Maharashtra Manual Criteria
-                  </div>
-                </div>
-                <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-md border ${
-                  trigger1Active && trigger2Active
-                    ? (trigger1Severity === "Severe" || trigger2Severity === "Severe" ? "bg-red-600 text-white border-red-700" : "bg-orange-600 text-white border-orange-700")
-                    : trigger1Active || trigger2Active
-                    ? "bg-amber-500 text-white border-amber-600"
-                    : "bg-emerald-600 text-white border-emerald-700"
-                }`}>
-                  {statutoryStatus}
-                </span>
-              </div>
-
-              {/* Two Trigger Breakdown Cards */}
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                {/* Trigger 1: Meteorological */}
-                <div className="p-2 rounded-lg bg-white border border-slate-200 shadow-2xs">
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-[9px] font-bold uppercase text-slate-600">Trigger 1 · Met</span>
-                    <span className={`text-[8px] font-bold px-1.5 py-0.2 rounded ${
-                      trigger1Severity === "Severe" ? "bg-red-100 text-red-800" : trigger1Severity === "Moderate" ? "bg-amber-100 text-amber-800" : "bg-emerald-100 text-emerald-800"
-                    }`}>
-                      {trigger1Severity}
-                    </span>
-                  </div>
-                  <div className="text-[10px] space-y-0.5 text-slate-600">
-                    <div className="flex justify-between">
-                      <span>SPI-3:</span>
-                      <span className="font-mono font-semibold text-slate-800">{spi3Val != null ? spi3Val.toFixed(2) : "—"} (≤-1.0)</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Rain Deficit:</span>
-                      <span className="font-mono font-semibold text-slate-800">{rainDeltaPct != null ? `${rainDeltaPct}%` : "—"} (≤-20%)</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Trigger 2: Vegetation / Agricultural */}
-                <div className="p-2 rounded-lg bg-white border border-slate-200 shadow-2xs">
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-[9px] font-bold uppercase text-slate-600">Trigger 2 · Agri</span>
-                    <span className={`text-[8px] font-bold px-1.5 py-0.2 rounded ${
-                      trigger2Severity === "Severe" ? "bg-red-100 text-red-800" : trigger2Severity === "Moderate" ? "bg-amber-100 text-amber-800" : "bg-emerald-100 text-emerald-800"
-                    }`}>
-                      {trigger2Severity}
-                    </span>
-                  </div>
-                  <div className="text-[10px] space-y-0.5 text-slate-600">
-                    <div className="flex justify-between">
-                      <span>NDVI Δ:</span>
-                      <span className="font-mono font-semibold text-slate-800">{ndviDeltaPct != null ? `${ndviDeltaPct}%` : "—"} (≤-20%)</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>VCI:</span>
-                      <span className="font-mono font-semibold text-slate-800">{vciVal != null ? vciVal.toFixed(1) : "—"} (≤40)</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="text-[9px] text-slate-500 leading-tight">
-                {trigger1Active && trigger2Active
-                  ? "Both triggers activated. Unit qualifies for statutory declaration & State Disaster Response Fund (SDRF) relief."
-                  : trigger1Active
-                  ? "Meteorological deficit detected. Soil moisture and satellite vegetation indicators under continuous observation."
-                  : trigger2Active
-                  ? "Vegetation condition stress observed. Monitoring field ground truthing and moisture levels."
-                  : "Both meteorological and vegetative indicators are within normal climatological boundaries."}
-              </div>
-            </div>
-
-
+            {/* Actionable Agricultural Directive */}
             <div className="p-3.5 rounded-xl border border-amber-200 bg-amber-50/70">
               <div className="flex items-center gap-2 mb-1.5">
                 <span className="text-amber-900 font-extrabold text-xs uppercase tracking-wider">
@@ -826,17 +713,6 @@ export function PermanentSidebar({
                       <ReferenceLine y={-1.5} stroke="#dc2626" strokeDasharray="3 3" label={{ value: "Sev. Drought (-1.5)", fill: "#dc2626", fontSize: 9 }} />
                       <ReferenceLine y={-2.0} stroke="#7f1d1d" strokeDasharray="3 3" label={{ value: "Extr. Drought (-2.0)", fill: "#7f1d1d", fontSize: 9 }} />
 
-                      {/* Active Scrubber Timeline Marker */}
-                      {selectedPeriod && (
-                        <ReferenceLine
-                          x={selectedPeriod}
-                          stroke="#f59e0b"
-                          strokeWidth={2}
-                          strokeDasharray="3 3"
-                          label={{ value: `Selected (${selectedPeriod})`, fill: "#b45309", fontSize: 9, position: "insideTopRight" }}
-                        />
-                      )}
-
                       <Line type="monotone" dataKey="spi1" stroke="#06b6d4" strokeWidth={1.2} dot={false} name="SPI-1 (1-Mo)" />
                       <Line type="monotone" dataKey="spi3" stroke="#2563eb" strokeWidth={2.0} dot={false} name="SPI-3 (3-Mo)" />
                       <Line type="monotone" dataKey="spi6" stroke="#4f46e5" strokeWidth={1.5} dot={false} name="SPI-6 (6-Mo)" />
@@ -897,17 +773,6 @@ export function PermanentSidebar({
                       <Tooltip contentStyle={{ backgroundColor: "#ffffff", borderColor: "#e2e8f0", fontSize: "11px", borderRadius: "8px" }} />
                       <Legend wrapperStyle={{ fontSize: "11px" }} />
                       <ReferenceLine yAxisId="cdi" y={0.5} stroke="#ef4444" strokeDasharray="3 3" label={{ value: "D2 Severe", fill: "#ef4444", fontSize: 9 }} />
-                      {/* Active Scrubber Timeline Marker */}
-                      {selectedPeriod && (
-                        <ReferenceLine
-                          yAxisId="cdi"
-                          x={selectedPeriod}
-                          stroke="#f59e0b"
-                          strokeWidth={2}
-                          strokeDasharray="3 3"
-                          label={{ value: `Active (${selectedPeriod})`, fill: "#b45309", fontSize: 9, position: "insideTopRight" }}
-                        />
-                      )}
                       <Bar yAxisId="rain" dataKey="rain" fill="#93c5fd" name="Rain (mm)" opacity={0.7} />
                       <Line yAxisId="cdi" type="monotone" dataKey="cdi" stroke="#d97706" strokeWidth={2.2} dot={false} name="CDI Score" />
                     </ComposedChart>
@@ -926,10 +791,10 @@ export function PermanentSidebar({
                 Tehsil Drought Stress Ranking ({selectedPeriod})
               </div>
               <div className="h-56 w-full">
-                {analytics?.tehsil_ranking ? (
+                {ranking ? (
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart
-                      data={analytics.tehsil_ranking}
+                      data={ranking}
                       layout="vertical"
                       margin={{ top: 5, right: 20, left: 35, bottom: 5 }}
                     >
@@ -941,9 +806,8 @@ export function PermanentSidebar({
                         contentStyle={{ backgroundColor: "#ffffff", borderColor: "#e2e8f0", fontSize: "11px" }}
                       />
                       <Bar dataKey="avg_cdi" radius={[0, 4, 4, 0]}>
-                        {analytics.tehsil_ranking.map((entry: any, index: number) => {
-                          const color =
-                            entry.avg_cdi >= 0.5 ? "#ea580c" : entry.avg_cdi >= 0.35 ? "#d97706" : entry.avg_cdi >= 0.2 ? "#eab308" : "#10b981";
+                        {ranking.map((entry: any, index: number) => {
+                          const color = colorForValue(entry.avg_cdi, "cdi");
                           return <Cell key={`cell-${index}`} fill={color} />;
                         })}
                       </Bar>
@@ -970,7 +834,7 @@ export function PermanentSidebar({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {analytics?.tehsil_ranking?.map((t: any) => (
+                  {ranking?.map((t: any) => (
                     <tr
                       key={t.tehsil}
                       onClick={() => onSelectTehsil(t.tehsil)}
@@ -979,11 +843,11 @@ export function PermanentSidebar({
                       }`}
                     >
                       <td className="py-2 text-slate-900 font-semibold">{t.tehsil}</td>
-                      <td className="py-2 font-mono text-slate-600">{t.villages}</td>
+                      <td className="py-2 font-mono text-slate-600">{t.assessed}/{t.villages}</td>
                       <td className="py-2 font-mono font-bold text-amber-700">{t.avg_cdi.toFixed(3)}</td>
                       <td className="py-2">
                         <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                          t.drought_pct > 75 ? "bg-rose-100 text-rose-800" : t.drought_pct > 50 ? "bg-amber-100 text-amber-800" : "bg-emerald-100 text-emerald-800"
+                          t.drought_pct > 75 ? "bg-rose-100 text-rose-800" : t.drought_pct > 50 ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-700"
                         }`}>
                           {t.drought_pct.toFixed(0)}%
                         </span>
@@ -1006,7 +870,7 @@ export function PermanentSidebar({
                 <span className="text-xs font-bold text-slate-800">
                   CDI Intensity Heatmap Matrix (2016–2026)
                 </span>
-                <span className="text-[10px] text-slate-500 font-mono">0.0 (Green) → 1.0 (Brown)</span>
+                <span className="text-[10px] text-slate-500 font-mono">0.0 (pale) → 1.0 (dark red), CDI classes</span>
               </div>
 
               <div className="overflow-x-auto">
@@ -1022,7 +886,7 @@ export function PermanentSidebar({
                     </tr>
                   </thead>
                   <tbody>
-                    {[2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026].map((y) => (
+                    {Array.from(new Set(districtTs.map((d: any) => Number(String(d.date).slice(0, 4))))).sort().map((y) => (
                       <tr key={y}>
                         <th className="pr-1 text-right font-mono font-bold text-slate-500">{y}</th>
                         {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => {
@@ -1030,27 +894,16 @@ export function PermanentSidebar({
                           const match = districtTs.find((d: any) => d.date === dateKey);
                           const val = match?.composite_drought_score ?? null;
 
-                          let bg = "#f1f5f9";
-                          let text = "#94a3b8";
-                          if (val != null) {
-                            if (val < 0.2) { bg = "#bbf7d0"; text = "#14532d"; }
-                            else if (val < 0.35) { bg = "#fef08a"; text = "#713f12"; }
-                            else if (val < 0.5) { bg = "#fed7aa"; text = "#7c2d12"; }
-                            else if (val < 0.65) { bg = "#fdba74"; text = "#7c2d12"; }
-                            else if (val < 0.8) { bg = "#fca5a5"; text = "#7f1d1d"; }
-                            else { bg = "#f87171"; text = "#450a0a"; }
-                          }
-
-                          const isCurrent = dateKey === selectedPeriod;
+                          // Same palette and thresholds as the map legend (lib/classify.ts).
+                          const bg = val != null ? colorForValue(val, "cdi") : "#f1f5f9";
+                          const text = val == null ? "#94a3b8" : val >= 0.65 ? "#ffffff" : "#1d2b25";
 
                           return (
                             <td
                               key={m}
                               style={{ backgroundColor: bg, color: text }}
-                              className={`h-5 text-center font-mono text-[9px] rounded-xs font-semibold transition-all ${
-                                isCurrent ? "ring-2 ring-amber-600 font-black scale-110 z-10 relative shadow-sm" : ""
-                              }`}
-                              title={`${dateKey}: ${val != null ? val.toFixed(2) : "No data"}${isCurrent ? " (Active Selected Period)" : ""}`}
+                              className="h-5 text-center font-mono text-[9px] rounded-xs font-semibold"
+                              title={`${dateKey}: ${val != null ? val.toFixed(2) : "No data"}`}
                             >
                               {val != null ? val.toFixed(1) : "—"}
                             </td>

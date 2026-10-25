@@ -8,18 +8,21 @@ authoritative; see `DEVELOPER.md` for the long-form architecture.
 
 ## 1. What this project is
 
-**Real-Time Drought Monitoring — Latur District, Marathwada (2016–2026).**
-A full-stack platform that ingests Sentinel-2 + CHIRPS rasters, computes
-drought indices (SPI, NDVI, EVI, PCI, VHI → **CDI**) in Python, stores
-them in Supabase (Postgres + PostGIS), serves them through a Go API, and
-renders maps (Leaflet) and time-series charts (Recharts) in a Next.js
-frontend.
+**Near Real-Time Drought Monitoring System — Latur District, Marathwada.**
+Developed by the Department of Geoinformatics, Shivaji University.
+Python ingests Sentinel-2, Sentinel-1 (soil moisture), Landsat 8/9 (LST) and CHIRPS from
+Earth Engine, computes SPI, NDVI, VCI, TCI, SMI, VHI and the composite
+**CDI**, and publishes to Supabase (Postgres rows + a public Storage
+bucket). A Next.js app (API routes + Leaflet + Recharts) reads from
+Supabase. There is no Go service in this repository and `backend-node/` is
+unused; see `DEVELOPER.md` for the real layout.
 
-Primary language ranking per the owner's standing preference:
+**Data rules:** never hard-code data (months, tehsils, project ids, fallback
+values); never run `--fixture` outside a scratch copy; an input that is not
+published stays empty and the composite drops it. See
+`docs/THERMAL_AND_SOIL_MOISTURE.md` and `docs/DATA_ACCURACY_AUDIT.md`.
 
-1. **Go** — backend API, ingest CLI
-2. **Python** — scientific processing, Colab scripts
-3. **TypeScript** — Next.js frontend + Node.js gateway
+Languages: **Python** (processing, pipeline), **TypeScript** (Next.js app).
 
 ---
 
@@ -31,8 +34,9 @@ Agents MUST follow these without being reminded:
 2. **Never silently change CDI weights or SPI class thresholds** — they
    are documented in `scripts/common/classify.py`. If you change them,
    update `DEVELOPER.md` in the same commit.
-3. **The Python → Go bridge is `outputs/Dashboard/`** — the Go service
-   reads `drought_monitoring_master.csv`, `latest_status.json`,
+3. **The Python → dashboard bridge is `outputs/Dashboard/` and the
+   Supabase publish step** (`scripts/publish_supabase.py`). Any Go service
+   would read `drought_monitoring_master.csv`, `latest_status.json`,
    `data_availability.json`, and `processing_manifest.json`. If you add
    a new column, add it to `scripts/dashboard_master.MASTER_COLUMNS` AND
    to the SQL migration.
@@ -61,36 +65,9 @@ Agents MUST follow these without being reminded:
 
 ## 3. Repository map
 
-```
-drought-monitoring/
-├── AGENTS.md           ← you are here
-├── DEVELOPER.md        ← full architecture + API reference
-├── CODE_OF_CONDUCT.md
-├── README.md
-├── docker-compose.yml  ← local Supabase + Go + Node
-├── .env.example
-│
-├── scripts/            ← Python processing
-│   ├── latur_chirps_spi.py       (CHIRPS → SPI, reference, do not break)
-│   ├── latur_sentinel_indices.py (local-raster path: NDVI/EVI/NDMI/VCI from the raw folders)
-│   ├── latur_cdi.py              (fuses SPI + NDVI + VHI + PCI → CDI)
-│   ├── pipeline_gee.py           (near-real-time S2 from GEE for an AOI)
-│   ├── chirps_gee.py             (near-real-time CHIRPS from GEE, UCSB-CHG/CHIRPS/monthly)
-│   ├── composite_cdi.py          (transparent weighted multi-index composite)
-│   ├── dashboard_master.py       (builds outputs/Dashboard/{master.csv,status,avail,manifest}.json)
-│   ├── scheduler.py              (orchestrates incremental updates with manifests)
-│   └── common/{raster.py, classify.py, manifest.py}
-│
-├── config/
-│   ├── composite.yaml            (CDI weights, normalisation, thresholds, formula_version)
-│   └── spi.yaml                  (SPI reference climatology + QC rules)
-│
-├── backend-go/         ← primary API (chi + pgx)
-├── backend-node/       ← gateway: auth, uploads, static passthrough
-└── frontend/           ← Next.js 14 App Router + Leaflet + Recharts
-```
-
----
+See `DEVELOPER.md` section 1 for the annotated layout. In short: `scripts/` (pipeline, `common/`, `tests/`),
+`config/` (composite formulas), `supabase/` (schema + migrations), `frontend/` (Next.js app), `output/` `data/`
+`outputs/` (history tables and processed files), `docs/`.
 
 ## 4. Raw data reality — read before touching processing scripts
 
@@ -137,45 +114,26 @@ cells — not zero.
 
 ---
 
-## 5. How to run it end-to-end
+## 5. How to run it
+
+See `RUN.md`. Minimum before any commit:
 
 ```bash
-# 1. Python processing (populates data/processed/)
-cd scripts
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-python latur_chirps_spi.py
-python latur_sentinel_indices.py
-python latur_cdi.py
-
-# 2. Backend
-cd ../backend-go  && go run ./cmd/server   # → :8080
-cd ../backend-node && pnpm install && pnpm dev   # → :4000
-
-# 3. Frontend
-cd ../frontend && pnpm install && pnpm dev        # → :3000
+pip install -r scripts/requirements-realtime.txt pytest && python -m pytest scripts/tests -q
+cd frontend && npm install && npx tsc --noEmit && npm run build
 ```
-
-Or `docker compose up` from repo root.
-
----
 
 ## 6. Agent-specific hints
 
-### Antigravity
+### Scientific scripts
 
-- Primary agent for scientific scripting (Colab, GEE). When editing
-  `scripts/*.py`, keep the script runnable **standalone in Colab**
-  (upload prompt, Drive copy, inline previews).
-- Antigravity's artifacts belong under `scripts/colab_artifacts/` — do
-  not scatter PNGs into `data/`.
+- Raster batch scripts (`latur_*`, `build_village_indices.py`) may run standalone in Colab; keep them importable
+  without Earth Engine. The weekly job code (`realtime_update.py`, `common/`) must not depend on rasters.
+- Artifacts from Colab belong under `scripts/colab_artifacts/`, not in `data/`.
 
-### OpenCode
+### Web app
 
-- Primary agent for Go + TypeScript. Default to `go test ./...` and
-  `pnpm test` after any change. Do not bypass CI.
-- When adding a new endpoint, update **both** `DEVELOPER.md §7.2` and
-  the typed client in `frontend/lib/api.ts`.
+- Add or change a map layer only in `frontend/lib/metrics.ts`. Run `npx tsc --noEmit` and `npm run build`.
 
 ### Shared conventions for all agents
 
@@ -191,16 +149,18 @@ Or `docker compose up` from repo root.
 
 A change is done when **all** of these are true:
 
-- [ ] `go vet ./... && go test ./...` passes in `backend-go/`.
-- [ ] `pnpm lint && pnpm test` passes in `backend-node/`.
-- [ ] `pnpm lint && pnpm build` passes in `frontend/`.
-- [ ] `ruff check . && pytest` passes in `scripts/`.
-- [ ] If the output contract changed, `data/processed/json/manifest.json`
-      is regenerated and committed.
-- [ ] `DEVELOPER.md` reflects any new endpoint, env var, or script.
+- [ ] `python -m pytest scripts/tests -q` passes.
+- [ ] `cd frontend && npx tsc --noEmit && npm run build` passes.
+- [ ] No hard-coded data, no synthetic data in committed outputs, no secrets.
+- [ ] If a threshold, weight, palette or formula changed: YAML, `classify.py`, `classify.ts`, `metrics.ts` and the
+      docs are updated together (a test checks parity).
+- [ ] `DEVELOPER.md` / `RUN.md` reflect any new script, env var or workflow.
 
 ---
 
 ## 8. Contact
 
 Project owner: **rajnandinikadam221@gmail.com**
+
+Project team: Rajnandini U. Kadam, Aishwarya B. Jagtap, Pavan S. Devkar, Shital B. Gurav, Trupti U. Jadhav.
+Guide: Dr. Sachin S. Panhalkar, Head of Department, Department of Geography.

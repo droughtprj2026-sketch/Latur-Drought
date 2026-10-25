@@ -1,167 +1,69 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useState } from "react";
-import type { MetricName } from "@/components/map/LaturMap";
-import { VillageIntelligenceDrawer, type VillageProperties } from "@/components/panels/VillageIntelligenceDrawer";
+import { useEffect, useMemo, useState } from "react";
+import type { MetricName } from "@/lib/metrics";
+import { LayerSelect } from "@/components/dashboard/LayerSelect";
 import { MonthlyTimelineScrubber } from "@/components/map/MonthlyTimelineScrubber";
+import { VillageIntelligenceDrawer } from "@/components/panels/VillageIntelligenceDrawer";
+import { activeVillage, latestCoveredPeriod, loadVillageIndex, recordMarkers, tehsilNames, loadBaselines, loadTimeseries, toVillageProperties, type Baselines, type TimeseriesById } from "@/lib/data";
+import type { ActiveVillage } from "@/lib/metrics";
 
 const LaturMap = dynamic(() => import("@/components/map/LaturMap"), {
   ssr: false,
-  loading: () => (
-    <div className="h-full w-full flex items-center justify-center bg-slate-50 text-slate-500 text-sm">
-      <div className="flex flex-col items-center gap-2">
-        <div className="w-8 h-8 border-2 border-amber-600 border-t-transparent rounded-full animate-spin" />
-        <span className="font-semibold text-slate-700">Loading Latur Fullscreen GIS Map...</span>
-      </div>
-    </div>
-  ),
+  loading: () => <div className="flex h-full items-center justify-center font-mono text-xs text-ink/60">Loading map…</div>,
 });
-
-const METRICS: { id: MetricName; label: string }[] = [
-  { id: "cdi", label: "CDI Composite Severity" },
-  { id: "spi1", label: "SPI-1 (1-Mo Meteorological)" },
-  { id: "spi3", label: "SPI-3 (3-Mo Agricultural)" },
-  { id: "spi6", label: "SPI-6 (6-Mo Seasonal)" },
-  { id: "spi12", label: "SPI-12 (12-Mo Deep Hydrology)" },
-  { id: "ndvi", label: "NDVI (Green Biomass)" },
-  { id: "vhi", label: "VHI (Vegetation Health)" },
-  { id: "vci", label: "VCI (Condition Index)" },
-  { id: "rain", label: "Rainfall (CHIRPS mm)" },
-];
-
-const TEHSILS = [
-  "All",
-  "Ahmadpur",
-  "Ausa",
-  "Chakur",
-  "Deoni",
-  "Jalkot",
-  "Latur",
-  "Nilanga",
-  "Renapur",
-  "Shirur-Anantpal",
-  "Udgir",
-];
 
 export default function FullscreenMapPage() {
   const [metric, setMetric] = useState<MetricName>("cdi");
-  const [tehsil, setTehsil] = useState<string>("All");
-  const [selectedVillage, setSelectedVillage] = useState<VillageProperties | null>(null);
-  const [periods, setPeriods] = useState<string[]>([]);
-  const [currentPeriod, setCurrentPeriod] = useState<string>("2026-10");
-  const [monitoringStatus, setMonitoringStatus] = useState<"operational" | "degraded" | "no_data">("operational");
-  const [showGeeLayer, setShowGeeLayer] = useState<boolean>(false);
-  const [geeTileUrl] = useState<string>(
-    "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-  );
+  const [tehsil, setTehsil] = useState("All");
+  const [period, setPeriod] = useState("");
+  const [picked, setPicked] = useState<ActiveVillage | null>(null);
+  const [ts, setTs] = useState<TimeseriesById | null>(null);
+  const [baselines, setBaselines] = useState<Baselines | null>(null);
+  const [tehsils, setTehsils] = useState<string[]>(["All"]);
 
+  useEffect(() => { loadVillageIndex().then((v) => setTehsils(["All", ...tehsilNames(v)])).catch(() => null); }, []);
   useEffect(() => {
-    // Load periods from district timeseries via API (fresh data on every load)
-    fetch("/api/v1/district-timeseries")
-      .then((r) => r.json())
-      .then((d) => {
-        const pList = (d.series || []).map((s: any) => s.date).filter(Boolean);
-        if (pList.length > 0) setPeriods(pList);
-      })
-      .catch(() => null);
-
-    // Load monitoring status to get the real latest period (never hardcode)
-    fetch("/api/v1/status")
-      .then((r) => r.json())
-      .then((status) => {
-        setMonitoringStatus(status.monitoring_status || "degraded");
-        if (status.sentinel2?.latest_period_id && status.monitoring_status !== "no_data") {
-          setCurrentPeriod(status.sentinel2.latest_period_id);
-        } else if (status.chirps?.latest_period_id && status.monitoring_status !== "no_data") {
-          setCurrentPeriod(status.chirps.latest_period_id);
-        }
-      })
-      .catch(() => null);
+    Promise.all([loadTimeseries(), loadBaselines()]).then(([t, b]) => {
+      setTs(t); setBaselines(b); setPeriod((p) => p || latestCoveredPeriod(t) || "");
+    }).catch(() => null);
   }, []);
 
+  const periods = useMemo(() => {
+    const s = new Set<string>();
+    if (ts) for (const pts of Object.values(ts)) for (const x of pts) s.add(x.p);
+    return [...s].sort();
+  }, [ts]);
+
+  // keep the drawer in step with the month being scrubbed
+  const drawerVillage = useMemo(() => {
+    if (!picked || !period) return null;
+    return toVillageProperties(activeVillage(
+      { id: picked.id, village: picked.village, tehsil: picked.tehsil, AREA_SQKM: picked.area_sqkm }, ts, baselines, period));
+  }, [picked, ts, baselines, period]);
+
   return (
-    <div className="relative h-[calc(100vh-57px)] w-full overflow-hidden bg-slate-50 text-slate-900">
-      {/* Top Floating Control Bar — Crisp White with Gold Accents */}
-      <div className="absolute top-4 left-4 z-[900] flex flex-wrap items-center gap-2 bg-white/95 backdrop-blur-md p-2 rounded-2xl border border-slate-200 shadow-md">
-        <div className="flex items-center gap-1.5 px-2 text-xs font-bold text-amber-800">
-          <span className="w-2 h-2 rounded-full bg-amber-500" />
-          <span>GIS Explorer</span>
-        </div>
-
-        {/* Metric Selector */}
-        <select
-          value={metric}
-          onChange={(e) => setMetric(e.target.value as MetricName)}
-          className="bg-slate-50 text-xs font-bold text-slate-800 px-3 py-1.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-1 focus:ring-amber-500 cursor-pointer"
+    <div className="relative h-[calc(100dvh-3.5rem)] w-full">
+      {period && (
+        <LaturMap
+          metric={metric} tehsil={tehsil} currentPeriod={period}
+          selectedVillageId={picked?.id ?? null} onSelectVillage={setPicked} onPeriodChange={setPeriod}
+          rightInset={picked ? 512 : 0}
+          topLeft={
+            <div className="flex flex-wrap items-center gap-2 rounded-lg border border-ink/15 bg-paper/95 p-2 shadow-card backdrop-blur">
+              <LayerSelect value={metric} onChange={setMetric} />
+              <select value={tehsil} onChange={(e) => setTehsil(e.target.value)} aria-label="Tehsil"
+                className="cursor-pointer rounded border border-ink/20 bg-paper px-2 py-1.5 text-xs font-medium">
+                {tehsils.map((t) => <option key={t} value={t}>{t === "All" ? "All 10 tehsils" : t}</option>)}
+              </select>
+            </div>
+          }
         >
-          {METRICS.map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.label}
-            </option>
-          ))}
-        </select>
-
-        {/* Tehsil Selector */}
-        <select
-          value={tehsil}
-          onChange={(e) => setTehsil(e.target.value)}
-          className="bg-slate-50 text-xs font-bold text-slate-800 px-3 py-1.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-1 focus:ring-amber-500 cursor-pointer"
-        >
-          {TEHSILS.map((t) => (
-            <option key={t} value={t}>
-              {t === "All" ? "All Latur (10 Tehsils)" : `${t} Tehsil`}
-            </option>
-          ))}
-        </select>
-
-        {/* Live GEE Satellite Toggle */}
-        <button
-          onClick={() => setShowGeeLayer(!showGeeLayer)}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-xs ${
-            showGeeLayer
-              ? "bg-emerald-700 text-white ring-2 ring-emerald-300 shadow-sm"
-              : "bg-slate-50 text-slate-700 border border-slate-200 hover:bg-slate-100"
-          }`}
-          title="Toggle High-Resolution Live Satellite Imagery Overlay"
-        >
-          <span className={`w-2 h-2 rounded-full ${showGeeLayer ? "bg-white animate-pulse" : "bg-emerald-500"}`} />
-          <span>🛰️ Live Satellite</span>
-        </button>
-
-        {/* Current Period Badge */}
-        <div className="px-3 py-1 bg-amber-50 border border-amber-200 rounded-xl text-xs font-mono font-bold text-amber-900">
-          {currentPeriod}
-        </div>
-      </div>
-
-      {/* Main Interactive Leaflet Map */}
-      <LaturMap
-        metric={metric}
-        tehsil={tehsil}
-        currentPeriod={currentPeriod}
-        showGeeLayer={showGeeLayer}
-        geeTileUrl={geeTileUrl}
-        selectedVillageName={selectedVillage?.village || selectedVillage?.VILLAGE || selectedVillage?.name || ""}
-        onSelectVillage={(props) => setSelectedVillage(props)}
-      />
-
-      {/* Bottom Timeline Scrubber */}
-      {periods.length > 0 && (
-        <div className="absolute bottom-5 left-4 right-4 z-[950] max-w-2xl mx-auto">
-          <MonthlyTimelineScrubber
-            periods={periods}
-            currentPeriod={currentPeriod}
-            onPeriodChange={setCurrentPeriod}
-          />
-        </div>
+          {periods.length > 0 && <MonthlyTimelineScrubber periods={periods} currentPeriod={period} onPeriodChange={setPeriod} markers={ts ? recordMarkers(ts) : []} />}
+        </LaturMap>
       )}
-
-      {/* Village Intelligence Drawer */}
-      <VillageIntelligenceDrawer
-        village={selectedVillage}
-        onClose={() => setSelectedVillage(null)}
-      />
+      <VillageIntelligenceDrawer village={drawerVillage} onClose={() => setPicked(null)} />
     </div>
   );
 }

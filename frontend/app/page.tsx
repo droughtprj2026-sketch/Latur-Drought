@@ -1,517 +1,229 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useState, useMemo } from "react";
-import type { MetricName } from "@/components/map/LaturMap";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { MetricName } from "@/lib/metrics";
+import { METRICS } from "@/lib/metrics";
 import { PermanentSidebar } from "@/components/panels/PermanentSidebar";
 import { MonthlyTimelineScrubber } from "@/components/map/MonthlyTimelineScrubber";
-import type { VillageProperties } from "@/components/panels/VillageIntelligenceDrawer";
+import { LayerSelect } from "@/components/dashboard/LayerSelect";
+import { StatusRibbon } from "@/components/dashboard/StatusRibbon";
+import { AoiCard } from "@/components/aoi/AoiCard";
+import { useAoi } from "@/components/aoi/useAoi";
+import { codeForCDI } from "@/lib/classify";
+import {
+  activeVillage, latestCoveredPeriod, recordMarkers, tehsilNames, loadBaselines, loadTimeseries, loadVillageIndex, loadVillages,
+  toVillageProperties, type Baselines, type TimeseriesById, type VillageFeatureProps, type VillagesByTehsil,
+} from "@/lib/data";
 
 const LaturMap = dynamic(() => import("@/components/map/LaturMap"), {
   ssr: false,
   loading: () => (
-    <div className="h-full w-full flex items-center justify-center bg-slate-50 text-slate-500 text-sm">
-      <div className="flex flex-col items-center gap-2">
-        <div className="w-8 h-8 border-2 border-amber-600 border-t-transparent rounded-full animate-spin" />
-        <span className="font-semibold text-slate-700">Initializing Latur Google Terrain Map Engine...</span>
-      </div>
-    </div>
+    <div className="flex h-full w-full items-center justify-center bg-paper font-mono text-xs text-ink/60">Loading map…</div>
   ),
 });
 
-const TEHSILS = [
-  "All",
-  "Ahmadpur",
-  "Ausa",
-  "Chakur",
-  "Deoni",
-  "Jalkot",
-  "Latur",
-  "Nilanga",
-  "Renapur",
-  "Shirur-Anantpal",
-  "Udgir",
-];
-
-const METRICS: { id: MetricName; label: string; desc: string }[] = [
-  { id: "cdi", label: "CDI Composite", desc: "Multi-Index Severity (0..1)" },
-  { id: "ndvi", label: "NDVI", desc: "Normalized Difference Veg" },
-  { id: "evi", label: "EVI", desc: "Enhanced Vegetation Index" },
-  { id: "vhi", label: "VHI", desc: "Vegetation Health Index" },
-  { id: "vci", label: "VCI", desc: "Condition Index (0..100)" },
-  { id: "spi1", label: "SPI-1", desc: "1-Mo Meteorological" },
-  { id: "spi3", label: "SPI-3", desc: "3-Mo Agricultural" },
-  { id: "spi6", label: "SPI-6", desc: "6-Mo Hydrological" },
-  { id: "spi12", label: "SPI-12", desc: "12-Mo Deep Ground" },
-  { id: "rain", label: "Rainfall", desc: "CHIRPS Precipitation (mm)" },
-];
-
-const MONTHS = [
-  { id: "01", label: "Jan" },
-  { id: "02", label: "Feb" },
-  { id: "03", label: "Mar" },
-  { id: "04", label: "Apr" },
-  { id: "05", label: "May" },
-  { id: "06", label: "Jun" },
-  { id: "07", label: "Jul" },
-  { id: "08", label: "Aug" },
-  { id: "09", label: "Sep" },
-  { id: "10", label: "Oct" },
-  { id: "11", label: "Nov" },
-  { id: "12", label: "Dec" },
-];
-
 export default function HomePage() {
   const [metric, setMetric] = useState<MetricName>("cdi");
-  const [tehsil, setTehsil] = useState<string>("All");
-  const [selectedVillageName, setSelectedVillageName] = useState<string>("");
-  const [selectedVillage, setSelectedVillage] = useState<VillageProperties | null>(null);
-  const [villagesByTehsil, setVillagesByTehsil] = useState<Record<string, string[]>>({});
-  const [periods, setPeriods] = useState<string[]>([]);
-  const [currentPeriod, setCurrentPeriod] = useState<string>("2026-10");
-  const [year, setYear] = useState<number>(2026);
-  const [month, setMonth] = useState<string>("10");
+  const [tehsil, setTehsil] = useState("All");
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [period, setPeriod] = useState("");
+  const [satellite, setSatellite] = useState(false);
 
-  const [stats, setStats] = useState<{
-    total: number;
-    droughtCount: number;
-    d2PlusCount: number;
-    avgCdi: number;
-  }>({ total: 0, droughtCount: 0, d2PlusCount: 0, avgCdi: 0 });
+  const [ts, setTs] = useState<TimeseriesById | null>(null);
+  const [vIndex, setVIndex] = useState<VillagesByTehsil | null>(null);
+  const [baselines, setBaselines] = useState<Baselines | null>(null);
+  const [props, setProps] = useState<Map<number, VillageFeatureProps>>(new Map());
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-  const [timeseriesCache, setTimeseriesCache] = useState<Record<string, any[]> | null>(null);
-
-  // Load Tehsil village registry via API (reads fresh data, not stale static files)
   useEffect(() => {
-    fetch("/api/v1/tehsil-analytics")
-      .then((res) => res.json())
-      .then((data) => {
-        // tehsil_analytics.json has tehsil_ranking, not villages_by_tehsil
-        // Fallback to static file for village registry mapping
-        fetch("/data/villages_by_tehsil.json")
-          .then((res2) => res2.json())
-          .then((data2) => setVillagesByTehsil(data2))
-          .catch(() => null);
+    Promise.all([loadTimeseries(), loadVillageIndex(), loadBaselines(), loadVillages()])
+      .then(([t, v, b, g]) => {
+        setTs(t); setVIndex(v); setBaselines(b);
+        setProps(new Map(g.features.map((f) => [Number((f.properties as any).id), f.properties as unknown as VillageFeatureProps])));
+        setPeriod((p) => p || latestCoveredPeriod(t) || "");
       })
-      .catch(() => {
-        fetch("/data/villages_by_tehsil.json")
-          .then((res2) => res2.json())
-          .then((data2) => setVillagesByTehsil(data2))
-          .catch(() => null);
-      });
-
-    fetch("/data/village_timeseries.json")
-      .then((res) => res.json())
-      .then((data) => setTimeseriesCache(data))
-      .catch(() => null);
+      .catch((e) => setLoadError(String(e)));
   }, []);
 
-  // Load continuous observation periods from district timeseries via API
-  useEffect(() => {
-    fetch("/api/v1/district-timeseries")
-      .then((r) => r.json())
-      .then((d) => {
-        const pList = (d.series || []).map((s: any) => s.date).filter(Boolean);
-        if (pList.length > 0) {
-          setPeriods(pList);
-        }
-      })
-      .catch(() => {
-        // Fallback to static file
-        fetch("/data/district_monthly.json")
-          .then((r2) => r2.json())
-          .then((d2) => {
-            const pList = (d2.series || []).map((s: any) => s.date).filter(Boolean);
-            if (pList.length > 0) setPeriods(pList);
-          })
-          .catch((e) => console.error("Error loading periods:", e));
-      });
-  }, []);
+  const periods = useMemo(() => {
+    if (!ts) return [];
+    const set = new Set<string>();
+    for (const pts of Object.values(ts)) for (const x of pts) set.add(x.p);
+    return [...set].sort();
+  }, [ts]);
+  const markers = useMemo(() => (ts ? recordMarkers(ts) : []), [ts]);
+  const tehsils = useMemo(() => ["All", ...(vIndex ? tehsilNames(vIndex) : [])], [vIndex]);
+  const latest = useMemo(() => (ts ? latestCoveredPeriod(ts) ?? periods[periods.length - 1] : undefined), [ts, periods]);
 
-  // Dynamically compute real-time statistics whenever currentPeriod, tehsil, or timeseriesCache changes
-  useEffect(() => {
-    if (!timeseriesCache) {
-      fetch("/api/v1/villages")
-        .then((res) => res.json())
-        .then((gj) => {
-          const features = gj.features || [];
-          const total = features.length;
-          let droughtCount = 0;
-          let d2PlusCount = 0;
-          let cdiSum = 0;
-          let cdiCount = 0;
+  const aoiState = useAoi(period || "2000-01");
 
-          for (const f of features) {
-            const p = f.properties || {};
-            const cdi = p.CDI;
-            const cls = p.CDI_class || p.class || "";
-            if (cdi != null) {
-              cdiSum += cdi;
-              cdiCount++;
-              if (cdi >= 0.20 || (cls && cls !== "None" && cls !== "ND")) {
-                droughtCount++;
-              }
-              if (["D2", "D3", "D4"].includes(cls)) {
-                d2PlusCount++;
-              }
-            }
-          }
-
-          setStats({
-            total,
-            droughtCount,
-            d2PlusCount,
-            avgCdi: cdiCount > 0 ? cdiSum / cdiCount : 0,
-          });
-        })
-        .catch(() => null);
-      return;
-    }
-
-    let total = 0;
-    let droughtCount = 0;
-    let d2PlusCount = 0;
-    let cdiSum = 0;
-    let cdiCount = 0;
-
-    for (const [key, pts] of Object.entries(timeseriesCache)) {
-      if (!Array.isArray(pts)) continue;
-      if (tehsil !== "All") {
-        const [t] = key.split("::");
-        if (t.toLowerCase() !== tehsil.toLowerCase()) continue;
-      }
-      total++;
-      const match = pts.find((x: any) => (x.p || x.date) === currentPeriod);
-      if (match) {
-        const cdi = match.cdi;
-        const cls = match.cls || "";
-        if (cdi != null && !isNaN(cdi)) {
-          cdiSum += cdi;
-          cdiCount++;
-          if (cdi >= 0.20 || (cls && cls !== "None" && cls !== "ND")) {
-            droughtCount++;
-          }
-          if (["D2", "D3", "D4"].includes(cls)) {
-            d2PlusCount++;
-          }
-        }
+  // ---- Summary for the villages on screen (same rules as the map legend) ----
+  const summary = useMemo(() => {
+    if (!ts || !vIndex || !period) return null;
+    let total = 0, assessed = 0, inDrought = 0, d2plus = 0, sum = 0, hasNdvi = 0, hasRain = 0, hasSpi = 0;
+    const KEYS = ["ndvi", "vci", "vhi", "rain", "spi1", "spi3", "spi6", "spi12", "tci", "smi", "lst"] as const;
+    const acc: Record<string, { s: number; n: number }> = Object.fromEntries(KEYS.map((k) => [k, { s: 0, n: 0 }]));
+    for (const [t, vs] of Object.entries(vIndex)) {
+      if (tehsil !== "All" && t !== tehsil) continue;
+      for (const v of vs) {
+        total++;
+        const pt = ts[String(v.id)]?.find((x) => x.p === period);
+        if (!pt) continue;
+        for (const k of KEYS) { const v = (pt as any)[k]; if (v != null) { acc[k].s += v; acc[k].n++; } }
+        if (pt.ndvi != null) hasNdvi++;
+        if (pt.rain != null) hasRain++;
+        if (pt.spi1 != null) hasSpi++;
+        if (pt.cdi == null) continue;
+        assessed++; sum += pt.cdi;
+        const c = codeForCDI(pt.cdi);
+        if (c !== "None") inDrought++;
+        if (c === "D2" || c === "D3" || c === "D4") d2plus++;
       }
     }
+    const means: Record<string, number | null> = Object.fromEntries(KEYS.map((k) => [k, acc[k].n ? acc[k].s / acc[k].n : null]));
+    return { total, assessed, inDrought, d2plus, mean: assessed ? sum / assessed : null, hasNdvi, hasRain, hasSpi, means };
+  }, [ts, vIndex, period, tehsil]);
 
-    setStats({
-      total,
-      droughtCount,
-      d2PlusCount,
-      avgCdi: cdiCount > 0 ? cdiSum / cdiCount : 0,
-    });
-  }, [currentPeriod, tehsil, timeseriesCache]);
+  const selected = useMemo(() => {
+    if (selectedId == null || !period) return null;
+    const p = props.get(selectedId);
+    return p ? toVillageProperties(activeVillage(p, ts, baselines, period)) : null;
+  }, [selectedId, props, ts, baselines, period]);
 
-  // Keep selected village in sync with currentPeriod
-  useEffect(() => {
-    if (!selectedVillageName || !timeseriesCache) return;
-    const keyMatch = Object.entries(timeseriesCache).find(([k, pts]) => {
-      if (!Array.isArray(pts)) return false;
-      const parts = k.split("::");
-      if (parts.length < 2) return false;
-      return parts[1].toLowerCase() === selectedVillageName.toLowerCase();
-    });
-    if (keyMatch) {
-      const [key, pts] = keyMatch;
-      const [tName] = key.split("::");
-      if (Array.isArray(pts)) {
-        const match = pts.find((x: any) => (x.p || x.date) === currentPeriod);
-        if (match) {
-          setSelectedVillage((prev) => ({
-            ...(prev || {}),
-            ...match,
-            village: selectedVillageName,
-            tehsil: prev?.tehsil || tName,
-            CDI: match.cdi,
-            CDI_class: match.cls,
-            NDVI: match.ndvi,
-            VHI: match.vhi,
-            VCI: match.vci,
-            Rain_mm: match.rain,
-            SPI1: match.spi1,
-            SPI3: match.spi3,
-            SPI6: match.spi6,
-            SPI12: match.spi12,
-          }));
-        }
-      }
-    }
-  }, [currentPeriod, selectedVillageName, timeseriesCache]);
+  const onPick = useCallback((id: number) => {
+    setSelectedId(id);
+    const p = props.get(id);
+    if (p && tehsil !== "All" && String(p.tehsil) !== tehsil) setTehsil("All");
+  }, [props, tehsil]);
 
-  // Filter available villages based on selected Tehsil
-  const availableVillages = useMemo(() => {
-    if (tehsil !== "All" && villagesByTehsil[tehsil]) {
-      return villagesByTehsil[tehsil];
-    }
-    const all: string[] = [];
-    for (const vList of Object.values(villagesByTehsil)) {
-      all.push(...vList);
-    }
-    return Array.from(new Set(all)).sort();
-  }, [tehsil, villagesByTehsil]);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const villageOptions = useMemo(() => {
+    if (!vIndex) return [];
+    return Object.entries(vIndex).filter(([t]) => tehsil === "All" || t === tehsil).sort(([a], [b]) => a.localeCompare(b));
+  }, [vIndex, tehsil]);
 
-  // Handler when user selects a village from the top dropdown or search
-  const handleSelectVillageByName = (vName: string) => {
-    setSelectedVillageName(vName);
-    if (!vName) {
-      setSelectedVillage(null);
-      return;
-    }
-    fetch("/data/latur_villages_latest.geojson")
-      .then((res) => res.json())
-      .then((gj) => {
-        const match = (gj.features || []).find((f: any) => {
-          const p = f.properties || {};
-          const name = p.village || p.VILLAGE || p.name || "";
-          return name.toLowerCase() === vName.toLowerCase();
-        });
-        if (match) {
-          let props = match.properties;
-          if (timeseriesCache) {
-            const t = (props.tehsil || props.TEHSIL || "").trim().toLowerCase();
-            const v = (props.village || props.VILLAGE || props.name || "").trim().toLowerCase();
-            const key = `${t}::${v}`;
-            const pts = timeseriesCache[key];
-            if (Array.isArray(pts)) {
-              const cur = pts.find((x: any) => (x.p || x.date) === currentPeriod);
-              if (cur) {
-                props = {
-                  ...props,
-                  ...cur,
-                  CDI: cur.cdi,
-                  CDI_class: cur.cls,
-                  NDVI: cur.ndvi,
-                  VHI: cur.vhi,
-                  VCI: cur.vci,
-                  Rain_mm: cur.rain,
-                  SPI1: cur.spi1,
-                  SPI3: cur.spi3,
-                  SPI6: cur.spi6,
-                  SPI12: cur.spi12,
-                };
-              }
-            }
-          }
-          setSelectedVillage(props);
-        }
-      })
-      .catch(() => null);
-  };
-
-  // Synchronize period from timeline scrubber
-  const handlePeriodChange = (p: string) => {
-    setCurrentPeriod(p);
-    const [y, m] = p.split("-");
-    if (y && m) {
-      setYear(parseInt(y, 10));
-      setMonth(m);
-    }
-  };
-
-  // Synchronize period from Year & Month selects
-  const handleYearMonthSelect = (newYear: number, newMonth: string) => {
-    setYear(newYear);
-    setMonth(newMonth);
-    const candidate = `${newYear}-${newMonth}`;
-    if (periods.includes(candidate)) {
-      setCurrentPeriod(candidate);
-    } else {
-      // Find nearest period in the same year or fallback
-      const match = periods.find((p) => p.startsWith(String(newYear))) || candidate;
-      setCurrentPeriod(match);
-    }
-  };
-
-  // Reset to latest observation period (2026-10)
-  const setLatestPeriod = () => {
-    setYear(2026);
-    setMonth("10");
-    setCurrentPeriod("2026-10");
-  };
+  const pct = (n: number, d: number) => (d ? Math.round((100 * n) / d) : 0);
 
   return (
-    <div className="flex flex-col h-[calc(100vh-57px)] overflow-hidden bg-slate-50 text-slate-900">
-      {/* Executive Command Controls Header — Crisp White with Gold Accents */}
-      <header className="px-5 py-2.5 border-b border-slate-200 bg-white shadow-xs flex flex-wrap items-center justify-between gap-3 z-20">
-        {/* Left Side: System State & Old Dashboard Controls */}
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2 pr-2 border-r border-slate-200">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-            <div>
-              <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 leading-none">
-                Live Sentinel-2 · GEE Operational
-              </div>
-              <div className="text-xs font-bold text-slate-900 leading-tight">
-                Latur District Observatory
-              </div>
-            </div>
-          </div>
-
-          {/* 1. Tehsil Selector */}
-          <div className="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-xl border border-slate-200 shadow-2xs">
-            <span className="text-[11px] font-bold text-slate-500 uppercase">Tehsil:</span>
-            <select
-              value={tehsil}
-              onChange={(e) => {
-                setTehsil(e.target.value);
-                setSelectedVillageName("");
-                setSelectedVillage(null);
-              }}
-              className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer"
-            >
-              {TEHSILS.map((t) => (
-                <option key={t} value={t}>
-                  {t === "All" ? "All Latur (10 Tehsils)" : `${t} Tehsil`}
-                </option>
+    <div className="flex flex-col lg:h-[calc(100dvh-3.5rem)] lg:flex-row">
+      <div className="flex min-w-0 flex-1 flex-col">
+        {/* Controls */}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-ink/15 bg-paper px-4 py-2">
+          <Field label="Tehsil">
+            <select aria-label="Tehsil" value={tehsil} onChange={(e) => { setTehsil(e.target.value); setSelectedId(null); }}
+              className="cursor-pointer rounded border border-ink/20 bg-paper px-2 py-1.5 text-xs font-medium">
+              {tehsils.map((t) => <option key={t} value={t}>{t === "All" ? "All 10 tehsils" : t}</option>)}
+            </select>
+          </Field>
+          <Field label="Village">
+            <select aria-label="Village" value={selectedId ?? ""} onChange={(e) => (e.target.value ? onPick(Number(e.target.value)) : setSelectedId(null))}
+              className="max-w-[210px] cursor-pointer rounded border border-ink/20 bg-paper px-2 py-1.5 text-xs font-medium">
+              <option value="">{summary ? `Choose from ${summary.total}` : "Loading…"}</option>
+              {villageOptions.map(([t, vs]) => (
+                <optgroup key={t} label={t}>
+                  {vs.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
+                </optgroup>
               ))}
             </select>
-          </div>
-
-          {/* 2. Village Selector Dropdown */}
-          <div className="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-xl border border-slate-200 shadow-2xs">
-            <span className="text-[11px] font-bold text-slate-500 uppercase">Village:</span>
-            <select
-              value={selectedVillageName}
-              onChange={(e) => handleSelectVillageByName(e.target.value)}
-              className="bg-transparent text-xs font-semibold text-slate-800 focus:outline-none max-w-[170px] truncate cursor-pointer"
-            >
-              <option value="">— Select Village ({availableVillages.length}) —</option>
-              {availableVillages.map((v) => (
-                <option key={v} value={v}>
-                  {v}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* 3. Metric Dropdown with full SPI 1, 3, 6, 12 Suite */}
-          <div className="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-xl border border-slate-200 shadow-2xs">
-            <span className="text-[11px] font-bold text-slate-500 uppercase">Index:</span>
-            <select
-              value={metric}
-              onChange={(e) => setMetric(e.target.value as MetricName)}
-              className="bg-transparent text-xs font-bold text-amber-700 focus:outline-none cursor-pointer"
-            >
-              {METRICS.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.label} ({m.desc})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* 4. Year & Month Timeline Controls */}
-          <div className="flex items-center gap-2 bg-slate-50 px-2.5 py-1 rounded-xl border border-slate-200 shadow-2xs">
-            <span className="text-[11px] font-bold text-slate-500 uppercase">Period:</span>
-            <select
-              value={year}
-              onChange={(e) => handleYearMonthSelect(Number(e.target.value), month)}
-              className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer"
-            >
-              {[2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026].map((y) => (
-                <option key={y} value={y}>{y}</option>
-              ))}
-            </select>
-
-            <select
-              value={month}
-              onChange={(e) => handleYearMonthSelect(year, e.target.value)}
-              className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer"
-            >
-              {MONTHS.map((m) => (
-                <option key={m.id} value={m.id}>{m.label}</option>
-              ))}
-            </select>
-
-            {/* Quick Set Latest Button in Gold Accent */}
-            <button
-              onClick={setLatestPeriod}
-              className={`px-2 py-0.5 rounded text-[11px] font-bold transition-all ${
-                currentPeriod === "2026-10"
-                  ? "bg-amber-600 text-white shadow-xs"
-                  : "bg-amber-100 text-amber-800 hover:bg-amber-200"
-              }`}
-              title="Jump to latest operational observation (2026-10)"
-            >
-              Latest (2026-10)
-            </button>
-          </div>
+          </Field>
+          <Field label="Layer"><LayerSelect value={metric} onChange={setMetric} exclude={["Long-term"]} /></Field>
+          <label className="flex cursor-pointer items-center gap-1.5 text-xs">
+            <input type="checkbox" checked={satellite} onChange={(e) => setSatellite(e.target.checked)} className="accent-clay" />
+            Satellite underlay
+          </label>
+          <input ref={fileRef} type="file" accept=".geojson,.json,application/geo+json" className="sr-only"
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) aoiState.upload(f); e.target.value = ""; }} />
+          <button type="button" onClick={() => fileRef.current?.click()}
+            className="rounded border border-teal px-2.5 py-1.5 font-mono text-[11px] font-semibold text-teal hover:bg-teal/10">
+            {aoiState.aoi ? "Replace AOI" : "Upload AOI (GeoJSON)"}
+          </button>
+          <div className="ml-auto"><StatusRibbon /></div>
         </div>
 
-        {/* Right Side: High-Level Executive KPI Chips */}
-        <div className="hidden 2xl:flex items-center gap-2">
-          <div className="px-3 py-1 bg-white rounded-lg border border-slate-200 shadow-2xs text-right">
-            <div className="text-[9px] text-slate-500 uppercase font-bold">Monitored Villages</div>
-            <div className="text-xs font-extrabold font-mono text-slate-900">{stats.total} Villages</div>
-          </div>
-          <div className="px-3 py-1 bg-amber-50 rounded-lg border border-amber-200 shadow-2xs text-right">
-            <div className="text-[9px] text-amber-800 uppercase font-bold">In Drought (D0-D4)</div>
-            <div className="text-xs font-extrabold font-mono text-amber-900">
-              {stats.droughtCount} <span className="text-[10px] font-semibold text-amber-700">({Math.round((stats.droughtCount / stats.total) * 100)}%)</span>
-            </div>
-          </div>
-          <div className="px-3 py-1 bg-rose-50 rounded-lg border border-rose-200 shadow-2xs text-right">
-            <div className="text-[9px] text-rose-800 uppercase font-bold">Critical (D2-D4)</div>
-            <div className="text-xs font-extrabold font-mono text-rose-900">{stats.d2PlusCount} Villages</div>
-          </div>
-          <div className="px-3 py-1 bg-amber-500 rounded-lg shadow-xs text-right text-white">
-            <div className="text-[9px] uppercase font-bold text-amber-100">District CDI</div>
-            <div className="text-xs font-extrabold font-mono">{stats.avgCdi.toFixed(3)}</div>
-          </div>
-        </div>
-      </header>
+        {aoiState.error && (
+          <p role="alert" className="border-b border-d3/40 bg-d3/10 px-4 py-1.5 text-xs text-ink">{aoiState.error}</p>
+        )}
+        {loadError && <p role="alert" className="border-b border-d3/40 bg-d3/10 px-4 py-1.5 text-xs">Data failed to load: {loadError}</p>}
 
-      {/* Main Split Layout: Map on the Left (62%) + Permanent Dedicated Sidebar on the Right (38%) */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Left Section: Interactive Google Terrain Choropleth Map with Monthly Timeline Scrubber */}
-        <main className="flex-1 h-full relative flex flex-col">
-          <div className="flex-1 relative">
+        {/* Headline numbers */}
+        <dl className="grid grid-cols-2 gap-px border-b border-ink/15 bg-ink/15 sm:grid-cols-5">
+          <Kpi label="Villages assessed" value={summary ? `${summary.assessed}` : "–"} note={summary ? `of ${summary.total} polygons` : ""} />
+          <Kpi label="In drought · D0–D4" value={summary ? `${summary.inDrought}` : "–"} note={summary ? `${pct(summary.inDrought, summary.assessed)}% of assessed` : ""} />
+          <Kpi label="Severe or worse · D2–D4" value={summary ? `${summary.d2plus}` : "–"} note={summary ? `${pct(summary.d2plus, summary.assessed)}% of assessed` : ""} tone="alert" />
+          <Kpi label="Mean CDI" value={summary?.mean != null ? summary.mean.toFixed(3) : "–"} note={summary?.mean != null ? METRICS.cdi.bins[METRICS.cdi.bins.findIndex((b) => summary.mean! < b.hi)]?.label ?? "" : ""} />
+          <div className="col-span-2 bg-paper px-3 py-1.5 sm:col-span-1">
+            <div className="font-mono text-[10px] uppercase tracking-wider text-ink/55">Inputs present · {period}</div>
+            {summary ? (
+              <div className="mt-1 space-y-0.5">
+                <Bar label="Sentinel-2" n={summary.hasNdvi} d={summary.total} />
+                <Bar label="CHIRPS rain" n={summary.hasRain} d={summary.total} />
+                <Bar label="SPI-1" n={summary.hasSpi} d={summary.total} />
+              </div>
+            ) : <div className="text-xs">–</div>}
+          </div>
+        </dl>
+
+        <div className="relative h-[72dvh] min-h-[420px] lg:h-auto lg:min-h-0 lg:flex-1">
+          {period && (
             <LaturMap
-              metric={metric}
-              tehsil={tehsil}
-              selectedVillageName={selectedVillageName}
-              currentPeriod={currentPeriod}
-              timeseriesCache={timeseriesCache}
-              onSelectVillage={(props) => {
-                setSelectedVillage(props);
-                const name = props.village || props.VILLAGE || props.name || "";
-                setSelectedVillageName(name);
-              }}
-            />
-
-            {/* Continuous Monthly Historical Timeline Scrubber Overlay */}
-            {periods.length > 0 && (
-              <div className="absolute bottom-5 left-4 right-4 z-[950] max-w-2xl mx-auto">
-                <MonthlyTimelineScrubber
-                  periods={periods}
-                  currentPeriod={currentPeriod}
-                  onPeriodChange={handlePeriodChange}
-                />
-              </div>
-            )}
-          </div>
-        </main>
-
-        {/* Right Section: PERMANENT DEDICATED SIDEBAR (Never collapses) */}
-        <div className="w-[450px] xl:w-[490px] 2xl:w-[530px] h-full flex-shrink-0">
-          <PermanentSidebar
-            village={selectedVillage}
-            selectedTehsil={tehsil}
-            selectedPeriod={currentPeriod}
-            onSelectTehsil={(t) => {
-              setTehsil(t);
-              setSelectedVillageName("");
-              setSelectedVillage(null);
-            }}
-            onSelectVillageByName={handleSelectVillageByName}
-            stats={stats}
-          />
+              metric={metric} tehsil={tehsil} currentPeriod={period} selectedVillageId={selectedId}
+              onSelectVillage={(v) => setSelectedId(v.id)} onPeriodChange={setPeriod} aoi={aoiState.aoi} showSatellite={satellite}
+              topLeft={aoiState.result ? (
+                <AoiCard name={aoiState.name} result={aoiState.result} period={period} onClear={aoiState.clear} onSelect={onPick} />
+              ) : aoiState.busy ? (
+                <div className="rounded border border-teal/50 bg-paper/95 px-3 py-2 font-mono text-xs text-teal shadow-card">Intersecting AOI with 954 villages…</div>
+              ) : null}
+            >
+              {periods.length > 0 && (
+                <MonthlyTimelineScrubber periods={periods} currentPeriod={period} onPeriodChange={setPeriod} latestPeriod={latest} markers={markers} />
+              )}
+            </LaturMap>
+          )}
         </div>
       </div>
+
+      <div className="w-full flex-shrink-0 lg:h-full lg:w-[430px] xl:w-[470px]">
+        <PermanentSidebar
+          village={selected}
+          selectedTehsil={tehsil}
+          selectedPeriod={period || "2000-01"}
+          summary={summary}
+          onSelectTehsil={(t) => { setTehsil(t); setSelectedId(null); }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="flex items-center gap-1.5">
+      <span className="font-mono text-[10px] uppercase tracking-wider text-ink/55">{label}</span>
+      {children}
+    </label>
+  );
+}
+
+function Kpi({ label, value, note, tone }: { label: string; value: string; note?: string; tone?: "alert" }) {
+  return (
+    <div className="bg-paper px-3 py-1.5">
+      <dt className="font-mono text-[10px] uppercase tracking-wider text-ink/55">{label}</dt>
+      <dd className={`font-display text-2xl leading-tight ${tone === "alert" ? "text-d3" : "text-ink"}`}>{value}</dd>
+      <div className="truncate text-[10px] text-ink/60">{note}</div>
+    </div>
+  );
+}
+
+function Bar({ label, n, d }: { label: string; n: number; d: number }) {
+  const p = d ? (100 * n) / d : 0;
+  return (
+    <div className="flex items-center gap-1.5 text-[10px]">
+      <span className="w-[62px] flex-none text-ink/70">{label}</span>
+      <span className="relative h-1.5 flex-1 overflow-hidden rounded-sm bg-ink/10">
+        <span className={`absolute inset-y-0 left-0 ${p < 50 ? "bg-d3" : "bg-teal"}`} style={{ width: `${p}%` }} />
+      </span>
+      <span className="w-8 flex-none text-right font-mono text-ink/70">{Math.round(p)}%</span>
     </div>
   );
 }

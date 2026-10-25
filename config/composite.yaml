@@ -46,7 +46,7 @@ spi_accumulation: "SPI-3"
 # Class thresholds applied to the composite score (0..1). Must align with
 # the US-DM / IMD D0..D4 scale used across the dashboard.
 thresholds:
-  - { max: 0.20, code: "None", label: "No drought / Normal" }
+  - { max: 0.20, code: "None", label: "Not in drought" }
   - { max: 0.35, code: "D0",   label: "Abnormally dry / Mild" }
   - { max: 0.50, code: "D1",   label: "Moderate drought" }
   - { max: 0.65, code: "D2",   label: "Severe drought" }

@@ -1,4 +1,11 @@
 # Scientific Methodology, Mathematical Derivations & Empirical Proof
+
+> **Status (October 2026): not verified.** This document was written before the October 2026 audit. Figures such as
+> hit rate, false-alarm ratio, CSI and "accuracy" have no dataset or script behind them in this repository, the village
+> count is 954 (not 951), and the composite and data sources have changed. Treat the numbers as unverified and do
+> not quote them externally. Current method and verified findings: [DATA_ACCURACY_AUDIT.md](DATA_ACCURACY_AUDIT.md) and
+> [THERMAL_AND_SOIL_MOISTURE.md](THERMAL_AND_SOIL_MOISTURE.md).
+
 **Latur Drought Intelligence Platform (2016–2026)**  
 **Standard Benchmarks:** WMO-No. 1172 · IMD Manual for Drought Management (2016) · McKee (1993) · Kogan (1995) · EDO (2012)  
 
@@ -103,4 +110,4 @@ Audit execution on `outputs/Dashboard/drought_monitoring_master.csv` (94,473 cad
 | **Rainfall Trigger** | $\text{SPI} \le -1.0$ | Standard normal deviations | SPI-1, 3, 6, 12 computed per WMO standard | **Compliant** |
 | **Vegetation Trigger** | $\text{VCI} \le 40\%$ | Historical min-max normalization | Sentinel-2 10 m VCI calibrated per pixel | **Compliant** |
 | **Classification Scale** | Mild, Moderate, Severe | US-DM D0 to D4 scale | Unified D0–D4 color ramp (#FFFF00 to #730000) | **Compliant** |
-| **Cadastral Granularity**| Village / Tehsil level | Zonal administrative units | 951 Villages & 10 Tehsils in Latur District | **Compliant** |
+| **Cadastral Granularity**| Village / Tehsil level | Zonal administrative units | 954 Villages & 10 Tehsils in Latur District | **Compliant** |

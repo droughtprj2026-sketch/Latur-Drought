@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { loadTimeseries } from "@/lib/data";
+import { codeForCDI } from "@/lib/classify";
 import {
   ResponsiveContainer,
   ComposedChart,
@@ -68,7 +70,7 @@ interface TimeseriesPoint {
 }
 
 const SEVERITY_COLORS: Record<string, { bg: string; text: string; border: string; label: string }> = {
-  None: { bg: "bg-emerald-50", text: "text-emerald-800", border: "border-emerald-200", label: "Normal (No Drought)" },
+  None: { bg: "bg-slate-100", text: "text-slate-700", border: "border-slate-300", label: "Not in drought" },
   D0: { bg: "bg-yellow-50", text: "text-yellow-800", border: "border-yellow-200", label: "D0 · Abnormally Dry" },
   D1: { bg: "bg-amber-50", text: "text-amber-800", border: "border-amber-200", label: "D1 · Moderate Drought" },
   D2: { bg: "bg-orange-50", text: "text-orange-800", border: "border-orange-200", label: "D2 · Severe Drought" },
@@ -101,31 +103,28 @@ export function VillageIntelligenceDrawer({ village, onClose }: Props) {
 
   const villageName = village?.village || village?.VILLAGE || village?.name || "Unknown Village";
   const tehsilName = village?.tehsil || village?.TEHSIL || "Unknown Tehsil";
-  const cdiClass = village?.CDI_class || village?.class || "None";
+  const cdiClass = village?.CDI != null ? codeForCDI(village.CDI) : "ND";
   const severityStyle = SEVERITY_COLORS[cdiClass] || SEVERITY_COLORS.None;
 
   // Fetch full village 10-year timeseries
   useEffect(() => {
     if (!village) return;
+    if (village.id == null) return;
     setLoadingTs(true);
-    fetch(`/api/v1/timeseries?tehsil=${encodeURIComponent(tehsilName)}&village=${encodeURIComponent(villageName)}`)
-      .then((r) => (r.ok ? r.json() : []))
-      .then((data: TimeseriesPoint[]) => {
-        setTimeseries(data || []);
-        setLoadingTs(false);
-      })
+    loadTimeseries()
+      .then((all) => setTimeseries((all[String(village.id)] as unknown as TimeseriesPoint[]) || []))
       .catch((err) => {
-        console.error("Failed to fetch village timeseries:", err);
+        console.error("Failed to load village timeseries:", err);
         setTimeseries([]);
-        setLoadingTs(false);
-      });
-  }, [village, villageName, tehsilName]);
+      })
+      .finally(() => setLoadingTs(false));
+  }, [village?.id]);
 
   if (!village) return null;
 
   return (
     <aside
-      className="fixed inset-y-0 right-0 z-[1100] w-full max-w-lg bg-white/95 backdrop-blur-xl
+      className="absolute inset-y-0 right-0 z-[800] w-full max-w-lg bg-white/95 backdrop-blur-xl
                  border-l border-slate-200 shadow-2xl flex flex-col transition-transform duration-300 ease-in-out text-slate-900"
     >
       {/* Top Header */}
@@ -303,17 +302,6 @@ export function VillageIntelligenceDrawer({ village, onClose }: Props) {
 
                 <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
                   <div className="text-[11px] text-slate-500 flex items-center justify-between">
-                    <span className="font-semibold text-slate-700">EVI</span>
-                    <span className="text-[10px] text-slate-400">-1 to +1</span>
-                  </div>
-                  <div className="text-xl font-bold font-mono text-slate-900 mt-1">
-                    {village.EVI != null ? village.EVI.toFixed(3) : "—"}
-                  </div>
-                  <div className="text-[10px] text-slate-500 mt-0.5">Enhanced Veg</div>
-                </div>
-
-                <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
-                  <div className="text-[11px] text-slate-500 flex items-center justify-between">
                     <span className="font-semibold text-slate-700">VHI (Stress)</span>
                     <span className="text-[10px] text-slate-400">0 to 100</span>
                   </div>
@@ -321,17 +309,6 @@ export function VillageIntelligenceDrawer({ village, onClose }: Props) {
                     {village.VHI != null ? village.VHI.toFixed(1) : "—"}
                   </div>
                   <div className="text-[10px] text-slate-500 mt-0.5">Vegetation Health Index</div>
-                </div>
-
-                <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
-                  <div className="text-[11px] text-slate-500 flex items-center justify-between">
-                    <span className="font-semibold text-slate-700">PCI</span>
-                    <span className="text-[10px] text-slate-400">0 to 100</span>
-                  </div>
-                  <div className="text-xl font-bold font-mono text-slate-900 mt-1">
-                    {village.PCI != null ? village.PCI.toFixed(1) : "—"}
-                  </div>
-                  <div className="text-[10px] text-slate-500 mt-0.5">Precip Concentration</div>
                 </div>
 
                 <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
@@ -358,7 +335,7 @@ export function VillageIntelligenceDrawer({ village, onClose }: Props) {
               <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
                 <div
                   className={`h-full rounded-full transition-all duration-500 ${
-                    (village.CDI || 0) > 0.5 ? "bg-gradient-to-r from-amber-500 to-rose-600" : "bg-emerald-500"
+                    (village.CDI || 0) > 0.5 ? "bg-gradient-to-r from-amber-500 to-rose-600" : "bg-slate-400"
                   }`}
                   style={{ width: `${Math.min(Math.max((village.CDI || 0) * 100, 5), 100)}%` }}
                 />

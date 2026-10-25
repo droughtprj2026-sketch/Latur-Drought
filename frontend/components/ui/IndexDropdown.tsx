@@ -29,9 +29,10 @@ interface Props {
 }
 
 export function IndexDropdown({ value, onChange, available }: Props) {
+  // Only indices that the village data actually carries and the legend can classify.
   const items = (available && available.length
     ? available
-    : (Object.keys(LABELS) as IndexName[]));
+    : (["cdi", "spi1", "spi3", "spi6", "spi12", "ndvi", "vci", "vhi", "pci"] as IndexName[]));
   return (
     <div>
       <label htmlFor="index-select" className="block text-xs font-medium text-slate-500">

@@ -1,7 +1,8 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { loadDistrictMonthly } from "@/lib/data";
 import { IndexDropdown, type IndexName } from "@/components/ui/IndexDropdown";
 
 const AnimationPlayer = dynamic(
@@ -11,8 +12,19 @@ const AnimationPlayer = dynamic(
 
 export default function AnimationPage() {
   const [index, setIndex] = useState<IndexName>("cdi");
-  const [from, setFrom] = useState("2016-01");
-  const [to, setTo] = useState("2026-10");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [record, setRecord] = useState<string[]>([]);
+
+  // Range comes from the months that exist in the data, not from typed-in dates.
+  useEffect(() => {
+    loadDistrictMonthly().then((d) => {
+      const ps: string[] = (d.series || []).map((x: any) => x.date).filter(Boolean).sort();
+      if (!ps.length) return;
+      setRecord(ps); setFrom(ps[0]); setTo(ps[ps.length - 1]);
+    }).catch(() => null);
+  }, []);
+  const lastN = (n: number) => { if (record.length) { setFrom(record[Math.max(0, record.length - n)]); setTo(record[record.length - 1]); } };
 
   return (
     <div className="max-w-7xl mx-auto px-6 py-6 space-y-6 text-slate-900">
@@ -33,27 +45,13 @@ export default function AnimationPage() {
           </p>
         </div>
 
-        {/* Quick Range Presets */}
+        {/* Range presets computed from the record */}
         <div className="flex items-center gap-1.5 text-xs font-semibold">
-          <span className="text-slate-400 mr-1 text-[11px]">Presets:</span>
-          <button
-            onClick={() => { setFrom("2016-01"); setTo("2026-10"); }}
-            className="px-2.5 py-1 rounded-lg border border-amber-300 bg-amber-100 text-amber-900 shadow-2xs font-bold"
-          >
-            Full 10-Yr Record
+          <button onClick={() => lastN(record.length)} className="px-2.5 py-1 rounded-lg border border-amber-300 bg-amber-100 text-amber-900 shadow-2xs font-bold">
+            Full record{record.length ? ` (${record[0]} to ${record[record.length - 1]})` : ""}
           </button>
-          <button
-            onClick={() => { setFrom("2017-01"); setTo("2019-12"); }}
-            className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 shadow-2xs"
-          >
-            2017–2019 Crisis
-          </button>
-          <button
-            onClick={() => { setFrom("2024-01"); setTo("2026-10"); }}
-            className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 shadow-2xs"
-          >
-            Recent 2024–2026
-          </button>
+          <button onClick={() => lastN(36)} className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 shadow-2xs">Last 36 months</button>
+          <button onClick={() => lastN(12)} className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 shadow-2xs">Last 12 months</button>
         </div>
       </div>
 
@@ -79,7 +77,7 @@ export default function AnimationPage() {
             <input
               value={to}
               onChange={(e) => setTo(e.target.value)}
-              placeholder="2026-10"
+              placeholder="YYYY-MM"
               className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-mono font-semibold text-slate-800 focus:outline-none focus:ring-1 focus:ring-amber-500"
             />
           </div>
@@ -88,7 +86,7 @@ export default function AnimationPage() {
 
       {/* Animation Player Map Viewport */}
       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
-        <AnimationPlayer index={index} from={from} to={to} />
+        {from && to && <AnimationPlayer index={index} from={from} to={to} />}
       </div>
     </div>
   );

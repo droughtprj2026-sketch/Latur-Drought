@@ -1,176 +1,82 @@
 "use client";
 
-import React, { useEffect, useState, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 interface Props {
   periods: string[];
   currentPeriod: string;
   onPeriodChange: (period: string) => void;
+  /** Period that counts as "now" (latest observation actually available). */
+  latestPeriod?: string;
+  /** Jump targets computed from the data (see recordMarkers); none are assumed. */
+  markers?: { p: string; label: string }[];
 }
 
-export function MonthlyTimelineScrubber({
-  periods,
-  currentPeriod,
-  onPeriodChange,
-}: Props) {
-  const [isPlaying, setIsPlaying] = useState(false);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const fmt = (p: string) => {
+  const [y, m] = p.split("-");
+  return `${MONTHS[parseInt(m, 10) - 1] ?? m} ${y}`;
+};
 
-  const currentIndex = Math.max(0, periods.indexOf(currentPeriod));
+export function MonthlyTimelineScrubber({ periods, currentPeriod, onPeriodChange, latestPeriod, markers = [] }: Props) {
+  const [playing, setPlaying] = useState(false);
+  const idx = Math.max(0, periods.indexOf(currentPeriod));
+  const idxRef = useRef(idx);
+  idxRef.current = idx;
 
-  // Animation player loop (1.2 seconds per step)
   useEffect(() => {
-    if (isPlaying) {
-      timerRef.current = setInterval(() => {
-        onPeriodChange(periods[(currentIndex + 1) % periods.length]);
-      }, 1200);
-    } else if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, [isPlaying, currentIndex, periods, onPeriodChange]);
+    if (!playing) return;
+    const t = setInterval(() => {
+      const next = idxRef.current + 1;
+      if (next >= periods.length) { setPlaying(false); return; }
+      onPeriodChange(periods[next]);
+    }, 900);
+    return () => clearInterval(t);
+  }, [playing, periods, onPeriodChange]);
 
-  const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const idx = Number(e.target.value);
-    if (periods[idx]) {
-      onPeriodChange(periods[idx]);
-    }
-  };
+  const years = useMemo(() => {
+    const out: { y: string; at: number }[] = [];
+    periods.forEach((p, i) => { const y = p.slice(0, 4); if (!out.length || out[out.length - 1].y !== y) out.push({ y, at: i }); });
+    return out;
+  }, [periods]);
 
-  const stepPrev = () => {
-    if (currentIndex > 0) {
-      onPeriodChange(periods[currentIndex - 1]);
-    }
-  };
-
-  const stepNext = () => {
-    if (currentIndex < periods.length - 1) {
-      onPeriodChange(periods[currentIndex + 1]);
-    }
-  };
-
-  // Format YYYY-MM to human readable (e.g. "October 2026")
-  const formatPeriod = (p: string) => {
-    if (!p) return "—";
-    const [y, m] = p.split("-");
-    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-    const mIdx = parseInt(m, 10) - 1;
-    return `${monthNames[mIdx] || m} ${y}`;
-  };
+  const latest = latestPeriod ?? periods[periods.length - 1];
+  const step = (d: number) => periods[idx + d] && onPeriodChange(periods[idx + d]);
+  const btn = "rounded border border-ink/20 bg-paper px-2 py-1 font-mono text-[11px] text-ink hover:bg-ink/5 disabled:opacity-35";
 
   return (
-    <div className="bg-white/95 backdrop-blur-md border border-slate-200 rounded-2xl p-3 shadow-md text-slate-800">
-      {/* Top Controls Row */}
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
-        {/* Play/Pause & Step Buttons */}
-        <div className="flex items-center gap-1.5">
-          <button
-            onClick={() => setIsPlaying(!isPlaying)}
-            className={`px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs ${
-              isPlaying
-                ? "bg-amber-600 text-white ring-2 ring-amber-300"
-                : "bg-amber-500 text-white hover:bg-amber-600"
-            }`}
-          >
-            {isPlaying ? "⏸ Pause" : "▶ Play 10-Yr Evolution"}
-          </button>
-
-          <button
-            onClick={stepPrev}
-            disabled={currentIndex === 0}
-            className="p-1 px-2.5 rounded-lg border border-slate-200 bg-slate-50 text-xs font-bold text-slate-700 hover:bg-slate-100 disabled:opacity-40 transition-colors"
-            title="Previous Month"
-          >
-            ◀
-          </button>
-
-          <button
-            onClick={stepNext}
-            disabled={currentIndex === periods.length - 1}
-            className="p-1 px-2.5 rounded-lg border border-slate-200 bg-slate-50 text-xs font-bold text-slate-700 hover:bg-slate-100 disabled:opacity-40 transition-colors"
-            title="Next Month"
-          >
-            ▶
-          </button>
-        </div>
-
-        {/* Current Active Period Badge */}
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-            Observation Period:
-          </span>
-          <span className="px-2.5 py-0.5 rounded-lg bg-amber-100 text-amber-900 border border-amber-300 font-mono font-extrabold text-xs shadow-2xs">
-            {formatPeriod(currentPeriod)} <span className="text-[10px] text-amber-700 font-medium">({currentPeriod})</span>
-          </span>
-          <span className="text-[10px] text-slate-400 font-mono">
-            [{currentIndex + 1} / {periods.length}]
-          </span>
-        </div>
-
-        {/* Historical Benchmark Quick-Jump Buttons */}
-        <div className="hidden lg:flex items-center gap-1 text-[10px] font-bold text-slate-600">
-          <span className="text-slate-400 font-semibold mr-1">Benchmarks:</span>
-          <button
-            onClick={() => onPeriodChange("2016-01")}
-            className="px-2 py-0.5 rounded border border-slate-200 bg-slate-50 hover:bg-slate-100 transition-colors"
-          >
-            '16 Baseline
-          </button>
-          <button
-            onClick={() => onPeriodChange("2018-05")}
-            className="px-2 py-0.5 rounded border border-rose-200 bg-rose-50 text-rose-800 hover:bg-rose-100 transition-colors"
-          >
-            '18 Drought
-          </button>
-          <button
-            onClick={() => onPeriodChange("2020-09")}
-            className="px-2 py-0.5 rounded border border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 transition-colors"
-          >
-            '20 Recovery
-          </button>
-          <button
-            onClick={() => onPeriodChange("2024-05")}
-            className="px-2 py-0.5 rounded border border-orange-200 bg-orange-50 text-orange-800 hover:bg-orange-100 transition-colors"
-          >
-            '24 El Niño
-          </button>
-          <button
-            onClick={() => onPeriodChange("2026-10")}
-            className="px-2 py-0.5 rounded border border-amber-300 bg-amber-100 text-amber-900 font-extrabold hover:bg-amber-200 transition-colors"
-          >
-            Latest ('26)
+    <div className="rounded-lg border border-ink/15 bg-paper/95 px-3 py-2 shadow-card backdrop-blur">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <button type="button" onClick={() => setPlaying((v) => !v)} aria-pressed={playing}
+          className="rounded bg-ink px-2.5 py-1 font-mono text-[11px] text-paper hover:bg-ink/85">
+          {playing ? "Pause" : "Play"}
+        </button>
+        <button type="button" className={btn} onClick={() => step(-1)} disabled={idx === 0} aria-label="Previous month">‹</button>
+        <button type="button" className={btn} onClick={() => step(1)} disabled={idx >= periods.length - 1} aria-label="Next month">›</button>
+        <div className="font-display text-lg leading-none text-ink">{fmt(periods[idx] ?? currentPeriod)}</div>
+        <span className="font-mono text-[10px] text-ink/50">{idx + 1}/{periods.length}</span>
+        <div className="ml-auto hidden items-center gap-1 xl:flex">
+          {markers.filter((e) => periods.includes(e.p)).map((e) => (
+            <button key={e.p} type="button" className={btn} onClick={() => onPeriodChange(e.p)} title={e.p}>{e.label}</button>
+          ))}
+          <button type="button" onClick={() => onPeriodChange(latest)}
+            className="rounded border border-clay bg-clay/10 px-2 py-1 font-mono text-[11px] font-semibold text-clay hover:bg-clay/20">
+            Latest · {latest}
           </button>
         </div>
       </div>
-
-      {/* Main Scrubber Slider */}
-      <div className="relative flex flex-col gap-1">
-        <input
-          type="range"
-          min={0}
-          max={periods.length - 1}
-          value={currentIndex}
-          onChange={handleSliderChange}
-          className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-amber-600 focus:outline-none"
-        />
-
-        {/* Year Ticks */}
-        <div className="flex justify-between text-[9px] font-mono font-semibold text-slate-400 px-1">
-          <span>2016</span>
-          <span>2017</span>
-          <span>2018</span>
-          <span>2019</span>
-          <span>2020</span>
-          <span>2021</span>
-          <span>2022</span>
-          <span>2023</span>
-          <span>2024</span>
-          <span>2025</span>
-          <span className="text-amber-700 font-bold">2026</span>
-        </div>
+      <input
+        type="range" min={0} max={Math.max(0, periods.length - 1)} value={idx}
+        onChange={(e) => periods[Number(e.target.value)] && onPeriodChange(periods[Number(e.target.value)])}
+        aria-label="Observation month" aria-valuetext={fmt(periods[idx] ?? currentPeriod)}
+        className="mt-1.5 h-1.5 w-full cursor-pointer accent-clay"
+      />
+      <div className="relative mt-0.5 h-3 font-mono text-[9px] text-ink/50">
+        {years.map((y) => (
+          <span key={y.y} className="absolute -translate-x-1/2" style={{ left: `${(y.at / Math.max(1, periods.length - 1)) * 100}%` }}>
+            {y.y}
+          </span>
+        ))}
       </div>
     </div>
   );
