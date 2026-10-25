@@ -91,3 +91,12 @@ def test_thermal_sources_are_field_scale_not_modis_or_smap():
     assert all("LANDSAT" in c for c in t["lst_collections"])
     assert t["vv_collection"] == "COPERNICUS/S1_GRD"
     assert "MODIS" not in str(t) and "SMAP" not in str(t)
+
+
+def test_output_check_flags_implausible_values():
+    import check_outputs as co
+    ok = pd.DataFrame({"LST": [25.0, 41.0], "VV": [-12.0, -8.0], "TCI": [10.0, 90.0]})
+    assert co.check_bounds(ok) == []
+    bad = pd.DataFrame({"LST": [25.0, 330.0], "VV": [-12.0, 40.0]})   # kelvin left in, dB sign error
+    flagged = co.check_bounds(bad)
+    assert len(flagged) == 2 and any(f.startswith("LST") for f in flagged)
