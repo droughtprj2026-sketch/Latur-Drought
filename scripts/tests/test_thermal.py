@@ -100,3 +100,46 @@ def test_output_check_flags_implausible_values():
     bad = pd.DataFrame({"LST": [25.0, 330.0], "VV": [-12.0, 40.0]})   # kelvin left in, dB sign error
     flagged = co.check_bounds(bad)
     assert len(flagged) == 2 and any(f.startswith("LST") for f in flagged)
+
+
+# ---- Earth Engine batch runner: parallel, retried, and never waits forever ---------------
+def test_run_batches_returns_results_in_order_and_retries():
+    from common.gee import run_batches
+    calls = {"n": 0}
+
+    def fn(part):
+        calls["n"] += 1
+        if part == [2] and calls["n"] < 4:       # batch 2 fails the first time it is tried
+            raise RuntimeError("transient")
+        return {"v": part[0] * 10}
+
+    import time as _t
+    orig = _t.sleep
+    _t.sleep = lambda s: None
+    try:
+        out = run_batches([[0], [1], [2], [3]], fn, "t", log=lambda *_: None, workers=2, retries=3)
+    finally:
+        _t.sleep = orig
+    assert [o["v"] for o in out] == [0, 10, 20, 30]
+
+
+def test_run_batches_gives_up_after_retries():
+    import time as _t
+    from common.gee import run_batches
+    orig = _t.sleep
+    _t.sleep = lambda s: None
+    try:
+        with pytest.raises(RuntimeError, match="failed 2 times"):
+            run_batches([[0]], lambda p: (_ for _ in ()).throw(ValueError("boom")), "t",
+                        log=lambda *_: None, retries=2)
+    finally:
+        _t.sleep = orig
+
+
+def test_run_batches_hits_the_deadline_instead_of_hanging():
+    import threading
+    from common.gee import run_batches
+    block = threading.Event()
+    with pytest.raises(TimeoutError, match="not finished"):
+        run_batches([[0]], lambda p: block.wait(30), "t", log=lambda *_: None, deadline_s=1)
+    block.set()

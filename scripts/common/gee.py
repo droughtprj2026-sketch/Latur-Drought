@@ -64,6 +64,66 @@ def chunks(seq, n):
         yield seq[i:i + n]
 
 
+def run_batches(parts, fn, label, log=print, workers=None, retries=3, deadline_s=None):
+    """Run fn(part) for every batch in parallel, with retries and a hard overall deadline.
+
+    The Earth Engine client retries throttled requests silently, so a slow or throttled run can look
+    frozen. This prints every batch as it finishes or fails, retries a failed batch (default 3 times with
+    back-off), and raises TimeoutError after `deadline_s` (env GEE_DEADLINE_S, default 1200) instead of
+    waiting forever. Worker count: env GEE_WORKERS (default 6). Workers are daemon threads, so a request
+    that never returns cannot keep the process alive. Returns the batch results in order.
+    """
+    import os
+    import queue
+    import threading
+    import time
+
+    workers = int(workers or os.environ.get("GEE_WORKERS", "6"))
+    deadline_s = float(deadline_s or os.environ.get("GEE_DEADLINE_S", "1200"))
+    todo: "queue.Queue[int]" = queue.Queue()
+    for i in range(len(parts)):
+        todo.put(i)
+    done: "queue.Queue[tuple]" = queue.Queue()
+
+    def worker():
+        while True:
+            try:
+                i = todo.get_nowait()
+            except queue.Empty:
+                return
+            err = None
+            for attempt in range(retries):
+                t0 = time.time()
+                try:
+                    r = fn(parts[i])
+                    log(f"  {label}: batch {i + 1}/{len(parts)} ok in {time.time() - t0:.0f}s")
+                    done.put((i, r, None))
+                    break
+                except Exception as e:  # noqa: BLE001
+                    err = e
+                    log(f"  {label}: batch {i + 1} attempt {attempt + 1}/{retries} failed after "
+                        f"{time.time() - t0:.0f}s: {type(e).__name__}: {str(e)[:160]}")
+                    time.sleep(min(60, 5 * 2 ** attempt))
+            else:
+                done.put((i, None, err))
+
+    for _ in range(min(workers, len(parts))):
+        threading.Thread(target=worker, daemon=True).start()
+
+    out: list = [None] * len(parts)
+    t_end = time.time() + deadline_s
+    for _ in range(len(parts)):
+        try:
+            i, r, err = done.get(timeout=max(0.1, t_end - time.time()))
+        except queue.Empty:
+            raise TimeoutError(f"{label}: not finished after {deadline_s:.0f}s "
+                               "(Earth Engine slow or throttled; try GEE_WORKERS, GEE_CHUNK, GEE_S2_SCALE)") from None
+        if err is not None:
+            raise RuntimeError(f"{label}: batch {i + 1} failed {retries} times: {err}") from err
+        out[i] = r
+    return out
+
+
 def fetch_lst_sm(ee, feats, period: str, tcfg: dict) -> dict | None:
     """Village-mean LST (deg C, Landsat 8/9) and Sentinel-1 VV backscatter (dB) for one month.
 
@@ -123,13 +183,16 @@ def fetch_lst_sm(ee, feats, period: str, tcfg: dict) -> dict | None:
     vv = ee.ImageCollection(n_vv_col.map(vv_lin)).mean()
     vv_db = vv.log10().multiply(10).rename("vv")
 
-    values: dict[str, dict] = {}
-    for part in chunks(feats, 100):
+    def one(part):
         fc = ee.FeatureCollection(part)
         a = lst.reduceRegions(fc, ee.Reducer.mean(), scale=30, tileScale=8).select(["id", "mean"], None, False).getInfo()["features"]
         b = vv_db.reduceRegions(fc, ee.Reducer.mean(), scale=30, tileScale=8).select(["id", "mean"], None, False).getInfo()["features"]
-        for fa, fb in zip(a, b):
-            pid = str(fa["properties"]["id"])
-            values[pid] = {"lst": fa["properties"].get("mean", fa["properties"].get("lst")),
-                           "vv": fb["properties"].get("mean", fb["properties"].get("vv"))}
+        return {str(fa["properties"]["id"]): {"lst": fa["properties"].get("mean", fa["properties"].get("lst")),
+                                              "vv": fb["properties"].get("mean", fb["properties"].get("vv"))}
+                for fa, fb in zip(a, b)}
+
+    values: dict[str, dict] = {}
+    for r in run_batches(list(chunks(feats, int(__import__("os").environ.get("GEE_CHUNK", "100")))), one,
+                         f"landsat+sentinel1 {period}"):
+        values.update(r)
     return {"values": values, "lst_images": n_lst, "vv_images": n_vv}

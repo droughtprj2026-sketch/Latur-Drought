@@ -34,6 +34,7 @@ import calendar
 import json
 import os
 import sys
+import time
 import traceback
 from datetime import date, datetime, timezone
 from pathlib import Path
@@ -63,6 +64,8 @@ RAIN_WIDE = ROOT / "output" / "spi" / "extra" / "csv" / "village_monthly_rainfal
 SPI_DIR = ROOT / "output" / "spi" / "csv"
 SCALES = (1, 3, 6, 12)
 
+CHUNK = int(os.environ.get("GEE_CHUNK", "100"))        # villages per Earth Engine request
+S2_SCALE = int(os.environ.get("GEE_S2_SCALE", "30"))   # metres; raise (e.g. 60) if requests are too slow
 MIN_S2_COVERAGE = 0.5      # share of villages that must have an NDVI for the month to count
 MAX_SPI_DRIFT_MAE = 0.05   # recomputed vs stored SPI on history must agree this closely
 
@@ -151,7 +154,7 @@ def _periods_of(df: pd.DataFrame) -> list[str]:
 # GEE fetchers (thin; everything after them is offline-testable)
 # ---------------------------------------------------------------------------
 def fetch_s2(ee, feats, period: str, cloud_pct: int = 40) -> dict:
-    from common.gee import chunks
+    from common.gee import chunks, run_batches
     start = ee.Date(f"{period}-01")
     end = start.advance(1, "month")
     aoi = ee.FeatureCollection(feats).geometry().bounds()
@@ -172,19 +175,22 @@ def fetch_s2(ee, feats, period: str, cloud_pct: int = 40) -> dict:
         return ndvi.addBands(evi)
 
     comp = col.map(prep).median()
-    values = {}
-    for part in chunks(feats, 100):
-        fc = comp.reduceRegions(ee.FeatureCollection(part), ee.Reducer.mean(), scale=30, tileScale=8)
+    def one(part):
+        fc = comp.reduceRegions(ee.FeatureCollection(part), ee.Reducer.mean(), scale=S2_SCALE, tileScale=8)
         # numbers only: without this every batch also downloads each village's polygon outline
-        for f in fc.select(["id", "NDVI", "EVI"], None, False).getInfo()["features"]:
-            p = f["properties"]
-            values[str(p["id"])] = {"ndvi": p.get("NDVI"), "evi": p.get("EVI")}
+        feats_out = fc.select(["id", "NDVI", "EVI"], None, False).getInfo()["features"]
+        return {str(f["properties"]["id"]): {"ndvi": f["properties"].get("NDVI"), "evi": f["properties"].get("EVI")}
+                for f in feats_out}
+
+    values = {}
+    for r in run_batches(list(chunks(feats, CHUNK)), one, f"sentinel2 {period}", log=log):
+        values.update(r)
     return {"scenes": scenes, "values": values}
 
 
 def fetch_chirps(ee, feats, period: str) -> dict | None:
     """Monthly rainfall (mm) per village, or None when the month is not fully published."""
-    from common.gee import chunks
+    from common.gee import chunks, run_batches
     y, m = map(int, period.split("-"))
     expected = calendar.monthrange(y, m)[1]
     start = ee.Date(f"{period}-01")
@@ -195,12 +201,14 @@ def fetch_chirps(ee, feats, period: str) -> dict | None:
         log(f"  CHIRPS {period}: {have}/{expected} daily images published - not complete yet")
         return None
     total = col.sum().rename("rain")
-    values = {}
-    for part in chunks(feats, 100):
+    def one(part):
         fc = total.reduceRegions(ee.FeatureCollection(part), ee.Reducer.mean(), scale=5566, tileScale=4)
-        for f in fc.select(["id", "mean"], None, False).getInfo()["features"]:
-            p = f["properties"]
-            values[str(p["id"])] = p.get("mean", p.get("rain"))
+        return {str(f["properties"]["id"]): f["properties"].get("mean", f["properties"].get("rain"))
+                for f in fc.select(["id", "mean"], None, False).getInfo()["features"]}
+
+    values = {}
+    for r in run_batches(list(chunks(feats, CHUNK)), one, f"chirps {period}", log=log):
+        values.update(r)
     return values
 
 
