@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-25T04:15:49+00:00",
+  "generated_at": "2026-10-25T16:04:43+05:30",
   "monitoring_status": "degraded",
   "sentinel2": {
     "latest_observation_date": "2026-10-15",
@@ -30,23 +30,52 @@
     "min_inputs": 3,
     "spi_reference": "2016-2026 record (gamma fit per village and calendar month)"
   },
+  "thermal": {
+    "enabled": false,
+    "note": "LST / soil moisture not in the active formula"
+  },
   "region": {
     "district": "Latur",
-    "state": "Maharashtra",
-    "centroid_lat": 18.4088,
-    "centroid_lon": 76.5604
+    "centroid_lat": 18.3551,
+    "centroid_lon": 76.7729
   },
+  "synthetic_input": false,
   "pipeline_run": {
-    "started_at": "2026-10-25T04:15:49+00:00",
-    "finished_at": "2026-10-25T04:15:49+00:00",
+    "started_at": "2026-10-25T16:03:46+05:30",
     "ok": true,
-    "ingested": [],
     "steps": [
       {
-        "name": "status-refresh",
+        "name": "formula",
         "status": "ok",
-        "detail": "status regenerated from the manifests; no ingestion was run. CHIRPS rainfall exists only through 2026-08, so 2026-09 and 2026-10 have no rain/SPI/PCI."
+        "detail": "cdi-v2026.10 (no thermal inputs)"
+      },
+      {
+        "name": "spi-self-check",
+        "status": "ok",
+        "detail": "SPI1 mae=0.0065, SPI3 mae=0.0040, SPI6 mae=0.0017, SPI12 mae=0.0017"
+      },
+      {
+        "name": "targets",
+        "status": "ok",
+        "detail": "[] (running forward from 2026-11; earlier months stay empty)"
+      },
+      {
+        "name": "earth-engine",
+        "status": "ok",
+        "detail": "954 village polygons"
+      },
+      {
+        "name": "rebuild",
+        "status": "skipped",
+        "detail": "no new data"
+      },
+      {
+        "name": "publish-supabase",
+        "status": "ok",
+        "detail": "storage + tables updated"
       }
-    ]
+    ],
+    "ingested": [],
+    "finished_at": "2026-10-25T16:04:43+05:30"
   }
 }
