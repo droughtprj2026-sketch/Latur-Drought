@@ -143,3 +143,29 @@ def test_run_batches_hits_the_deadline_instead_of_hanging():
     with pytest.raises(TimeoutError, match="not finished"):
         run_batches([[0]], lambda p: block.wait(30), "t", log=lambda *_: None, deadline_s=1)
     block.set()
+
+
+# ---- raw zonal archive -------------------------------------------------------------------
+def test_zonal_archive_merges_sources_arriving_separately(tmp_path):
+    from common.zonal import load_zonal, save_zonal, upsert_period, write_latest_json
+    z = load_zonal(tmp_path / "none.csv")
+    z = upsert_period(z, "2026-11", s2={"scenes": 5, "values": {"1": {"ndvi": 0.31, "evi": 0.42}, "2": {"ndvi": 0.2, "evi": 0.3}}})
+    z = upsert_period(z, "2026-11", thermal={"lst_images": 3, "vv_images": 6,
+                                             "values": {"1": {"lst": 33.0, "vv": -11.5}}})
+    row1 = z[(z.village_idx == 1) & (z.date == "2026-11")].iloc[0]
+    assert (row1.NDVI, row1.EVI, row1.LST, row1.VV) == (0.31, 0.42, 33.0, -11.5)
+    row2 = z[(z.village_idx == 2) & (z.date == "2026-11")].iloc[0]
+    assert row2.NDVI == 0.2 and pd.isna(row2.LST)                         # nothing invented for village 2
+    save_zonal(z, tmp_path / "z.csv")
+    assert len(load_zonal(tmp_path / "z.csv")) == 2
+    out = write_latest_json(z, tmp_path / "zonal_latest.json")
+    assert out["latest"] == {"ndvi": "2026-11", "evi": "2026-11", "lst": "2026-11", "vv": "2026-11"}
+    assert out["villages"]["1"]["lst"] == 33.0 and "lst" not in out["villages"]["2"]
+
+
+def test_indices_ready_needs_min_years_of_every_calendar_month():
+    from common.thermal import indices_ready
+    rows = [{"village_idx": 1, "date": f"{y}-{m:02d}", "LST": 30.0} for y in range(2016, 2021) for m in range(1, 13)]
+    assert indices_ready(pd.DataFrame(rows), 5)
+    assert not indices_ready(pd.DataFrame(rows[:-1]), 5)                  # December has only 4 years
+    assert not indices_ready(pd.DataFrame(columns=["village_idx", "date", "LST"]), 5)

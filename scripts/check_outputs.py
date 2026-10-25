@@ -19,6 +19,7 @@ sys.path.insert(0, str(HERE))
 
 from common.paths import active_panel  # noqa: E402
 from common.thermal import THERMAL_CSV, load_thermal  # noqa: E402
+from common.zonal import load_zonal  # noqa: E402
 from common.village_cdi import _load_cfg  # noqa: E402
 
 ROOT = HERE.parent
@@ -59,19 +60,27 @@ def main() -> int:
     if cur["composite_drought_score"].notna().mean() < 0.5:
         problems.append(f"fewer than half of the villages have a CDI in {latest_scored}")
 
-    if "thermal" in cfg:
-        th = load_thermal()
-        if th.empty:
-            problems.append(f"thermal formula active but {THERMAL_CSV.name} is empty")
-        else:
-            notes.append(f"thermal table: {th['date'].nunique()} months, {th['date'].min()}..{th['date'].max()}")
-            problems += check_bounds(th)
-            last = th[th["date"] == th["date"].max()]
-            for c in ("LST", "VV"):
-                share = last[c].notna().mean()
-                notes.append(f"{c} coverage in {th['date'].max()}: {100 * share:.0f}% of villages")
-                if share < 0.5:
-                    problems.append(f"{c} present for only {100 * share:.0f}% of villages in {th['date'].max()}")
+    th = load_thermal()
+    if th.empty:
+        (problems if "thermal" in cfg else notes).append(
+            f"{THERMAL_CSV.name} is empty (run scripts/backfill_thermal.py)")
+    else:
+        notes.append(f"thermal table: {th['date'].nunique()} months, {th['date'].min()}..{th['date'].max()}")
+        problems += check_bounds(th)
+        last = th[th["date"] == th["date"].max()]
+        lst_share, vv_share = last["LST"].notna().mean(), last["VV"].notna().mean()
+        notes.append(f"LST coverage in {th['date'].max()}: {100 * lst_share:.0f}% of villages "
+                     "(cloud-limited: low values are normal in the monsoon)")
+        notes.append(f"VV coverage in {th['date'].max()}: {100 * vv_share:.0f}% of villages")
+        if vv_share < 0.5:      # radar sees through cloud, so low coverage is a real fault
+            problems.append(f"Sentinel-1 VV present for only {100 * vv_share:.0f}% of villages in {th['date'].max()}")
+
+    zon = load_zonal()
+    if not zon.empty:
+        notes.append(f"zonal archive: {zon['date'].nunique()} months, latest {zon['date'].max()}")
+        problems += check_bounds(zon.rename(columns={"NDVI": "NDVI"}), cols=["NDVI", "LST", "VV"])
+        if zon["EVI"].dropna().abs().max() > 1.5:
+            problems.append("EVI in the zonal archive is outside the physical range (|EVI| > 1.5): check band scaling")
 
     ts = json.loads((PUB / "village_timeseries.json").read_text(encoding="utf-8"))
     gj = json.loads((PUB / "latur_villages_latest.geojson").read_text(encoding="utf-8"))

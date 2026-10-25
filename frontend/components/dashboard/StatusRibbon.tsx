@@ -43,7 +43,7 @@ export function StatusRibbon() {
       {remoteBase && snapshot && <Chip tone="warn" text="Bundled snapshot" />}
       <span className="font-mono text-[11px] text-ink/70" title={`Today is ${cur}`}>
         Sentinel-2 to <b>{s2 ?? "none"}</b> · CHIRPS to <b>{ch ?? "none"}</b>
-        {s.thermal?.enabled && <> · Landsat/Sentinel-1 to <b>{s.thermal.last ?? "none"}</b></>}
+        {s.thermal && <> · Landsat LST to <b>{s.thermal.last_lst ?? "none"}</b> · Sentinel-1 to <b>{s.thermal.last_vv ?? "none"}</b></>}
         {ageDays != null && <> · checked {ageDays === 0 ? "today" : `${ageDays}d ago`}</>}
       </span>
     </div>

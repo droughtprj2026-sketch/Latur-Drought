@@ -49,6 +49,7 @@ sys.path.insert(0, str(HERE))
 from common import manifest  # noqa: E402
 from common.paths import PANEL_THERMAL, PANEL_V1, PANEL_V1_COPY, active_panel, is_thermal  # noqa: E402
 from common.thermal import add_thermal_indices, coverage, load_thermal, save_thermal  # noqa: E402
+from common.zonal import load_zonal, save_zonal, upsert_period, write_latest_json  # noqa: E402
 from common.village_cdi import _classify, _load_cfg, score_new_period  # noqa: E402
 
 ROOT = HERE.parent
@@ -453,6 +454,21 @@ def region_from_geometry() -> dict:
             "centroid_lat": round((min(ys) + max(ys)) / 2, 4), "centroid_lon": round((min(xs) + max(xs)) / 2, 4)}
 
 
+def _thermal_status(cfg: dict) -> dict:
+    """LST / soil-moisture state, reported whichever formula is active."""
+    from common.thermal import indices_ready, last_month_with
+    tc = cfg.get("thermal") or _load_cfg("config/composite_thermal.yaml")["thermal"]
+    th = load_thermal()
+    return {
+        "in_active_formula": is_thermal(cfg),
+        **coverage(th),
+        "last_lst": last_month_with(th, "LST"), "last_vv": last_month_with(th, "VV"),
+        "tci_smi_ready": indices_ready(th, tc["min_years"]),
+        "lst_source": ", ".join(tc["lst_collections"]),
+        "soil_moisture_source": tc["vv_collection"] + " (VV backscatter)",
+    }
+
+
 def write_status(run: dict, cfg: dict) -> dict:
     s2 = manifest.latest_period(PROC, "sentinel") or {}
     ch = manifest.latest_period(PROC, "chirps") or {}
@@ -484,10 +500,7 @@ def write_status(run: dict, cfg: dict) -> dict:
         "composite": {"formula_version": cfg["formula_version"], "weights": cfg["weights"],
                       "min_inputs": cfg["min_inputs"],
                       "spi_reference": "2016-2026 record (gamma fit per village and calendar month)"},
-        "thermal": ({"enabled": True, **{k: v for k, v in coverage(load_thermal()).items()},
-                     "lst_source": ", ".join(cfg["thermal"]["lst_collections"]), "soil_moisture_source": cfg["thermal"]["vv_collection"] + " (VV)"}
-                    if is_thermal(cfg) else {"enabled": False,
-                                             "note": "LST / soil moisture not in the active formula"}),
+        "thermal": _thermal_status(cfg),
         "region": region_from_geometry(),
         "synthetic_input": bool(os.environ.get("ALLOW_SYNTHETIC_FIXTURE") == "1"),
         "pipeline_run": run,
@@ -538,13 +551,29 @@ def main() -> int:
         run["steps"].append({"name": name, "status": status, "detail": detail})
         log(f"[{status}] {name} {detail}")
 
+    def guard(name, fn):
+        """Run one source fetch. On error: record it, fail the run, and let the other sources carry on."""
+        try:
+            return fn()
+        except Exception as exc:  # noqa: BLE001
+            run["ok"] = False
+            step(name, "failed", f"{type(exc).__name__}: {str(exc)[:300]}")
+            return None
+
+    # Source parameters (collections, scale factors, lags) live in config; they do not depend on which
+    # composite formula is active.
+    TCFG = cfg.get("thermal") or _load_cfg("config/composite_thermal.yaml")["thermal"]
+
     try:
         rain_wide = load_rain_wide()
         backfill_chirps_manifest(rain_wide)
         thermal_mode = is_thermal(cfg)
         panel = pd.read_csv(active_panel(cfg))
         panel["date"] = panel["date"].astype(str)
-        thermal = load_thermal() if thermal_mode else None
+        # LST / Sentinel-1 / NDVI / EVI are always downloaded and kept, whichever formula is active; the
+        # formula only decides whether they enter the composite.
+        thermal = load_thermal()
+        zonal = load_zonal()
         step("formula", "ok", f"{cfg['formula_version']} ({'with LST + soil moisture' if thermal_mode else 'no thermal inputs'})")
 
         if not args.skip_self_check:
@@ -583,34 +612,43 @@ def main() -> int:
                 s2 = {"scenes": fx.get("s2_scenes", 1), "values": fx.get("s2", {})} if fx.get("s2") else None
                 rain = fx.get("rain")
             else:
+                # Each source is independent: one failing must not stop the others, but it must fail the run.
                 if not have_s2:
-                    got = fetch_s2(ee, feats, period)
-                    cov = sum(1 for v in got["values"].values() if v.get("ndvi") is not None) / max(1, len(feats))
-                    if got["scenes"] and cov >= MIN_S2_COVERAGE:
-                        s2 = got
-                    else:
-                        step(f"sentinel2 {period}", "skipped", f"scenes={got['scenes']} coverage={cov:.0%}")
+                    got = guard(f"sentinel2 {period}", lambda: fetch_s2(ee, feats, period))
+                    if got is not None:
+                        cov = sum(1 for v in got["values"].values() if v.get("ndvi") is not None) / max(1, len(feats))
+                        if got["scenes"] and cov >= MIN_S2_COVERAGE:
+                            s2 = got
+                        else:
+                            step(f"sentinel2 {period}", "skipped", f"scenes={got['scenes']} coverage={cov:.0%}")
                 if not have_rain:
-                    rain = fetch_chirps(ee, feats, period)
-                    if rain is None:
+                    rain = guard(f"chirps {period}", lambda: fetch_chirps(ee, feats, period))
+                    if rain is None and not any(s["name"] == f"chirps {period}" and s["status"] == "failed"
+                                                for s in run["steps"]):
                         step(f"chirps {period}", "skipped", "month not fully published")
 
+            if s2 is not None:                      # keep raw NDVI / EVI exactly as returned (EVI included)
+                zonal = upsert_period(zonal, period, s2=s2)
+                save_zonal(zonal)
+
             th_new = False
-            if thermal_mode and period not in set(thermal["date"]):
+            if period not in set(thermal["date"]):
                 got_t = None
                 if fixture:
                     ft = fixture.get(period, {}).get("thermal")
                     got_t = {"values": ft, "lst_images": 3, "vv_images": 6} if ft else None
                 else:
                     from common.gee import fetch_lst_sm
-                    got_t = fetch_lst_sm(ee, feats, period, cfg["thermal"])
+                    got_t = guard(f"thermal {period}", lambda: fetch_lst_sm(ee, feats, period, TCFG))
                 if got_t:
                     from backfill_thermal import append_month
                     thermal = append_month(thermal, period, got_t)
                     save_thermal(thermal)
+                    zonal = upsert_period(zonal, period, thermal=got_t)
+                    save_zonal(zonal)
                     th_new = changed = True
                     step(f"thermal {period}", "ok", f"LST (Landsat) + VV (Sentinel-1) for {len(got_t['values'])} villages")
-                else:
+                elif not any(s["name"] == f"thermal {period}" and s["status"] == "failed" for s in run["steps"]):
                     step(f"thermal {period}", "skipped", "LST/soil moisture not fully published")
 
             if rain is not None and not have_rain:
@@ -628,7 +666,7 @@ def main() -> int:
                     step(f"chirps {period}", "ok", "rain appended")
             if rain is not None or have_rain:
                 spi = write_spi_tables(rain_wide)
-            if (rain_new or th_new) and have_s2 and spi is not None:
+            if (rain_new or (th_new and thermal_mode)) and have_s2 and spi is not None:
                 panel = rescore_period(panel, period, rain_wide, spi, cfg, thermal if thermal_mode else None)
                 run["ingested"].append(period)
                 step(f"rescore {period}", "ok", "existing month re-scored with newly arrived inputs")
@@ -661,7 +699,9 @@ def main() -> int:
             rebuild_downstream()
             write_district_series(panel, cfg)
             latest = refresh_latest_geojson(panel, cfg)
-            step("rebuild", "ok", f"latest scored period {latest}")
+            lj = write_latest_json(zonal, PUB / "zonal_latest.json", region_from_geometry())
+            step("rebuild", "ok", f"latest scored period {latest}; zonal_latest.json: "
+                 + ", ".join(f"{k} {v}" for k, v in lj["latest"].items()))
         else:
             step("rebuild", "skipped", "no new data")
             if args.period is None and periods:

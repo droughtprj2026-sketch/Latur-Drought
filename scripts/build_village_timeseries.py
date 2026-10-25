@@ -48,6 +48,22 @@ def _r(v, n):
     return None if v is None or (isinstance(v, float) and np.isnan(v)) else round(float(v), n)
 
 
+def _thermal_frame():
+    """(village_idx, date) -> LST, VV, TCI, SMI from output/thermal, or None before any thermal data exists."""
+    import sys
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from common.thermal import add_thermal_indices, load_thermal
+    from common.village_cdi import _load_cfg
+    th = load_thermal()
+    if th.empty:
+        return None
+    t = th[["village_idx", "date"]].copy()
+    t["VCI"] = np.nan                       # TCI / SMI do not need it; VHI is not taken from here
+    t = add_thermal_indices(t, th, _load_cfg("config/composite_thermal.yaml")["thermal"])
+    t["village_idx"] = t["village_idx"].astype(int)
+    return t.set_index(["village_idx", "date"])[["LST", "VV", "TCI", "SMI"]]
+
+
 def build() -> dict:
     # keep_default_na=False so the class label "None" is not parsed as NaN.
     base = pd.read_csv(BASE_CSV, keep_default_na=False, na_values=[""],
@@ -60,8 +76,13 @@ def build() -> dict:
     for key, stem in SPI_FILES.items():
         series[key] = _wide(SPI_DIR / f"{stem}_village_monthly.csv")
 
+    # LST / Sentinel-1 VV and the TCI / SMI derived from them come straight from the thermal table, so they
+    # appear for every month fetched, whichever composite formula (and panel) is active.
+    thx = _thermal_frame()
+
     ids = sorted(base["id"].unique())
-    periods = sorted(set(base["p"]) | {p for s in series.values() for p in s.index.get_level_values("p")})
+    periods = sorted(set(base["p"]) | {p for s in series.values() for p in s.index.get_level_values("p")}
+                     | (set(thx.index.get_level_values("date")) if thx is not None else set()))
 
     out: dict[str, list[dict]] = {}
     for vid in ids:
@@ -83,6 +104,11 @@ def build() -> dict:
                 if k == "rain" and row is not None and pd.notna(row["Rain_mm"]):
                     v = row["Rain_mm"]   # same zonal run the CDI/PCI were built from
                 pt[k] = _r(v, 1 if k == "rain" else 3) if v is not None else None
+            if thx is not None and (vid, p) in thx.index:
+                tr = thx.loc[(vid, p)]
+                for k, col, nd in (("lst", "LST", 1), ("vv", "VV", 2), ("tci", "TCI", 1), ("smi", "SMI", 1)):
+                    if pt.get(k) is None and pd.notna(tr[col]):
+                        pt[k] = _r(tr[col], nd)
             if any(pt[k] is not None for k in pt if k not in ("p", "cls")):
                 pts.append(pt)
         out[str(vid)] = pts

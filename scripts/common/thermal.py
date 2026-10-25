@@ -80,6 +80,21 @@ def add_thermal_indices(df: pd.DataFrame, thermal: pd.DataFrame, tcfg: dict) -> 
     return out
 
 
+def indices_ready(thermal: pd.DataFrame, min_years: int) -> bool:
+    """True once every calendar month has at least `min_years` years of LST, i.e. TCI/SMI can be issued."""
+    t = thermal.dropna(subset=["LST"])
+    if t.empty:
+        return False
+    d = pd.to_datetime(t["date"] + "-01", errors="coerce")
+    years_per_month = d.groupby(d.dt.month).apply(lambda s: s.dt.year.nunique())
+    return len(years_per_month) == 12 and int(years_per_month.min()) >= int(min_years)
+
+
+def last_month_with(thermal: pd.DataFrame, col: str):
+    t = thermal.dropna(subset=[col])
+    return None if t.empty else t["date"].max()
+
+
 def coverage(thermal: pd.DataFrame) -> dict:
     if thermal.empty:
         return {"months": 0, "first": None, "last": None}

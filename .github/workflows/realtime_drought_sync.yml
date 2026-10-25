@@ -2,8 +2,9 @@ name: Near-real-time drought update
 
 on:
   schedule:
-    # Weekly. The job is incremental: weeks with no new Sentinel-2 / CHIRPS month change nothing.
-    - cron: '0 2 * * 1'
+    # Daily. The job is incremental and cheap when nothing is due, and a daily schedule means a transient
+    # Earth Engine failure is retried the next day and a newly completed month is picked up promptly.
+    - cron: '17 2 * * *'
   workflow_dispatch:
     inputs:
       period:

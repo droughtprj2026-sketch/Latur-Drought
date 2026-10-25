@@ -48,6 +48,7 @@ ARTIFACTS = {
     "district_monthly.json": "application/json",
     "tehsil_analytics.json": "application/json",
     "latest_status.json": "application/json",
+    "zonal_latest.json": "application/json",
     "latur_villages_latest.geojson": "application/geo+json",
     "latur_villages.geojson": "application/geo+json",
     "latur_tehsils.geojson": "application/geo+json",
