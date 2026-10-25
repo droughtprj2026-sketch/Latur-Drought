@@ -33,6 +33,7 @@ import argparse
 import calendar
 import json
 import os
+import re
 import sys
 import time
 import traceback
@@ -81,6 +82,11 @@ def now_iso() -> str:
 def next_period(p: str) -> str:
     y, m = map(int, p.split("-"))
     return f"{y + (m // 12):04d}-{(m % 12) + 1:02d}"
+
+
+def prev_period(p: str) -> str:
+    y, m = map(int, p.split("-"))
+    return f"{y - (1 if m == 1 else 0):04d}-{(m - 2) % 12 + 1:02d}"
 
 
 def months_between(a: str, b: str) -> list[str]:
@@ -232,14 +238,27 @@ def spi_self_check(rain_wide: pd.DataFrame) -> dict:
     return res
 
 
-def append_rain(rain_wide: pd.DataFrame, period: str, values: dict) -> pd.DataFrame:
+def rain_months(rain_wide: pd.DataFrame) -> list[str]:
+    """Months that actually hold rainfall. Gap months (deliberately left empty) are columns of NaN."""
+    return [p for p in _periods_of(rain_wide) if rain_wide[p].notna().any()]
+
+
+def append_rain(rain_wide: pd.DataFrame, period: str, values: dict, allow_gap: bool = False) -> pd.DataFrame:
+    """Add one month. A gap before it is an error unless `allow_gap` (an explicit --since): the skipped months
+    are then stored as empty columns, never filled, so every SPI window that touches them is empty too."""
     periods = _periods_of(rain_wide)
-    if period in periods:
+    if period in periods and period in rain_months(rain_wide):
         raise ValueError(f"{period} already in rain table")
-    if periods and next_period(periods[-1]) != period:
-        raise ValueError(f"rain table ends at {periods[-1]}; cannot append {period} without the months in between")
     out = rain_wide.copy()
-    out[period] = [float(values[str(int(v) + 1)]) if values.get(str(int(v) + 1)) is not None else np.nan
+    if period in periods:                       # an empty gap column that now has data
+        out = out.drop(columns=[period])
+        periods = [p for p in periods if p != period]
+    if periods and next_period(periods[-1]) != period:
+        if not allow_gap:
+            raise ValueError(f"rain table ends at {periods[-1]}; cannot append {period} without the months in between")
+        for gap in months_between(next_period(periods[-1]), prev_period(period)):
+            out[gap] = np.nan
+    out[period] =[float(values[str(int(v) + 1)]) if values.get(str(int(v) + 1)) is not None else np.nan
                    for v in out["vid"]]
     return out
 
@@ -412,7 +431,7 @@ def refresh_latest_geojson(panel: pd.DataFrame, cfg: dict) -> str:
 # ---------------------------------------------------------------------------
 def backfill_chirps_manifest(rain_wide: pd.DataFrame) -> None:
     done = manifest.processed_period_ids(PROC, "chirps")
-    for p in _periods_of(rain_wide):
+    for p in rain_months(rain_wide):
         if p not in done:
             manifest.record(PROC, "chirps", p, observation_date=f"{p}-28", status="success",
                             outputs=["output/spi/extra/csv/village_monthly_rainfall_wide.csv"],
@@ -480,11 +499,16 @@ def write_status(run: dict, cfg: dict) -> dict:
 
 
 # ---------------------------------------------------------------------------
-def due_periods(today: date) -> list[str]:
-    """Months to try: everything after the last successful Sentinel/CHIRPS period up to this month."""
+def due_periods(today: date, since: str | None = None) -> list[str]:
+    """Months to try: everything after the last successful Sentinel/CHIRPS period up to this month.
+
+    `since` (YYYY-MM) is a floor: months before it are not ingested and are left empty ("no data"), so the
+    pipeline can run forward from a chosen month instead of back-filling a gap."""
     s2 = (manifest.latest_period(PROC, "sentinel") or {}).get("period_id")
     ch = (manifest.latest_period(PROC, "chirps") or {}).get("period_id")
     start = next_period(min(x for x in (s2, ch) if x)) if (s2 or ch) else f"{today.year}-01"
+    if since and since > start:
+        start = since
     return months_between(start, f"{today.year}-{today.month:02d}")
 
 
@@ -493,7 +517,12 @@ def main() -> int:
     ap.add_argument("--period", action="append", help="YYYY-MM (repeatable). Default: months that are due.")
     ap.add_argument("--fixture", help="JSON with per-period s2/rain values; skips Earth Engine.")
     ap.add_argument("--skip-self-check", action="store_true")
+    ap.add_argument("--since", default=os.environ.get("PIPELINE_SINCE") or None,
+                    help="YYYY-MM floor (env PIPELINE_SINCE): never ingest months before this; they stay empty.")
     args = ap.parse_args()
+    if args.since and not re.fullmatch(r"\d{4}-(0[1-9]|1[0-2])", args.since):
+        print(f"--since must be YYYY-MM, got {args.since!r}", file=sys.stderr)
+        return 3
 
     # Fixtures are synthetic. They exist only to test the plumbing, and must never be able to
     # reach the repository's real data by accident.
@@ -528,8 +557,9 @@ def main() -> int:
                 return 2
             step("spi-self-check", "ok", ", ".join(f"SPI{k} mae={v['mae']:.4f}" for k, v in chk.items()))
 
-        periods = args.period or due_periods(date.today())
-        step("targets", "ok", f"{periods}")
+        periods = args.period or due_periods(date.today(), args.since)
+        step("targets", "ok", f"{periods}" + (f" (running forward from {args.since}; earlier months stay empty)"
+                                               if args.since else ""))
         fixture = json.loads(Path(args.fixture).read_text()) if args.fixture else None
         ee = feats = None
         if not fixture:
@@ -541,7 +571,7 @@ def main() -> int:
         spi = None
         changed = False
         for period in periods:
-            have_rain = period in _periods_of(rain_wide)
+            have_rain = period in rain_months(rain_wide)
             have_s2 = period in set(panel["date"])
             if have_rain and have_s2 and not args.period:
                 continue
@@ -585,7 +615,7 @@ def main() -> int:
 
             if rain is not None and not have_rain:
                 try:
-                    rain_wide = append_rain(rain_wide, period, rain)
+                    rain_wide = append_rain(rain_wide, period, rain, allow_gap=bool(args.since))
                 except ValueError as e:
                     step(f"chirps {period}", "failed", str(e))
                     rain = None
@@ -605,7 +635,7 @@ def main() -> int:
 
             spi_for_rows = spi or {k: pd.read_csv(SPI_DIR / f"SPI{k}_village_monthly.csv") for k in SCALES}
             rain_for_row = rain
-            if rain_for_row is None and period in _periods_of(rain_wide):
+            if rain_for_row is None and period in rain_months(rain_wide):
                 col = rain_wide[period]
                 rain_for_row = {str(int(v) + 1): float(x) for v, x in zip(rain_wide["vid"], col) if pd.notna(x)}
             # Thermal formula: a month with rain + soil moisture but no usable Sentinel-2 composite

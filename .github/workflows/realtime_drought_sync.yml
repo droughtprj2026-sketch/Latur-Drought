@@ -61,6 +61,9 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           PERIOD: ${{ github.event.inputs.period }}
+          # Run forward from this month (YYYY-MM); earlier months are never ingested and stay "no data".
+          PIPELINE_SINCE: ${{ vars.PIPELINE_SINCE }}
+          COMPOSITE_CONFIG: ${{ vars.COMPOSITE_CONFIG }}
         run: |
           if [ -n "$PERIOD" ]; then
             python scripts/realtime_update.py --period "$PERIOD"

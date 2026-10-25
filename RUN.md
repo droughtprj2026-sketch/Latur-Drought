@@ -28,6 +28,11 @@ python scripts/realtime_update.py --period 2026-09   # force one month
 Per month it fetches Sentinel-2 and CHIRPS (and Landsat + Sentinel-1 when the thermal formula is active),
 recomputes SPI, scores the month, rebuilds the history files, writes `latest_status.json` and publishes to
 Supabase when the Supabase variables are set. It exits non-zero if a due month produced nothing.
+**Run forward only.** By default the job back-fills every month after the last stored one (today: 2026-09
+onward). To start from a chosen month instead, set `PIPELINE_SINCE=YYYY-MM` (or `--since YYYY-MM`). Months before
+it are not ingested; they stay "no data", and SPI-3/6/12 windows that include them are empty until enough later
+months exist. SPI-1 and everything else for later months are unaffected.
+
 A month is used only when its sources fully cover it; otherwise it is skipped and shows as "no data".
 
 ## Switching on the thermal / soil-moisture formula
@@ -54,6 +59,11 @@ python scripts/build_baseline_drought.py       # village_with_baseline.csv
 python scripts/build_village_timeseries.py     # frontend/public/data/village_timeseries.json
 python scripts/build_village_registry.py       # villages_by_tehsil.json, village_baselines.json
 ```
+
+## Scheduling and runbook
+
+`scripts/run_scheduled.sh` / `run_scheduled.ps1` run the tests, the update and `scripts/check_outputs.py` for cron or
+Task Scheduler. Step-by-step for a local agent: `docs/RUNBOOK_ANTIGRAVITY.md`.
 
 ## Frontend
 

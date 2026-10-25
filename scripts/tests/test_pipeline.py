@@ -97,3 +97,30 @@ def test_rain_table_refuses_a_gap():
         ru.append_rain(rain, gap, {})
     with pytest.raises(ValueError):
         ru.append_rain(rain, last, {})
+
+
+# ---- running forward from a chosen month (--since / PIPELINE_SINCE) ---------------------------
+def test_due_periods_respects_the_since_floor():
+    from datetime import date
+    base = ru.due_periods(date(2026, 12, 5))
+    floor = ru.due_periods(date(2026, 12, 5), since="2026-11")
+    assert floor == ["2026-11", "2026-12"]
+    assert len(base) > len(floor) and base[-2:] == floor
+    assert ru.due_periods(date(2026, 12, 5), since="2020-01") == base      # a floor in the past changes nothing
+
+
+def test_gap_months_are_left_empty_not_filled():
+    rain = ru.load_rain_wide()
+    last = ru.rain_months(rain)[-1]
+    target = ru.next_period(ru.next_period(ru.next_period(last)))          # skip two months
+    vals = {str(int(v) + 1): 5.0 for v in rain["vid"]}
+    with pytest.raises(ValueError):
+        ru.append_rain(rain, target, vals)                                 # default: a gap is an error
+    out = ru.append_rain(rain, target, vals, allow_gap=True)
+    gap = [ru.next_period(last), ru.next_period(ru.next_period(last))]
+    assert all(out[g].isna().all() for g in gap)                           # empty, never invented
+    assert ru.rain_months(out)[-1] == target and not set(gap) & set(ru.rain_months(out))
+    spi3 = ru.compute_spi(out[ru._periods_of(out)].to_numpy(float), ru._periods_of(out), 3)
+    assert np.isnan(spi3[:, -1]).all()                                     # SPI-3 window touches the gap -> empty
+    spi1 = ru.compute_spi(out[ru._periods_of(out)].to_numpy(float), ru._periods_of(out), 1)
+    assert np.isfinite(spi1[:, -1]).any()                                  # SPI-1 of the new month still works
