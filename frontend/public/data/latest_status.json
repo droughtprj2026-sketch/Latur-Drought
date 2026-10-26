@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-25T16:04:43+05:30",
-  "monitoring_status": "degraded",
+  "generated_at": "2026-10-26T02:48:11+00:00",
+  "monitoring_status": "operational",
   "sentinel2": {
     "latest_observation_date": "2026-10-15",
     "latest_period_id": "2026-10",
@@ -9,12 +9,12 @@
     "status": "success"
   },
   "chirps": {
-    "latest_observation_date": "2026-08-28",
-    "latest_period_id": "2026-08",
-    "last_successful_update": "2026-10-25T04:15:49+00:00",
+    "latest_observation_date": "2026-09-28",
+    "latest_period_id": "2026-09",
+    "last_successful_update": "2026-10-26T02:44:41+00:00",
     "status": "success",
     "qc": {
-      "note": "backfilled from the archived CHIRPS rain table"
+      "villages": 954
     }
   },
   "composite": {
@@ -31,8 +31,15 @@
     "spi_reference": "2016-2026 record (gamma fit per village and calendar month)"
   },
   "thermal": {
-    "enabled": false,
-    "note": "LST / soil moisture not in the active formula"
+    "in_active_formula": false,
+    "months": 1,
+    "first": "2026-09",
+    "last": "2026-09",
+    "last_lst": "2026-09",
+    "last_vv": null,
+    "tci_smi_ready": false,
+    "lst_source": "LANDSAT/LC08/C02/T1_L2, LANDSAT/LC09/C02/T1_L2",
+    "soil_moisture_source": "COPERNICUS/S1_GRD (VV backscatter)"
   },
   "region": {
     "district": "Latur",
@@ -41,7 +48,7 @@
   },
   "synthetic_input": false,
   "pipeline_run": {
-    "started_at": "2026-10-25T16:03:46+05:30",
+    "started_at": "2026-10-26T02:43:15+00:00",
     "ok": true,
     "steps": [
       {
@@ -57,7 +64,7 @@
       {
         "name": "targets",
         "status": "ok",
-        "detail": "[] (running forward from 2026-11; earlier months stay empty)"
+        "detail": "['2026-09', '2026-10']"
       },
       {
         "name": "earth-engine",
@@ -65,9 +72,34 @@
         "detail": "954 village polygons"
       },
       {
-        "name": "rebuild",
+        "name": "thermal 2026-09",
+        "status": "ok",
+        "detail": "LST (Landsat) + VV (Sentinel-1) for 954 villages"
+      },
+      {
+        "name": "chirps 2026-09",
+        "status": "ok",
+        "detail": "rain appended"
+      },
+      {
+        "name": "rescore 2026-09",
+        "status": "ok",
+        "detail": "existing month re-scored with newly arrived inputs"
+      },
+      {
+        "name": "chirps 2026-10",
         "status": "skipped",
-        "detail": "no new data"
+        "detail": "month not fully published"
+      },
+      {
+        "name": "thermal 2026-10",
+        "status": "skipped",
+        "detail": "LST/soil moisture not fully published"
+      },
+      {
+        "name": "rebuild",
+        "status": "ok",
+        "detail": "latest scored period 2026-10; zonal_latest.json: ndvi None, evi None, lst 2026-09, vv None"
       },
       {
         "name": "publish-supabase",
@@ -75,7 +107,9 @@
         "detail": "storage + tables updated"
       }
     ],
-    "ingested": [],
-    "finished_at": "2026-10-25T16:04:43+05:30"
+    "ingested": [
+      "2026-09"
+    ],
+    "finished_at": "2026-10-26T02:48:11+00:00"
   }
 }

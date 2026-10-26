@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "source": "chirps",
-  "updated": "2026-10-25T04:15:49+00:00",
+  "updated": "2026-10-26T02:44:41+00:00",
   "entries": [
     {
       "period_id": "2016-01",
@@ -1920,6 +1920,21 @@
       "cloud_pct": null,
       "qc": {
         "note": "backfilled from the archived CHIRPS rain table"
+      },
+      "notes": ""
+    },
+    {
+      "period_id": "2026-09",
+      "observation_date": "2026-09-28",
+      "processed_at": "2026-10-26T02:44:41+00:00",
+      "status": "success",
+      "outputs": [
+        "output/spi/extra/csv/village_monthly_rainfall_wide.csv"
+      ],
+      "input_ids": [],
+      "cloud_pct": null,
+      "qc": {
+        "villages": 954
       },
       "notes": ""
     }
