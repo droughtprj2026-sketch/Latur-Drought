@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-26T02:48:11+00:00",
+  "generated_at": "2026-10-27T02:39:56+00:00",
   "monitoring_status": "operational",
   "sentinel2": {
     "latest_observation_date": "2026-10-15",
@@ -32,10 +32,10 @@
   },
   "thermal": {
     "in_active_formula": false,
-    "months": 1,
-    "first": "2026-09",
-    "last": "2026-09",
-    "last_lst": "2026-09",
+    "months": 0,
+    "first": null,
+    "last": null,
+    "last_lst": null,
     "last_vv": null,
     "tci_smi_ready": false,
     "lst_source": "LANDSAT/LC08/C02/T1_L2, LANDSAT/LC09/C02/T1_L2",
@@ -48,7 +48,7 @@
   },
   "synthetic_input": false,
   "pipeline_run": {
-    "started_at": "2026-10-26T02:43:15+00:00",
+    "started_at": "2026-10-27T02:39:34+00:00",
     "ok": true,
     "steps": [
       {
@@ -59,32 +59,17 @@
       {
         "name": "spi-self-check",
         "status": "ok",
-        "detail": "SPI1 mae=0.0065, SPI3 mae=0.0040, SPI6 mae=0.0017, SPI12 mae=0.0017"
+        "detail": "SPI1 mae=0.0003, SPI3 mae=0.0003, SPI6 mae=0.0002, SPI12 mae=0.0002"
       },
       {
         "name": "targets",
         "status": "ok",
-        "detail": "['2026-09', '2026-10']"
+        "detail": "['2026-10']"
       },
       {
         "name": "earth-engine",
         "status": "ok",
         "detail": "954 village polygons"
-      },
-      {
-        "name": "thermal 2026-09",
-        "status": "ok",
-        "detail": "LST (Landsat) + VV (Sentinel-1) for 954 villages"
-      },
-      {
-        "name": "chirps 2026-09",
-        "status": "ok",
-        "detail": "rain appended"
-      },
-      {
-        "name": "rescore 2026-09",
-        "status": "ok",
-        "detail": "existing month re-scored with newly arrived inputs"
       },
       {
         "name": "chirps 2026-10",
@@ -98,8 +83,8 @@
       },
       {
         "name": "rebuild",
-        "status": "ok",
-        "detail": "latest scored period 2026-10; zonal_latest.json: ndvi None, evi None, lst 2026-09, vv None"
+        "status": "skipped",
+        "detail": "no new data"
       },
       {
         "name": "publish-supabase",
@@ -107,9 +92,7 @@
         "detail": "storage + tables updated"
       }
     ],
-    "ingested": [
-      "2026-09"
-    ],
-    "finished_at": "2026-10-26T02:48:11+00:00"
+    "ingested": [],
+    "finished_at": "2026-10-27T02:39:56+00:00"
   }
 }
