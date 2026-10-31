@@ -21,7 +21,7 @@ and a date range, this script:
         data/processed/json/district_monthly.json           (district mean)
         data/processed/json/manifest.json                   (years + indices)
   6. If `PUSH_TO_SUPABASE=1`, pushes rows to the `monthly_index` and
-     `pixel_index` tables via the service_role key so the Go backend
+     `pixel_index` tables via the service_role key so the Node API
      and the frontend map/charts see them live.
 
 USAGE
@@ -48,7 +48,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
-from common.classify import CDI_WEIGHTS, MONTHS, classify_spi  # noqa: E402
+from common.classify import MONTHS, classify_spi  # noqa: E402
 
 ROOT = HERE.parent
 OUT = Path(os.environ.get("OUTPUT_DIR", ROOT / "data" / "processed"))
@@ -292,9 +292,14 @@ def main():
 
     start = f"{args.d_from}-01"
     nmonths = _months_between(args.d_from, args.d_to)
+    ey, em = map(int, args.d_to.split("-"))
+    em += 1
+    if em > 12:
+        em = 1; ey += 1
+    end_exclusive = f"{ey:04d}-{em:02d}-01"
     print(f"[3] building monthly S2 composites {args.d_from} .. {args.d_to} "
           f"({nmonths} months, cloud < {args.cloud_pct}%)")
-    monthly = _monthly_composite(ee, aoi, start, args.d_to + "-01", args.cloud_pct)
+    monthly = _monthly_composite(ee, aoi, start, end_exclusive, args.cloud_pct)
 
     print("[4] zonal statistics per tehsil ...")
     zonal_rows: list[dict] = []
@@ -328,7 +333,7 @@ def main():
     _save_zonal_csv(zonal_rows, OUT / "csv" / "zonal_tehsil_monthly.csv")
 
     print("[5] updating manifest.json ...")
-    _update_manifest(["NDVI", "EVI", "NDMI", "NSMI", "VCI", "VHI"],
+    _update_manifest(["NDVI", "EVI", "NDMI", "NSMI"],
                      sorted(years_touched))
 
     print("[6] pushing to Supabase (if PUSH_TO_SUPABASE=1) ...")

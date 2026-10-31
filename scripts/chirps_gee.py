@@ -114,12 +114,13 @@ def _zonal_monthly(ee, aoi_fc, period: str):
     y, m = period.split("-")
     start = ee.Date(f"{period}-01")
     end = start.advance(1, "month")
-    img = (ee.ImageCollection(COLLECTION)
+    col = (ee.ImageCollection(COLLECTION)
              .filterDate(start, end)
-             .select(PRECIP_BAND)
-             .first())
-    if img is None:
+             .select(PRECIP_BAND))
+    count = col.size().getInfo()
+    if count == 0:
         return None
+    img = col.first()
     stats = img.reduceRegions(
         collection=aoi_fc,
         reducer=ee.Reducer.mean(),

@@ -60,7 +60,7 @@ def _run(name: str, cmd: list[str]) -> tuple[bool, str]:
 
 
 def main():
-    tz = os.environ.get("TZ", "Asia/Calcutta")
+    tz = os.environ.get("TZ", "Asia/Kolkata")
     print(f"=== scheduler tick  {_ts()}  tz={tz} ===")
 
     results = {"started_at": _ts(), "steps": []}
@@ -88,12 +88,19 @@ def main():
                                      "--to", datetime.now().strftime("%Y-%m")])
     results["steps"].append({"step": "pipeline_gee", "ok": ok, "msg": msg})
 
-    # 4) Composite CDI (transparent multi-index; replaces the old RF step).
+    # 4) Village-level zonal stats + CDI scoring (builds the CSV that
+    #    composite_cdi.py reads). Runs in zonal-only mode by default.
+    ok, msg = _run("build_village_indices",
+                   [sys.executable, str(HERE / "build_village_indices.py"),
+                    "--stage", "zonal"])
+    results["steps"].append({"step": "build_village_indices", "ok": ok, "msg": msg})
+
+    # 5) Composite CDI (transparent multi-index; replaces the old RF step).
     #    Re-weights over available inputs; marks pending when < min_inputs.
     ok, msg = _run("composite_cdi", [sys.executable, str(HERE / "composite_cdi.py")])
     results["steps"].append({"step": "composite_cdi", "ok": ok, "msg": msg})
 
-    # 5) Dashboard master table + status files — always run (reads what's
+    # 6) Dashboard master table + status files — always run (reads what's
     #    actually there and leaves missing fields empty).
     ok, msg = _run("dashboard_master", [sys.executable, str(HERE / "dashboard_master.py")])
     results["steps"].append({"step": "dashboard_master", "ok": ok, "msg": msg})

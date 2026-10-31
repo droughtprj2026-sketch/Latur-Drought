@@ -172,11 +172,14 @@ def _district_frame(cfg: dict) -> pd.DataFrame:
     """
     vil = pd.read_csv(OUT / "csv" / "village_Latur_monthly_indices.csv")
     vil["date"] = vil["date"].astype(str)
-    agg = vil.groupby("date").agg({
+    agg_cols = {
         "NDVI": "mean", "EVI": "mean", "VCI": "mean", "VHI": "mean",
         "Rain_mm": "mean", "PCI": "mean",
         "SPI1": "mean", "SPI3": "mean", "SPI6": "mean", "SPI12": "mean",
-    }).reset_index()
+    }
+    if "NSMI" in vil.columns:
+        agg_cols["NSMI"] = "mean"
+    agg = vil.groupby("date").agg(agg_cols).reset_index()
     dt = pd.to_datetime(agg["date"], format="%Y-%m", errors="coerce")
     agg["year"] = dt.dt.year
     agg["month"] = dt.dt.month
@@ -280,8 +283,8 @@ def _district_geometry() -> dict | None:
     from shapely.geometry import mapping, Point
     from shapely.ops import unary_union
 
-    root = HERE.parent.parent
-    gpath = root / "Latur_villages.geojson"
+    root = HERE.parent
+    gpath = root / "data" / "vector" / "latur_villages.geojson"
     if gpath.exists():
         try:
             import geopandas as gpd
