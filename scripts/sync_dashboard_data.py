@@ -55,7 +55,7 @@ def _load_composite_thresholds():
     import yaml
     from pathlib import Path
     cfg_path = HERE.parent / "config" / "composite.yaml"
-    with cfg_path.open() as f:
+    with cfg_path.open(encoding="utf-8") as f:
         return yaml.safe_load(f)["thresholds"]
 
 def get_drought_status(score):

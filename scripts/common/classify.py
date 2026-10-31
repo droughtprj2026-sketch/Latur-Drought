@@ -107,7 +107,7 @@ def _load_composite_cfg() -> dict:
         import yaml
     except ImportError as e:
         raise SystemExit("pip install pyyaml") from e
-    with (CONFIG_DIR / "composite.yaml").open() as f:
+    with (CONFIG_DIR / "composite.yaml").open(encoding="utf-8") as f:
         return yaml.safe_load(f)
 
 
