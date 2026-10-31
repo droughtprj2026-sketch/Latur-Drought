@@ -1,0 +1,98 @@
+{
+  "generated_at": "2026-10-31T02:53:14+00:00",
+  "monitoring_status": "operational",
+  "sentinel2": {
+    "latest_observation_date": "2026-10-15",
+    "latest_period_id": "2026-10",
+    "cloud_percentage": null,
+    "last_successful_update": "2026-10-16T19:22:49+05:30",
+    "status": "success"
+  },
+  "chirps": {
+    "latest_observation_date": "2026-09-28",
+    "latest_period_id": "2026-09",
+    "last_successful_update": "2026-10-26T02:44:41+00:00",
+    "status": "success",
+    "qc": {
+      "villages": 954
+    }
+  },
+  "composite": {
+    "formula_version": "cdi-v2026.10",
+    "weights": {
+      "SPI": 0.3,
+      "VHI": 0.2,
+      "VCI": 0.15,
+      "NDVI": 0.15,
+      "EVI": 0.1,
+      "PCI": 0.1
+    },
+    "min_inputs": 3,
+    "spi_reference": "2016-2026 record (gamma fit per village and calendar month)"
+  },
+  "thermal": {
+    "in_active_formula": false,
+    "months": 0,
+    "first": null,
+    "last": null,
+    "last_lst": null,
+    "last_vv": null,
+    "tci_smi_ready": false,
+    "lst_source": "LANDSAT/LC08/C02/T1_L2, LANDSAT/LC09/C02/T1_L2",
+    "soil_moisture_source": "COPERNICUS/S1_GRD (VV backscatter)"
+  },
+  "region": {
+    "district": "Latur",
+    "centroid_lat": 18.3551,
+    "centroid_lon": 76.7729
+  },
+  "synthetic_input": false,
+  "pipeline_run": {
+    "started_at": "2026-10-31T02:52:53+00:00",
+    "ok": true,
+    "steps": [
+      {
+        "name": "formula",
+        "status": "ok",
+        "detail": "cdi-v2026.10 (no thermal inputs)"
+      },
+      {
+        "name": "spi-self-check",
+        "status": "ok",
+        "detail": "SPI1 mae=0.0003, SPI3 mae=0.0003, SPI6 mae=0.0002, SPI12 mae=0.0002"
+      },
+      {
+        "name": "targets",
+        "status": "ok",
+        "detail": "['2026-10']"
+      },
+      {
+        "name": "earth-engine",
+        "status": "ok",
+        "detail": "954 village polygons"
+      },
+      {
+        "name": "chirps 2026-10",
+        "status": "skipped",
+        "detail": "month not fully published"
+      },
+      {
+        "name": "thermal 2026-10",
+        "status": "skipped",
+        "detail": "LST/soil moisture not fully published"
+      },
+      {
+        "name": "rebuild",
+        "status": "skipped",
+        "detail": "no new data"
+      },
+      {
+        "name": "publish-supabase",
+        "status": "ok",
+        "detail": "storage + tables updated"
+      }
+    ],
+    "ingested": [],
+    "finished_at": "2026-10-31T02:53:14+00:00"
+  }
+}

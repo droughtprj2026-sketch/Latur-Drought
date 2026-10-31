@@ -1,0 +1,6 @@
+# Minimal set for the scheduled near-real-time job (no rasterio / geopandas needed).
+numpy>=1.26
+pandas>=2.2
+scipy>=1.12
+pyyaml>=6.0
+earthengine-api>=0.1.400

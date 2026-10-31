@@ -1,88 +1,81 @@
-# Latur Drought Monitoring System
+# Near Real-Time Drought Monitoring System: Latur District, Marathwada
 
-Real-time drought monitoring for Latur District, Marathwada (2016-2026).
-Ingests Sentinel-2 and CHIRPS data via Google Earth Engine, computes
-drought indices (SPI, NDVI, VCI, PCI, NSMI), fuses them into a
-Composite Drought Index (CDI), and serves the results through a
-web dashboard with maps and time-series charts.
+Developed by the **Department of Geoinformatics, Shivaji University**.
+
+**Project team (developers):** Rajnandini U. Kadam, Aishwarya B. Jagtap, Pavan S. Devkar, Shital B. Gurav,
+Trupti U. Jadhav.
+**Project guide:** Dr. Sachin S. Panhalkar, Head of Department, Department of Geography.
+
+Village-level drought monitoring for the 954 revenue villages of Latur district (10 tehsils), 2016 to present.
+Python ingests satellite data from Google Earth Engine, computes drought indices and a transparent composite
+index (CDI), and publishes the results to Supabase. A Next.js dashboard reads them and shows maps, history,
+baselines and an area-of-interest tool.
+
+## Data and indices
+
+| Quantity | Source | Resolution |
+|---|---|---|
+| NDVI, VCI | Copernicus Sentinel-2 L2A (monthly composite) | 10 m |
+| Rainfall, SPI, PCI | UCSB CHIRPS (daily, summed per month) | ~5 km |
+| LST, TCI | Landsat 8 + 9 Collection 2 L2 surface temperature (clear-sky) | 30 m |
+| Soil moisture (relative), SMI | Sentinel-1 VV backscatter | 10 m |
+| VHI | 0.5 VCI + 0.5 TCI (Kogan) | derived |
+| CDI | weighted composite, `config/composite*.yaml` | derived |
+
+Sentinel-2 has no thermal band, which is why LST comes from Landsat. CHIRPS is the rainfall reference.
+Two composite formulas exist: `config/composite.yaml` (`cdi-v2026.10`, default, no thermal inputs) and
+`config/composite_thermal.yaml` (`cdi-v2026.11-thermal`, opt-in). See
+[docs/THERMAL_AND_SOIL_MOISTURE.md](docs/THERMAL_AND_SOIL_MOISTURE.md).
 
 ## Architecture
 
 ```
-GEE (Sentinel-2 + CHIRPS)
+Earth Engine (S2, S1, Landsat, CHIRPS)
+        |  scripts/realtime_update.py   (weekly GitHub Action, incremental)
+        v
+history tables (CSV) --> SPI, VCI/TCI/SMI, CDI --> JSON/GeoJSON artifacts
+        |  scripts/publish_supabase.py
+        v
+Supabase: Storage bucket `drought-data` (public) + Postgres `village_monthly`, `pipeline_runs`
         |
-   Python pipeline  -->  data/processed/  -->  outputs/Dashboard/
-                                                       |
-                                             Node.js API (:4000)
-                                                       |
-                                             Next.js dashboard (:3000)
+        v
+Next.js dashboard (API routes + Leaflet + Recharts) on Vercel
 ```
 
-## Stack
-
-| Layer       | Technology                                |
-| ----------- | ----------------------------------------- |
-| Pipeline    | Python 3.11 (earthengine-api, geopandas)  |
-| Backend     | Node.js 20 (Express, SQLite, Supabase)    |
-| Database    | SQLite (local) + Supabase (Postgres 15)   |
-| Frontend    | Next.js 14 + Leaflet + Recharts + Tailwind |
+Every village is keyed by its polygon `id`. Village names are not unique (three pairs collide).
 
 ## Quick start
 
 ```bash
-cp .env.example .env     # fill in GEE + Supabase credentials
+# dashboard against the bundled data snapshot (no credentials needed)
+cd frontend && npm install && npm run dev          # http://localhost:3000
+
+# tests for the Python pipeline
+pip install -r scripts/requirements-realtime.txt pytest
+python -m pytest scripts/tests -q
 ```
 
-### Run the pipeline
-
-```bash
-cd scripts && pip install -r requirements.txt
-
-# One command runs everything (CHIRPS, Sentinel-2, SPI, CDI, dashboard):
-python scheduler.py
-
-# Or run steps individually:
-python chirps_gee.py --from 2016-01 --to latest
-python pipeline_gee.py --from 2026-01 --to 2026-10
-python composite_cdi.py
-python dashboard_master.py
-```
-
-### Start the stack
-
-```bash
-docker compose up                            # Node API + Postgres
-cd frontend && pnpm install && pnpm dev      # http://localhost:3000
-```
-
-## Project structure
-
-```
-config/              CDI weights + SPI config (composite.yaml, spi.yaml)
-scripts/             Python pipeline (GEE ingest, indices, CDI, dashboard)
-data/vector/         AOI boundaries (district, tehsils, 954 villages)
-data/processed/      Pipeline outputs (CSV, GeoJSON, JSON)
-outputs/Dashboard/   Node.js API reads these files directly
-backend-node/        API server (Express + SQLite)
-frontend/            Next.js 14 dashboard (Leaflet + Recharts)
-```
-
-## CDI formula (v2026.11)
-
-```
-CDI = 0.40*SPI + 0.25*VCI + 0.15*NDVI + 0.10*PCI + 0.10*NSMI
-```
-
-Weights and thresholds are in `config/composite.yaml`. Change the YAML
-and re-run `python scripts/composite_cdi.py` — no code changes needed.
+To read from Supabase instead of the snapshot, copy `.env.example` to `frontend/.env.local` and set the
+`NEXT_PUBLIC_SUPABASE_*` variables. Running the pipeline and deploying: [RUN.md](RUN.md),
+[DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## Documentation
 
-- **DEVELOPER.md** — full architecture, API reference, pipeline details, deployment
-- **AGENTS.md** — rules for coding agents working on this repo
+| File | Contents |
+|---|---|
+| [RUN.md](RUN.md) | commands for the pipeline, backfill, rescoring, publishing |
+| [DEPLOYMENT.md](DEPLOYMENT.md) | Supabase, Earth Engine, GitHub Actions, Vercel setup |
+| [DEVELOPER.md](DEVELOPER.md) | code layout, data model, how to change things |
+| [PIPELINE.md](PIPELINE.md) | what each pipeline stage does and where results land |
+| [docs/THERMAL_AND_SOIL_MOISTURE.md](docs/THERMAL_AND_SOIL_MOISTURE.md) | LST, soil moisture, TCI, VHI method |
+| [docs/DATA_ACCURACY_AUDIT.md](docs/DATA_ACCURACY_AUDIT.md) | verified findings, known data defects, open issues |
+| [baseline_drought_architecture.md](baseline_drought_architecture.md) | baseline / anomaly definitions |
+| [AGENTS.md](AGENTS.md) | rules for coding agents |
+| [CHANGELOG.md](CHANGELOG.md) | what changed |
 
-## Data sources
+## Status and limits
 
-- Sentinel-2 L2A (Copernicus/ESA) via Google Earth Engine
-- CHIRPS monthly precipitation (UCSB Climate Hazards Group)
-- Village boundaries (Revenue Department, Government of Maharashtra)
+Read [docs/DATA_ACCURACY_AUDIT.md](docs/DATA_ACCURACY_AUDIT.md) before using results. In short: the SPI/CDI
+arithmetic is reproducible, but EVI is saturated at source, rainfall is sampled on a ~5 km grid, SPI is
+calibrated on about 10 years, the thermal and soil-moisture indices have not yet been validated against ground
+data, and the live Earth Engine fetch has not been run in this repository's CI.

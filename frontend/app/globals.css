@@ -2,29 +2,60 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Leaflet needs its own CSS; import once at the app root. */
 @import "leaflet/dist/leaflet.css";
 
 :root {
-  --background: #ffffff;
-  --foreground: #0f172a;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0b1220;
-    --foreground: #e5e7eb;
-  }
+  --paper: #f6f1e7;
+  --ink: #1d2b25;
 }
 
 html, body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--paper);
+  color: var(--ink);
   min-height: 100%;
+  font-family: "IBM Plex Sans", system-ui, sans-serif;
+  font-feature-settings: "tnum" 1;
 }
 
-.leaflet-container {
-  width: 100%;
-  height: 100%;
-  background: transparent;
+h1, h2, h3 { font-family: Fraunces, Georgia, serif; }
+
+:focus-visible { outline: 2px solid #0b6e6e; outline-offset: 2px; }
+
+/* ---- Map cursors -------------------------------------------------------
+   Open hand on empty map, pointing hand only over a village polygon,
+   closed hand while dragging. Panes that must not catch events are inert. */
+.leaflet-container { background: #e9e6dc !important; font-family: inherit; cursor: grab; }
+.leaflet-dragging .leaflet-container,
+.leaflet-container.leaflet-drag-target { cursor: grabbing; }
+.leaflet-interactive { cursor: pointer; }
+.leaflet-dragging .leaflet-interactive { cursor: grabbing; }
+.leaflet-pane.leaflet-outlines-pane, .leaflet-aoi-pane { pointer-events: none; }
+
+/* ---- Village tooltip --------------------------------------------------- */
+.village-tip {
+  background: var(--paper) !important;
+  border: 1px solid rgba(29,43,37,.25) !important;
+  border-radius: 6px !important;
+  box-shadow: 0 6px 18px -6px rgba(29,43,37,.4) !important;
+  color: var(--ink) !important;
+  padding: 7px 9px !important;
+  pointer-events: none;
+}
+.village-tip::before { display: none; }
+.vt { min-width: 180px; font-size: 11px; line-height: 1.35; }
+.vt-name { font: 600 14px/1.2 Fraunces, Georgia, serif; }
+.vt-sub { color: rgba(29,43,37,.6); font: 10px "IBM Plex Mono", monospace; margin-bottom: 4px; }
+.vt-row { display: grid; grid-template-columns: 10px auto 1fr; gap: 6px; align-items: center; padding: 1px 0; }
+.vt-row i { width: 10px; height: 10px; border-radius: 2px; border: 1px solid rgba(29,43,37,.3); }
+.vt-row span { text-align: right; font-family: "IBM Plex Mono", monospace; }
+
+.leaflet-control-attribution { background: rgba(246,241,231,.85) !important; font-size: 10px; }
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: #efe9da; }
+::-webkit-scrollbar-thumb { background: #c9bfa6; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #a39b84; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }

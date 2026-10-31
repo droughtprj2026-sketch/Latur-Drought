@@ -63,7 +63,11 @@ def _classify_cdi(v, thresholds):
 
 def load_and_fix_village_data():
     """Load village CSV and fix known computation issues."""
-    df = pd.read_csv(VILLAGE_CSV)
+    import sys
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from common.paths import active_panel
+    from common.village_cdi import _load_cfg
+    df = pd.read_csv(active_panel(_load_cfg()))
     df["date"] = df["date"].astype(str)
     dt = pd.to_datetime(df["date"], format="%Y-%m")
     df["year"] = dt.dt.year

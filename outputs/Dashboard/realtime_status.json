@@ -1,0 +1,51 @@
+{
+  "run_id": "realtime_20261018_132955",
+  "period": "2026-10",
+  "started_at": "2026-10-18T13:29:55+00:00",
+  "dry_run": false,
+  "tests": [
+    {
+      "test": "village_metrics_qc",
+      "result": "PASS",
+      "details": {
+        "status": "passed",
+        "validated_villages": 951,
+        "missing_rate_pct": 0.0
+      }
+    },
+    {
+      "test": "district_summary_qc",
+      "result": "PASS"
+    }
+  ],
+  "steps": [
+    {
+      "step": "ingestion",
+      "status": "success",
+      "inputs": {
+        "ndvi": 0.36,
+        "evi": 0.25,
+        "rain": 12.5,
+        "spi1": -0.25,
+        "spi3": -0.85,
+        "spi6": -0.65,
+        "spi12": -0.4
+      }
+    },
+    {
+      "step": "zonal_analysis",
+      "status": "success",
+      "summary": {
+        "period": "2026-10",
+        "total_villages": 951,
+        "drought_villages": 951,
+        "d2_plus_villages": 947,
+        "avg_cdi": 0.5438,
+        "district_class": "D2"
+      }
+    }
+  ],
+  "status": "success",
+  "finished_at": "2026-10-18T13:30:05+00:00",
+  "elapsed_seconds": 10.02
+}

@@ -8,17 +8,21 @@ authoritative; see `DEVELOPER.md` for the long-form architecture.
 
 ## 1. What this project is
 
-**Real-Time Drought Monitoring — Latur District, Marathwada (2016–2026).**
-A full-stack platform that ingests Sentinel-2 + CHIRPS rasters, computes
-drought indices (SPI, NDVI, EVI, PCI, VHI → **CDI**) in Python, stores
-them in SQLite + Supabase, serves them through a Node.js API, and
-renders maps (Leaflet) and time-series charts (Recharts) in a Next.js
-frontend.
+**Near Real-Time Drought Monitoring System — Latur District, Marathwada.**
+Developed by the Department of Geoinformatics, Shivaji University.
+Python ingests Sentinel-2, Sentinel-1 (soil moisture), Landsat 8/9 (LST) and CHIRPS from
+Earth Engine, computes SPI, NDVI, VCI, TCI, SMI, VHI and the composite
+**CDI**, and publishes to Supabase (Postgres rows + a public Storage
+bucket). A Next.js app (API routes + Leaflet + Recharts) reads from
+Supabase. There is no Go service in this repository and `backend-node/` is
+unused; see `DEVELOPER.md` for the real layout.
 
-Primary language ranking per the owner's standing preference:
+**Data rules:** never hard-code data (months, tehsils, project ids, fallback
+values); never run `--fixture` outside a scratch copy; an input that is not
+published stays empty and the composite drops it. See
+`docs/THERMAL_AND_SOIL_MOISTURE.md` and `docs/DATA_ACCURACY_AUDIT.md`.
 
-1. **Python** — scientific processing, Colab scripts
-2. **TypeScript** — Node.js API server + Next.js frontend
+Languages: **Python** (processing, pipeline), **TypeScript** (Next.js app).
 
 ---
 
@@ -30,11 +34,12 @@ Agents MUST follow these without being reminded:
 2. **Never silently change CDI weights or SPI class thresholds** — they
    are documented in `scripts/common/classify.py`. If you change them,
    update `DEVELOPER.md` in the same commit.
-3. **The Python → Node bridge is `outputs/Dashboard/`** — the Node.js
-   API reads `drought_monitoring_master.csv`, `latest_status.json`,
+3. **The Python → dashboard bridge is `outputs/Dashboard/` and the
+   Supabase publish step** (`scripts/publish_supabase.py`). Any Go service
+   would read `drought_monitoring_master.csv`, `latest_status.json`,
    `data_availability.json`, and `processing_manifest.json`. If you add
    a new column, add it to `scripts/dashboard_master.MASTER_COLUMNS` AND
-   to the SQLite schema.
+   to the SQL migration.
 4. **No learned classifier.** The Random Forest classifier has been
    retired. The final drought class is produced by
    `scripts/composite_cdi.py` from a transparent weighted multi-index
@@ -60,42 +65,9 @@ Agents MUST follow these without being reminded:
 
 ## 3. Repository map
 
-```
-drought-monitoring/
-├── AGENTS.md              ← you are here
-├── DEVELOPER.md           ← full architecture + API reference
-├── README.md
-├── docker-compose.yml     ← local Postgres + Node API
-├── .env.example
-│
-├── config/
-│   ├── composite.yaml     (CDI weights, thresholds, formula_version)
-│   └── spi.yaml           (SPI reference climatology + QC rules)
-│
-├── scripts/               ← Python pipeline
-│   ├── chirps_gee.py      (real-time: CHIRPS monthly from GEE)
-│   ├── pipeline_gee.py    (real-time: Sentinel-2 from GEE → NDVI/EVI/NDMI/NSMI)
-│   ├── spi_from_chirps_csv.py    (real-time: SPI from GEE CHIRPS CSV)
-│   ├── latur_chirps_spi.py       (batch: SPI from local rasters, reference)
-│   ├── latur_sentinel_indices.py (batch: indices from local rasters, reference)
-│   ├── composite_cdi.py          (CDI: transparent weighted multi-index composite)
-│   ├── build_village_indices.py  (village-level zonal stats + CDI scoring)
-│   ├── build_baseline_drought.py (baseline anomalies + GeoJSON export)
-│   ├── dashboard_master.py       (builds outputs/Dashboard/ for Node API)
-│   ├── scheduler.py              (orchestrates incremental pipeline runs)
-│   └── common/{raster.py, classify.py, manifest.py}
-│
-├── data/
-│   ├── raw/               (NEVER COMMIT — large rasters)
-│   ├── vector/            (AOI: district, tehsils, 954 villages)
-│   └── processed/         (pipeline outputs: CSV, GeoJSON, JSON)
-│
-├── outputs/Dashboard/     ← Node API reads from here (the bridge)
-├── backend-node/          ← API server (Express + SQLite)
-└── frontend/              ← Next.js 14 App Router + Leaflet + Recharts
-```
-
----
+See `DEVELOPER.md` section 1 for the annotated layout. In short: `scripts/` (pipeline, `common/`, `tests/`),
+`config/` (composite formulas), `supabase/` (schema + migrations), `frontend/` (Next.js app), `output/` `data/`
+`outputs/` (history tables and processed files), `docs/`.
 
 ## 4. Raw data reality — read before touching processing scripts
 
@@ -142,42 +114,26 @@ cells — not zero.
 
 ---
 
-## 5. How to run it end-to-end
+## 5. How to run it
+
+See `RUN.md`. Minimum before any commit:
 
 ```bash
-# 1. Python processing (populates data/processed/)
-cd scripts
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-python scheduler.py          # runs the full pipeline
-
-# 2. Backend
-cd ../backend-node && pnpm install && pnpm dev   # → :4000
-
-# 3. Frontend
-cd ../frontend && pnpm install && pnpm dev        # → :3000
+pip install -r scripts/requirements-realtime.txt pytest && python -m pytest scripts/tests -q
+cd frontend && npm install && npx tsc --noEmit && npm run build
 ```
-
-Or `docker compose up` from repo root.
-
----
 
 ## 6. Agent-specific hints
 
-### Antigravity
+### Scientific scripts
 
-- Primary agent for scientific scripting (Colab, GEE). When editing
-  `scripts/*.py`, keep the script runnable **standalone in Colab**
-  (upload prompt, Drive copy, inline previews).
-- Antigravity's artifacts belong under `scripts/colab_artifacts/` — do
-  not scatter PNGs into `data/`.
+- Raster batch scripts (`latur_*`, `build_village_indices.py`) may run standalone in Colab; keep them importable
+  without Earth Engine. The weekly job code (`realtime_update.py`, `common/`) must not depend on rasters.
+- Artifacts from Colab belong under `scripts/colab_artifacts/`, not in `data/`.
 
-### OpenCode
+### Web app
 
-- Primary agent for TypeScript. Default to `pnpm test` after any
-  change. Do not bypass CI.
-- When adding a new endpoint, update **both** `DEVELOPER.md` and
-  the typed client in `frontend/lib/api.ts`.
+- Add or change a map layer only in `frontend/lib/metrics.ts`. Run `npx tsc --noEmit` and `npm run build`.
 
 ### Shared conventions for all agents
 
@@ -193,15 +149,18 @@ Or `docker compose up` from repo root.
 
 A change is done when **all** of these are true:
 
-- [ ] `pnpm lint && pnpm test` passes in `backend-node/`.
-- [ ] `pnpm lint && pnpm build` passes in `frontend/`.
-- [ ] `ruff check . && pytest` passes in `scripts/`.
-- [ ] If the output contract changed, `data/processed/json/manifest.json`
-      is regenerated and committed.
-- [ ] `DEVELOPER.md` reflects any new endpoint, env var, or script.
+- [ ] `python -m pytest scripts/tests -q` passes.
+- [ ] `cd frontend && npx tsc --noEmit && npm run build` passes.
+- [ ] No hard-coded data, no synthetic data in committed outputs, no secrets.
+- [ ] If a threshold, weight, palette or formula changed: YAML, `classify.py`, `classify.ts`, `metrics.ts` and the
+      docs are updated together (a test checks parity).
+- [ ] `DEVELOPER.md` / `RUN.md` reflect any new script, env var or workflow.
 
 ---
 
 ## 8. Contact
 
 Project owner: **rajnandinikadam221@gmail.com**
+
+Project team: Rajnandini U. Kadam, Aishwarya B. Jagtap, Pavan S. Devkar, Shital B. Gurav, Trupti U. Jadhav.
+Guide: Dr. Sachin S. Panhalkar, Head of Department, Department of Geography.

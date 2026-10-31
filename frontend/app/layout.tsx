@@ -2,52 +2,61 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import "./globals.css";
 import { LocaleProvider, LocaleSwitcher } from "@/components/i18n/LocaleProvider";
-import { StatusHeader } from "@/components/header/StatusHeader";
 
 export const metadata: Metadata = {
-  title: "Near-Real Time Drought Monitoring System for Latur District",
+  title: "Near Real-Time Drought Monitoring System · Latur",
   description:
-    "Near-real-time drought monitoring for Latur district, Marathwada — Sentinel-2 + CHIRPS, indices NDVI, SPI, VCI, VHI, EVI, PCI; a validated Random Forest classifier; D0–D4 drought scale.",
+    "Near Real-Time Drought Monitoring System for Latur district, Marathwada. Developed by the Department of Geoinformatics, Shivaji University. Guide: Dr. Sachin S. Panhalkar. Village-level Sentinel-2, Sentinel-1, Landsat land-surface temperature and CHIRPS rainfall with a transparent composite index.",
 };
+
+const NAV = [
+  { href: "/", label: "Dashboard" },
+  { href: "/map", label: "Map" },
+  { href: "/timeseries", label: "Village history" },
+  { href: "/compare", label: "Compare" },
+  { href: "/animation", label: "Timelapse" },
+  { href: "/upload", label: "My area" },
+  { href: "/sources", label: "Sources" },
+  { href: "/about", label: "Method" },
+];
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className="font-sans antialiased">
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+        />
+      </head>
+      <body className="flex min-h-screen flex-col bg-paper font-sans text-ink antialiased">
         <LocaleProvider>
-          <header className="border-b border-slate-200 bg-slate-50/80 backdrop-blur
-                             dark:border-slate-800 dark:bg-slate-900/80">
-            <div className="mx-auto max-w-7xl px-4 py-3">
-              <div className="flex flex-wrap items-end justify-between gap-2">
-                <div>
-                  <h1 className="text-xl font-semibold tracking-tight">
-                    Near-Real Time Drought Monitoring System
-                  </h1>
-                  <p className="text-sm text-slate-600 dark:text-slate-300">
-                    Latur District · Marathwada, Maharashtra
-                  </p>
-                </div>
-                <nav className="flex items-center gap-4 text-sm text-slate-600 dark:text-slate-300">
-                  <Link href="/"            className="hover:text-blue-600">Dashboard</Link>
-                  <Link href="/map"         className="hover:text-blue-600">Map</Link>
-                  <Link href="/timeseries"  className="hover:text-blue-600">Time series</Link>
-                  <Link href="/compare"     className="hover:text-blue-600">Compare</Link>
-                  <Link href="/animation"   className="hover:text-blue-600">Animation</Link>
-                  <Link href="/upload"      className="hover:text-blue-600">Upload AOI</Link>
-                  <Link href="/sources"     className="hover:text-blue-600">Sources</Link>
-                  <Link href="/about"       className="hover:text-blue-600">About</Link>
-                  <LocaleSwitcher />
-                </nav>
-              </div>
-              <div className="mt-3 border-t border-slate-200 pt-2 dark:border-slate-800">
-                <StatusHeader />
-              </div>
-            </div>
+          <header className="relative z-[1200] flex h-14 flex-none items-center gap-6 border-b-2 border-ink bg-paper px-4">
+            <Link href="/" className="flex flex-none items-baseline gap-2">
+              <span className="font-display text-[19px] font-semibold leading-none tracking-tight">
+                Near Real-Time Drought Monitoring
+              </span>
+              <span className="hidden font-mono text-[10px] uppercase leading-none tracking-[0.18em] text-ink/60 2xl:inline">
+                Latur · Dept. of Geoinformatics, Shivaji University
+              </span>
+            </Link>
+            <nav aria-label="Primary" className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto whitespace-nowrap text-[13px]">
+              {NAV.map((n) => (
+                <Link key={n.href} href={n.href}
+                  className="rounded px-2.5 py-1.5 text-ink/75 transition-colors hover:bg-ink/5 hover:text-ink">
+                  {n.label}
+                </Link>
+              ))}
+            </nav>
+            <div className="flex-none"><LocaleSwitcher /></div>
           </header>
-          <main className="mx-auto max-w-7xl p-4">{children}</main>
-          <footer className="mx-auto max-w-7xl px-4 py-6 text-xs text-slate-500">
-            © 2026 Latur Drought Monitoring Project · Data: Copernicus Sentinel-2 (ESA),
-            CHIRPS (UCSB CHG) · See <Link href="/sources" className="underline">Sources</Link>.
+          <main className="relative w-full flex-1">{children}</main>
+          <footer className="flex-none border-t border-ink/15 bg-paper px-4 py-1.5 font-mono text-[10px] text-ink/60">
+            Near Real-Time Drought Monitoring System · Department of Geoinformatics, Shivaji University, Kolhapur ·
+            Team: R. U. Kadam, A. B. Jagtap, P. S. Devkar, S. B. Gurav, T. U. Jadhav · Guide: Dr. S. S. Panhalkar ·
+            Data: Copernicus Sentinel-1 and Sentinel-2, USGS Landsat 8/9, UCSB CHIRPS
           </footer>
         </LocaleProvider>
       </body>

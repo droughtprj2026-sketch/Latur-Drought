@@ -1,283 +1,329 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  GeoJSON, LayersControl, MapContainer, ScaleControl, TileLayer,
-  ZoomControl, useMap, Popup,
-} from "react-leaflet";
-import type { Feature, FeatureCollection } from "geojson";
-import type { Layer, PathOptions, LeafletMouseEvent } from "leaflet";
-import { getIndexGeoJSON, getVillageIndices, getStatus, type IndexName } from "@/lib/api";
-import { classifyValue, colorForValue, D_CODES, D_COLORS } from "@/lib/classify";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { MapContainer, TileLayer, useMap } from "react-leaflet";
+import type { FeatureCollection } from "geojson";
 import L from "leaflet";
 import { BASEMAPS } from "./basemaps";
-import { BasemapSwitcher } from "./BasemapSwitcher";
-import { BoundaryLayers } from "./BoundaryLayers";
-import { LegendBar } from "./LegendBar";
-import { MapExportButtons } from "@/components/export/MapExportButtons";
+import { MapLegend } from "./MapLegend";
+import { MapControls } from "./MapChrome";
+import {
+  METRICS, binFor, colorFor, formatValue, NO_DATA_COLOR,
+  type ActiveVillage, type MetricName,
+} from "@/lib/metrics";
+import {
+  activeVillage, loadBaselines, loadDistrict, loadTehsils, loadTimeseries, loadVillages,
+  type Baselines, type TimeseriesById, type VillageFeatureProps,
+} from "@/lib/data";
+
+export type { MetricName };
 
 interface Props {
-  index: IndexName;
-  year: number;
-  month: number;
+  metric: MetricName;
   tehsil?: string;
-  village?: string;
-  latest?: boolean;
+  /** Polygon id of the selected village (ids are unique; names are not). */
+  selectedVillageId?: number | null;
+  currentPeriod: string;
+  onSelectVillage?: (v: ActiveVillage) => void;
+  /** Uploaded area of interest, drawn above the villages. */
+  aoi?: FeatureCollection | null;
+  showSatellite?: boolean;
+  /** Pixels of the right edge covered by a side panel. */
+  rightInset?: number;
+  /** Lets the legend offer "jump to the last month that has data" for sparse layers. */
+  onPeriodChange?: (period: string) => void;
+  /** Slot for page controls pinned top-left. */
+  topLeft?: ReactNode;
+  /** Slot docked bottom, beside the legend (e.g. the timeline). */
+  children?: ReactNode;
 }
 
 const LATUR_CENTER: [number, number] = [18.4088, 76.5604];
-const DEFAULT_ZOOM = 10;
+const INK = "#1d2b25";
 
-function FitToData({ geojson }: { geojson: FeatureCollection | null }) {
-  const map = useMap();
-  useEffect(() => {
-    if (!geojson?.features?.length) return;
-    const L = require("leaflet");
-    const layer = L.geoJSON(geojson);
-    map.fitBounds(layer.getBounds(), { padding: [20, 20] });
-  }, [geojson, map]);
-  return null;
-}
+const esc = (s: unknown) =>
+  String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
 
-function HoverPipe() {
+/** Imperative village layer: built once, restyled in place on every
+ *  metric / month / selection change (no remount of 954 polygons). */
+function VillageLayer(props: {
+  data: FeatureCollection;
+  records: Map<number, ActiveVillage>;
+  metric: MetricName;
+  tehsil: string;
+  selectedId: number | null;
+  onSelect?: (v: ActiveVillage) => void;
+}) {
   const map = useMap();
-  useEffect(() => {
-    const onMove = (e: LeafletMouseEvent) => {
-      window.dispatchEvent(new CustomEvent("latur:latlon", {
-        detail: { lat: e.latlng.lat, lon: e.latlng.lng },
-      }));
+  const layerRef = useRef<L.GeoJSON | null>(null);
+  const hoverRef = useRef<number | null>(null);
+  const live = useRef(props);
+  live.current = props;
+
+  const styleFor = (id: number): L.PathOptions => {
+    const { records, metric, tehsil, selectedId } = live.current;
+    const rec = records.get(id);
+    const spec = METRICS[metric];
+    const inTehsil = tehsil === "All" || rec?.tehsil.toLowerCase() === tehsil.toLowerCase();
+    const selected = selectedId === id;
+    const hovered = hoverRef.current === id;
+    return {
+      fillColor: rec ? colorFor(spec, rec) : NO_DATA_COLOR,
+      fillOpacity: selected || hovered ? 0.95 : inTehsil ? 0.82 : 0.14,
+      color: selected ? INK : hovered ? INK : "#ffffff",
+      weight: selected ? 3 : hovered ? 2 : 0.5,
+      opacity: inTehsil || selected ? 1 : 0.35,
     };
-    map.on("mousemove", onMove);
-    return () => { map.off("mousemove", onMove); };
-  }, [map]);
+  };
+
+  // Build once per geometry.
+  useEffect(() => {
+    if (!map.getPane("villages")) {
+      const pane = map.createPane("villages");
+      pane.style.zIndex = "450";
+    }
+    const layer = L.geoJSON(props.data, {
+      pane: "villages",
+      style: (f) => styleFor(Number(f?.properties?.id)),
+      onEachFeature: (f, l) => {
+        const id = Number(f.properties?.id);
+        l.bindTooltip(
+          () => {
+            const { records, metric } = live.current;
+            const rec = records.get(id);
+            if (!rec) return esc(f.properties?.village);
+            const spec = METRICS[metric];
+            const v = spec.value(rec);
+            const b = binFor(spec, v);
+            const cdiBin = binFor(METRICS.cdi, rec.cdi);
+            return `<div class="vt">
+              <div class="vt-name">${esc(rec.village)}</div>
+              <div class="vt-sub">${esc(rec.tehsil)} tehsil · ${esc(rec.period)}</div>
+              <div class="vt-row"><i style="background:${b ? b.color : NO_DATA_COLOR}"></i>
+                <b>${esc(spec.title.split(" (")[0])}</b>
+                <span>${esc(formatValue(spec, v))}${b ? " · " + esc(b.label) : ""}</span></div>
+              ${metric !== "cdi" ? `<div class="vt-row"><i style="background:${cdiBin ? cdiBin.color : NO_DATA_COLOR}"></i>
+                <b>CDI</b><span>${rec.cdi != null ? rec.cdi.toFixed(3) + " · " + esc(cdiBin?.label) : "no data"}</span></div>` : ""}
+            </div>`;
+          },
+          { sticky: false, direction: "top", offset: [0, -6], opacity: 1, className: "village-tip" },
+        );
+        l.on({
+          mouseover: () => {
+            hoverRef.current = id;
+            (l as L.Path).setStyle(styleFor(id));
+            (l as L.Path).bringToFront();
+          },
+          mouseout: () => {
+            hoverRef.current = null;
+            (l as L.Path).setStyle(styleFor(id));
+          },
+          click: () => {
+            const rec = live.current.records.get(id);
+            if (rec) live.current.onSelect?.(rec);
+          },
+        });
+      },
+    }).addTo(map);
+    layerRef.current = layer;
+    return () => { layer.remove(); layerRef.current = null; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [map, props.data]);
+
+  // Restyle in place.
+  useEffect(() => {
+    const layer = layerRef.current;
+    if (!layer) return;
+    layer.eachLayer((l) => {
+      const id = Number((l as any).feature?.properties?.id);
+      (l as L.Path).setStyle(styleFor(id));
+      if (live.current.selectedId === id) (l as L.Path).bringToFront();
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [props.records, props.metric, props.tehsil, props.selectedId]);
+
   return null;
 }
 
-/** Number formatter with null-safe fallback. */
-function nf(v: number | null | undefined, digits = 2): string {
-  if (v == null || Number.isNaN(v)) return "—";
-  return Number(v).toFixed(digits);
+/** Tehsil + district outlines and the uploaded AOI. Non-interactive so they
+ *  never swallow hover or click events meant for villages. */
+function Overlays({ tehsils, district, aoi }: {
+  tehsils: FeatureCollection | null; district: FeatureCollection | null; aoi: FeatureCollection | null;
+}) {
+  const map = useMap();
+  useEffect(() => {
+    if (!map.getPane("outlines")) {
+      const pane = map.createPane("outlines");
+      pane.style.zIndex = "460";
+      pane.style.pointerEvents = "none";
+    }
+    const made: L.Layer[] = [];
+    if (tehsils) made.push(L.geoJSON(tehsils, { pane: "outlines", interactive: false,
+      style: () => ({ fill: false, color: INK, weight: 1.1, opacity: 0.55, dashArray: "5 4" }) }).addTo(map));
+    if (district) made.push(L.geoJSON(district, { pane: "outlines", interactive: false,
+      style: () => ({ fill: false, color: INK, weight: 2.4, opacity: 0.95 }) }).addTo(map));
+    return () => made.forEach((l) => l.remove());
+  }, [map, tehsils, district]);
+
+  useEffect(() => {
+    if (!aoi?.features?.length) return;
+    if (!map.getPane("aoi")) {
+      const pane = map.createPane("aoi");
+      pane.style.zIndex = "470";
+      pane.style.pointerEvents = "none";
+    }
+    const layer = L.geoJSON(aoi, { pane: "aoi", interactive: false,
+      style: () => ({ color: "#0b6e6e", weight: 3, dashArray: "8 5", fillColor: "#0b6e6e", fillOpacity: 0.08 }) }).addTo(map);
+    const b = layer.getBounds();
+    if (b.isValid()) map.fitBounds(b, { padding: [50, 50], maxZoom: 13 });
+    return () => { layer.remove(); };
+  }, [map, aoi]);
+  return null;
 }
 
-function classColor(code: string | null | undefined): string {
-  if (!code) return "#e5e7eb";
-  const idx = D_CODES.indexOf(code as any);
-  return idx >= 0 ? D_COLORS[idx] : "#e5e7eb";
-}
-
-function buildPopupHtml(f: Feature, effective: { y: number; m: number }): string {
-  const p = f.properties || {};
-  const period = `${effective.y}-${String(effective.m).padStart(2, "0")}`;
-  const cdi = p.CDI ?? p.composite_drought_score ?? p.value;
-  const cdiClass = p.CDI_class ?? p.composite_drought_class ?? "";
-  const droughtMonth = p.drought_month ?? false;
-  const severity = p.drought_severity ?? "";
-
-  return `
-    <div class="text-xs font-sans leading-relaxed">
-      <div class="font-bold text-slate-900 dark:text-slate-100 mb-1">
-        ${p.village || p.name || "Village"} · ${p.tehsil || ""}
-      </div>
-      <div class="text-[10px] text-slate-500 mb-2">${period}</div>
-      <div class="flex gap-2 mb-2">
-        <span class="rounded px-2 py-0.5 text-[10px] font-bold"
-              style="background:${classColor(cdiClass)};color:#fff">
-          ${cdiClass || "—"}
-        </span>
-        ${droughtMonth ? '<span class="rounded px-2 py-0.5 text-[10px] font-bold text-white bg-red-600">DROUGHT MONTH</span>' : ''}
-      </div>
-      <div class="grid grid-cols-2 gap-1 text-[10px]">
-        <div><span class="text-slate-500">CDI:</span> <span class="font-mono">${nf(cdi, 3)}</span></div>
-        <div><span class="text-slate-500">NDVI:</span> <span class="font-mono">${nf(p.NDVI, 3)}</span></div>
-        <div><span class="text-slate-500">EVI:</span> <span class="font-mono">${nf(p.EVI, 3)}</span></div>
-        <div><span class="text-slate-500">VCI:</span> <span class="font-mono">${nf(p.VCI, 3)}</span></div>
-        <div><span class="text-slate-500">VHI:</span> <span class="font-mono">${nf(p.VHI, 3)}</span></div>
-        <div><span class="text-slate-500">PCI:</span> <span class="font-mono">${nf(p.PCI, 3)}</span></div>
-        <div><span class="text-slate-500">SPI-3:</span> <span class="font-mono">${nf(p.SPI3, 3)}</span></div>
-        <div><span class="text-slate-500">Rain:</span> <span class="font-mono">${nf(p.Rain_mm, 2)} mm</span></div>
-      </div>
-      ${severity ? `<div class="mt-1 text-[10px] text-slate-500">Severity: ${severity}</div>` : ""}
-    </div>
-  `;
+function Framing({ data, tehsil, selectedId }: {
+  data: FeatureCollection | null; tehsil: string; selectedId: number | null;
+}) {
+  const map = useMap();
+  // Reserve room for the controls (top), the legend/timeline dock (bottom) and
+  // the basemap/zoom stack (right) so framed polygons are never hidden behind them.
+  const pad = { paddingTopLeft: L.point(24, 64), paddingBottomRight: L.point(80, 190) };
+  useEffect(() => {
+    if (!data) return;
+    const fit = (g: any, maxZoom: number) => map.fitBounds(L.geoJSON(g).getBounds(), { ...pad, maxZoom });
+    if (selectedId != null) {
+      const f = data.features.find((x) => Number(x.properties?.id) === selectedId);
+      if (f) return void fit(f, 13);
+    }
+    if (tehsil !== "All") {
+      const fs = data.features.filter(
+        (x) => String(x.properties?.tehsil).toLowerCase() === tehsil.toLowerCase());
+      if (fs.length) return void fit({ type: "FeatureCollection", features: fs }, 12);
+    }
+    fit(data, 11);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, tehsil, selectedId, map]);
+  return null;
 }
 
 export default function LaturMap({
-  index, year, month, tehsil = "All", village = "", latest = false,
+  metric = "cdi", tehsil = "All", selectedVillageId = null, currentPeriod,
+  onSelectVillage, aoi = null, showSatellite = false, rightInset = 0, onPeriodChange, topLeft, children,
 }: Props) {
-  const rootRef = useRef<HTMLDivElement>(null);
-  const [basemapId, setBasemapId] = useState<string>("carto-light");
-  const [pixels, setPixels] = useState<FeatureCollection | null>(null);
-  const [effective, setEffective] = useState<{ y: number; m: number }>({ y: year, m: month });
-  const [err, setErr] = useState<string | null>(null);
-  const [isFull, setFull] = useState(false);
-  const [selectedVillage, setSelectedVillage] = useState<Feature | null>(null);
-
-  const basemap = useMemo(
-    () => BASEMAPS.find((b) => b.id === basemapId) ?? BASEMAPS[0],
-    [basemapId]
-  );
+  const [basemapId, setBasemapId] = useState("osm");
+  const [villages, setVillages] = useState<FeatureCollection | null>(null);
+  const [tehsils, setTehsils] = useState<FeatureCollection | null>(null);
+  const [district, setDistrict] = useState<FeatureCollection | null>(null);
+  const [ts, setTs] = useState<TimeseriesById | null>(null);
+  const [baselines, setBaselines] = useState<Baselines | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    setErr(null); setPixels(null); setSelectedVillage(null);
-    const resolve = async () => {
-      if (!latest) return { y: year, m: month };
-      try {
-        const s = await getStatus();
-        const pid = s.sentinel2?.latest_period_id ?? s.chirps?.latest_period_id;
-        if (!pid) return { y: year, m: month };
-        const [yy, mm] = pid.split("-");
-        return { y: Number(yy), m: Number(mm) };
-      } catch { return { y: year, m: month }; }
-    };
-    resolve().then((e) => {
-      setEffective(e);
-      return getVillageIndices(index, e.y, e.m);
-    }).then(setPixels).catch((e) => setErr(String(e)));
-  }, [index, year, month, latest]);
+    let alive = true;
+    Promise.all([loadVillages(), loadTimeseries(), loadBaselines()])
+      .then(([v, t, b]) => { if (alive) { setVillages(v); setTs(t); setBaselines(b); } })
+      .catch((e) => alive && setError(String(e)));
+    loadTehsils().then((d) => alive && setTehsils(d)).catch(() => null);
+    loadDistrict().then((d) => alive && setDistrict(d)).catch(() => null);
+    return () => { alive = false; };
+  }, []);
 
-  const styleFor = (f?: Feature): PathOptions => {
-    const v = f?.properties?.value as number | undefined;
-    return { color: "#111", weight: 0.15, fillColor: colorForValue(v, index), fillOpacity: 0.82 };
-  };
+  const records = useMemo(() => {
+    const m = new Map<number, ActiveVillage>();
+    if (!villages) return m;
+    for (const f of villages.features) {
+      const p = f.properties as unknown as VillageFeatureProps;
+      m.set(Number(p.id), activeVillage(p, ts, baselines, currentPeriod));
+    }
+    return m;
+  }, [villages, ts, baselines, currentPeriod]);
 
-  const pointToLayer = (f: Feature, latlng: L.LatLng) => {
-    const p = f.properties || {};
-    const score = p.score as number | undefined;
-    const cdiClass = p.cdi_class || p.CDI_class || p.composite_drought_class || "";
-    const color = classColor(cdiClass);
-    const radius = score != null && score >= 0 ? 4 + score * 6 : 5;
-    return L.circleMarker(latlng, {
-      radius,
-      fillColor: color,
-      color: "#222",
-      weight: 1,
-      fillOpacity: 0.85,
+  const spec = METRICS[metric];
+  const legend = useMemo(() => {
+    const counts = spec.bins.map(() => 0);
+    let noData = 0, total = 0;
+    records.forEach((r) => {
+      if (tehsil !== "All" && r.tehsil.toLowerCase() !== tehsil.toLowerCase()) return;
+      total++;
+      const b = binFor(spec, spec.value(r));
+      if (!b) noData++; else counts[spec.bins.indexOf(b)]++;
     });
-  };
+    return { counts, noData, total };
+  }, [records, spec, tehsil]);
 
-  /** Build a rich popup showing ALL indices for the clicked village. */
-  const onEach = (f: Feature, layer: Layer) => {
-    const p = f.properties || {};
-    const period = `${effective.y}-${String(effective.m).padStart(2, "0")}`;
-    const cdi = p.CDI ?? p.composite_drought_score ?? p.value;
-    const cdiClass = p.CDI_class ?? p.composite_drought_class ?? "";
-    const droughtMonth = p.drought_month ?? false;
-    const severity = p.drought_severity ?? "";
+  // Newest month in which at least half the villages carry a value for this layer.
+  const lastWithData = useMemo(() => {
+    if (!ts || !villages || legend.total === 0 || legend.noData / legend.total <= 0.5) return null;
+    const counts = new Map<string, number>();
+    for (const pts of Object.values(ts)) {
+      for (const pt of pts) {
+        const rec = { ...pt, id: 0, village: "", tehsil: "", period: pt.p } as unknown as ActiveVillage;
+        // baseline layers need the village record; only plain layers are scanned here
+        if (spec.group === "Baseline") return null;
+        if (spec.value(rec) != null) counts.set(pt.p, (counts.get(pt.p) ?? 0) + 1);
+      }
+    }
+    const ok = [...counts].filter(([, n]) => n >= 0.5 * Object.keys(ts).length).map(([p]) => p).sort();
+    return ok.length ? ok[ok.length - 1] : null;
+  }, [ts, villages, spec, legend]);
 
-    const html = `
-      <div class="text-xs font-sans leading-relaxed">
-        <div class="font-bold text-slate-900 dark:text-slate-100 mb-1">
-          ${p.village || p.name || "Village"} · ${p.tehsil || ""}
-        </div>
-        <div class="text-[10px] text-slate-500 mb-2">${period}</div>
-        <div class="flex gap-2 mb-2">
-          <span class="rounded px-2 py-0.5 text-[10px] font-bold"
-                style="background:${classColor(cdiClass)};color:#fff">
-            ${cdiClass || "—"}
-          </span>
-          ${droughtMonth ? '<span class="rounded px-2 py-0.5 text-[10px] font-bold text-white bg-red-600">DROUGHT MONTH</span>' : ''}
-        </div>
-        <div class="grid grid-cols-2 gap-1 text-[10px]">
-          <div><span class="text-slate-500">CDI:</span> <span class="font-mono">${nf(cdi, 3)}</span></div>
-          <div><span class="text-slate-500">NDVI:</span> <span class="font-mono">${nf(p.NDVI, 3)}</span></div>
-          <div><span class="text-slate-500">EVI:</span> <span class="font-mono">${nf(p.EVI, 3)}</span></div>
-          <div><span class="text-slate-500">VCI:</span> <span class="font-mono">${nf(p.VCI, 3)}</span></div>
-          <div><span class="text-slate-500">VHI:</span> <span class="font-mono">${nf(p.VHI, 3)}</span></div>
-          <div><span class="text-slate-500">PCI:</span> <span class="font-mono">${nf(p.PCI, 3)}</span></div>
-          <div><span class="text-slate-500">SPI-3:</span> <span class="font-mono">${nf(p.SPI3, 3)}</span></div>
-          <div><span class="text-slate-500">Rain:</span> <span class="font-mono">${nf(p.Rain_mm, 2)} mm</span></div>
-        </div>
-        <div class="mt-1 text-[10px] text-slate-500">
-          Click to keep this info open
-        </div>
-      </div>
-    `;
-    layer.bindPopup(html);
-    layer.on("click", () => setSelectedVillage(f));
-  };
-
-  const toggleFullscreen = () => {
-    setFull((f) => !f);
-  };
+  const basemap = BASEMAPS.find((b) => b.id === basemapId) ?? BASEMAPS[0];
 
   return (
-    <div ref={rootRef}
-         className={isFull
-           ? "fixed inset-0 z-[1000] bg-white dark:bg-slate-900"
-           : "relative h-full w-full"}>
-      <MapContainer center={LATUR_CENTER} zoom={DEFAULT_ZOOM} minZoom={7}
-                    maxZoom={basemap.maxZoom ?? 18} zoomControl={false}
-                    scrollWheelZoom className="h-full w-full">
-        <TileLayer key={basemap.id} url={basemap.url}
-                   attribution={basemap.attribution}
-                   maxZoom={basemap.maxZoom ?? 19} />
-
-        <LayersControl position="bottomright" collapsed={false}>
-          <LayersControl.Overlay name="District boundary" checked>
-            <GeoJSONToggleWrapper child={<BoundaryLayers showDistrict showTehsils={false} />} />
-          </LayersControl.Overlay>
-          <LayersControl.Overlay name="Tehsil boundary" checked>
-            <GeoJSONToggleWrapper child={<BoundaryLayers showDistrict={false} showTehsils />} />
-          </LayersControl.Overlay>
-          <LayersControl.Overlay name="Villages">
-            <GeoJSONToggleWrapper child={<BoundaryLayers showDistrict={false} showTehsils={false} showVillages />} />
-          </LayersControl.Overlay>
-        </LayersControl>
-
-        {pixels && (
-          <GeoJSON
-            key={`${index}-${effective.y}-${effective.m}-${tehsil}-${village}`}
-            data={pixels}
-            pointToLayer={pointToLayer}
-            style={styleFor}
-            onEachFeature={onEach}
-          />
-        )}
-
-        {selectedVillage && (
-          <Popup position={[selectedVillage.properties?.lat || 18.4088, selectedVillage.properties?.lon || 76.5604]}>
-            <div className="p-2">
-              <button onClick={() => setSelectedVillage(null)}
-                      className="text-[10px] text-slate-500 hover:text-slate-900 mb-1">✕ Close</button>
-              <div dangerouslySetInnerHTML={{ __html: buildPopupHtml(selectedVillage, effective) }} />
-            </div>
-          </Popup>
-        )}
-
-        <ZoomControl position="topright" />
-        <ScaleControl position="bottomleft" imperial={false} />
-        <FitToData geojson={pixels} />
-        <HoverPipe />
-      </MapContainer>
-
-      <BasemapSwitcher value={basemapId} onChange={setBasemapId} />
-      <LegendBar />
-
-      <button onClick={toggleFullscreen}
-              aria-label={isFull ? "Exit fullscreen" : "Enter fullscreen"}
-              className="absolute right-3 top-32 z-[400] rounded bg-white/90 px-2 py-1 text-xs
-                         shadow dark:bg-slate-900/90">
-        {isFull ? "Exit" : "⛶"}
-      </button>
-
-      <MapExportButtons index={index} year={effective.y} month={effective.m}
-                        getMapRoot={() => rootRef.current} />
-
-      <div className="absolute bottom-14 left-3 rounded bg-white/90 px-2 py-1 text-xs shadow
-                      dark:bg-slate-900/90">
-        {index.toUpperCase()} · {effective.y}-{String(effective.m).padStart(2, "0")}
-        {latest && <span className="ml-2 text-emerald-700 dark:text-emerald-300">(latest)</span>}
-      </div>
-
-      {err && (
-        <div className="absolute bottom-14 right-3 rounded bg-red-50 px-2 py-1 text-xs text-red-700 shadow">
-          {err}
+    <div className="relative h-full w-full overflow-hidden bg-[#e9e6dc]">
+      {!villages && !error && (
+        <div className="absolute inset-0 z-[1000] flex items-center justify-center bg-paper/80">
+          <p className="font-mono text-xs text-ink/70">Loading village polygons…</p>
         </div>
       )}
+      {error && (
+        <div className="absolute inset-x-0 top-16 z-[1000] mx-auto w-fit rounded border border-d4/40 bg-paper px-3 py-2 text-xs text-d4 shadow-card">
+          Could not load map data: {error}
+        </div>
+      )}
+
+      <MapContainer
+        center={LATUR_CENTER} zoom={9} minZoom={8} maxZoom={15}
+        zoomControl={false} scrollWheelZoom className="h-full w-full"
+      >
+        <TileLayer key={basemap.id} url={basemap.url} attribution={basemap.attribution} maxZoom={basemap.maxZoom ?? 19} />
+        {showSatellite && (
+          <TileLayer
+            url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+            opacity={0.55}
+            attribution="Imagery &copy; Esri, Maxar, Earthstar Geographics"
+          />
+        )}
+        {villages && (
+          <VillageLayer
+            data={villages} records={records} metric={metric} tehsil={tehsil}
+            selectedId={selectedVillageId} onSelect={onSelectVillage}
+          />
+        )}
+        <Overlays tehsils={tehsils} district={district} aoi={aoi} />
+        <Framing data={villages} tehsil={tehsil} selectedId={selectedVillageId} />
+        <MapControls basemapId={basemapId} onBasemap={setBasemapId} rightInset={rightInset} />
+      </MapContainer>
+
+      {topLeft && (
+        <div className="pointer-events-none absolute left-3 top-3 z-[600] max-w-[calc(100%-250px-24px)]">
+          <div className="pointer-events-auto">{topLeft}</div>
+        </div>
+      )}
+
+      {/* Bottom dock: legend and timeline sit side by side, never on top of each other. */}
+      <div
+        className="pointer-events-none absolute bottom-7 left-3 z-[600] flex flex-col items-stretch gap-3 transition-[right] duration-200 md:flex-row md:items-end"
+        style={{ right: 12 + rightInset }}
+      >
+        <MapLegend
+          spec={spec} counts={legend.counts} noData={legend.noData} total={legend.total}
+          period={currentPeriod} tehsilLabel={tehsil === "All" ? "all tehsils" : tehsil}
+          jumpTo={lastWithData && onPeriodChange ? { period: lastWithData, go: () => onPeriodChange(lastWithData) } : null}
+        />
+        {children && <div className="pointer-events-auto min-w-0 flex-1">{children}</div>}
+      </div>
     </div>
   );
-}
-
-function GeoJSONToggleWrapper({ child }: { child: React.ReactNode }) {
-  return <>{child}</>;
 }
