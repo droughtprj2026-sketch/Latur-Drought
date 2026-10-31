@@ -82,12 +82,24 @@ def build_master() -> pd.DataFrame:
     spi = _opt_csv("SPI_Latur_district_monthly.csv")
     sen = _opt_csv("sentinel_Latur_district_monthly.csv")
     cdi = _opt_csv("CDI_Latur_district_monthly.csv")
-    rain_t = _opt_csv("chirps_tehsil_monthly.csv")
+    rain_t = _opt_csv("chirps_village_monthly.csv")
     components = _components_lookup()
     areas = _tehsil_areas()
 
     sen_last = manifest.latest_period(OUT, "sentinel") or {}
     chirps_last = manifest.latest_period(OUT, "chirps") or {}
+
+    def _idx(src, col, period_val):
+        """Read an index from sentinel CSV, falling back to CDI CSV."""
+        if not src.empty and col in src.columns:
+            v = src.loc[src["date"] == period_val, col]
+            if not v.empty and pd.notna(v.mean()):
+                return v.mean()
+        if not cdi.empty and col in cdi.columns:
+            v = cdi.loc[cdi["date"] == period_val, col]
+            if not v.empty and pd.notna(v.mean()):
+                return v.mean()
+        return None
 
     rows: list[dict] = []
     for _, r in spi.iterrows():
@@ -110,11 +122,11 @@ def build_master() -> pd.DataFrame:
             "SPI_1":  r.get("SPI1"),  "SPI_3":  r.get("SPI3"),
             "SPI_6":  r.get("SPI6"),  "SPI_12": r.get("SPI12"),
             "SPI_reference_period": os.environ.get("SPI_REFERENCE_PERIOD", "1991-2020"),
-            "NDVI": sen.loc[sen["date"] == period, "NDVI"].mean() if not sen.empty else None,
-            "EVI":  sen.loc[sen["date"] == period, "EVI"].mean()  if not sen.empty else None,
-            "VCI":  sen.loc[sen["date"] == period, "VCI"].mean()  if not sen.empty else None,
-            "VHI":  sen.loc[sen["date"] == period, "VHI"].mean()  if not sen.empty else None,
-            "NSMI": sen.loc[sen["date"] == period, "NSMI"].mean() if not sen.empty and "NSMI" in sen.columns else None,
+            "NDVI": _idx(sen, "NDVI", period),
+            "EVI":  _idx(sen, "EVI", period),
+            "VCI":  _idx(sen, "VCI", period),
+            "VHI":  _idx(sen, "VHI", period),
+            "NSMI": _idx(sen, "NSMI", period),
             "PCI":  None,
             "composite_drought_score": cdi_val,
             "composite_drought_class": cdi_cls,
@@ -134,7 +146,7 @@ def build_master() -> pd.DataFrame:
             row["total_polygon_area_km2"] = area
             rt = rain_t[(rain_t["period"] == period) & (rain_t["tehsil"] == tehsil)]
             if not rt.empty:
-                row["monthly_rainfall_mm"] = round(float(rt["rain_mm"].iloc[0]), 2)
+                row["monthly_rainfall_mm"] = round(float(rt["rain_mm"].mean()), 2)
             # Drought area and percentage from the D-code (coarse until
             # per-pixel is wired in; the frontend reads this field as-is).
             if cdi_cls in ("D0", "D1", "D2", "D3", "D4"):

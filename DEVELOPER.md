@@ -49,7 +49,7 @@ Supabase + SQLite data layer.
                                    ▼
    ┌───────────────────────────────────────────────────────────┐
    │  FRONTEND  (Next.js 14, App Router)                       │
-   │  • Leaflet choropleth map (pixel / tehsil polygons)       │
+   │  • Leaflet choropleth map (village / tehsil polygons)      │
    │  • Recharts time-series panels (SPI, NDVI, CDI)           │
    │  • Year / month / index selector                          │
    └───────────────────────────────────────────────────────────┘
@@ -329,7 +329,7 @@ create index on tehsils using gist (geom);
 -- District-mean monthly index time series (feeds charts).
 create table monthly_index (
   id          bigserial primary key,
-  index_name  text not null,            -- 'SPI1','SPI3','NDVI','VHI','PCI','EVI','CDI'
+  index_name  text not null,            -- 'SPI1','SPI3','NDVI','EVI','VCI','VHI','NSMI','PCI','CDI'
   year        int  not null,
   month       int  not null check (month between 1 and 12),
   value       double precision,
@@ -337,6 +337,21 @@ create table monthly_index (
   pct_area_dry double precision,
   unique (index_name, year, month)
 );
+
+-- Village-level monthly index values (real-time GEE zonal stats).
+-- 954 villages x indices x months. Pushed by pipeline_gee.py and chirps_gee.py.
+create table village_monthly_index (
+  id          bigserial primary key,
+  index_name  text not null,            -- 'ndvi','evi','ndmi','nsmi','rain_mm'
+  year        int  not null,
+  month       int  not null check (month between 1 and 12),
+  village     text not null default '',
+  tehsil      text not null default '',
+  value       double precision,
+  class_label text,
+  unique (index_name, year, month, village)
+);
+create index on village_monthly_index (tehsil, year, month);
 
 -- Per-pixel index values (loaded from processed GeoJSON).
 create table pixel_index (
@@ -357,13 +372,15 @@ create index on pixel_index using gist (geom);
 ### 6.2 Row-level security
 
 ```sql
-alter table tehsils         enable row level security;
-alter table monthly_index   enable row level security;
-alter table pixel_index     enable row level security;
+alter table tehsils                enable row level security;
+alter table monthly_index          enable row level security;
+alter table village_monthly_index  enable row level security;
+alter table pixel_index            enable row level security;
 
-create policy "public read" on monthly_index  for select using (true);
-create policy "public read" on tehsils        for select using (true);
-create policy "public read" on pixel_index    for select using (true);
+create policy "public read" on monthly_index          for select using (true);
+create policy "public read" on village_monthly_index   for select using (true);
+create policy "public read" on tehsils                 for select using (true);
+create policy "public read" on pixel_index             for select using (true);
 -- writes are limited to the service_role key (used only by the ingest job).
 ```
 

@@ -124,6 +124,7 @@ apiRouter.get("/manifest", (_req: Request, res: Response) => {
       evi:   { source: "Sentinel-2 L2A", unit: "0..1", years },
       vci:   { source: "Sentinel-2 L2A", unit: "%", years },
       vhi:   { source: "VCI + TCI proxy", unit: "%", years },
+      nsmi:  { source: "Sentinel-2 L2A (SWIR)", unit: "0..1", years },
       pci:   { source: "CHIRPS (normalized)", unit: "0..1", years },
       cdi:   { source: "Composite Drought Index", unit: "0..1", years },
     },
@@ -458,6 +459,7 @@ apiRouter.get("/master", (req: Request, res: Response) => {
       else if (k === "evi") obj["EVI"] = v !== null ? String(v) : "";
       else if (k === "vci") obj["VCI"] = v !== null ? String(v) : "";
       else if (k === "vhi") obj["VHI"] = v !== null ? String(v) : "";
+      else if (k === "nsmi") obj["NSMI"] = v !== null ? String(v) : "";
       else if (k === "pci") obj["PCI"] = v !== null ? String(v) : "";
       else obj[k] = v !== null ? String(v) : "";
     }
@@ -505,6 +507,7 @@ apiRouter.get("/latest", (req: Request, res: Response) => {
     else if (k === "evi") formatted["EVI"] = v !== null ? String(v) : "";
     else if (k === "vci") formatted["VCI"] = v !== null ? String(v) : "";
     else if (k === "vhi") formatted["VHI"] = v !== null ? String(v) : "";
+    else if (k === "nsmi") formatted["NSMI"] = v !== null ? String(v) : "";
     else if (k === "pci") formatted["PCI"] = v !== null ? String(v) : "";
     else formatted[k] = v !== null ? String(v) : "";
   }

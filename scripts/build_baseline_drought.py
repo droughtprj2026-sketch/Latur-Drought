@@ -282,6 +282,57 @@ def generate_village_geojson(df, latest_period, villages_src, out_geojson, out_j
     return latest
 
 
+def _ensure_schema(cur):
+    """Create tables if they do not exist, and add missing columns."""
+    cur.execute("""CREATE TABLE IF NOT EXISTS master_row (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        district TEXT,
+        tehsil TEXT NOT NULL,
+        village TEXT NOT NULL DEFAULT '',
+        observation_period TEXT NOT NULL,
+        year INTEGER,
+        month INTEGER,
+        monthly_rainfall_mm REAL,
+        chirps_data_through TEXT,
+        spi_1 REAL, spi_3 REAL, spi_6 REAL, spi_12 REAL,
+        spi_reference_period TEXT,
+        ndvi REAL, evi REAL, vci REAL, vhi REAL, nsmi REAL, pci REAL,
+        composite_drought_score REAL,
+        composite_drought_class TEXT,
+        component_contributions TEXT,
+        composite_formula_version TEXT,
+        drought_area_km2 REAL,
+        drought_percentage REAL,
+        total_polygon_area_km2 REAL,
+        sentinel2_observation_date TEXT,
+        sentinel2_cloud_percentage REAL,
+        data_quality_status TEXT,
+        processing_timestamp TEXT,
+        processing_run_id TEXT,
+        lon REAL, lat REAL,
+        UNIQUE(tehsil, village, observation_period)
+    )""")
+    cur.execute("""CREATE TABLE IF NOT EXISTS monthly_index (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        index_name TEXT NOT NULL,
+        year INTEGER NOT NULL,
+        month INTEGER NOT NULL CHECK (month BETWEEN 1 AND 12),
+        value REAL,
+        class_label TEXT,
+        pct_area_dry REAL,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(index_name, year, month)
+    )""")
+    cur.execute("""CREATE TABLE IF NOT EXISTS tehsils (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        geom TEXT
+    )""")
+    existing = {r[1] for r in cur.execute("PRAGMA table_info(master_row)").fetchall()}
+    if "nsmi" not in existing:
+        cur.execute("ALTER TABLE master_row ADD COLUMN nsmi REAL")
+
+
 def load_into_sqlite(df, latest_df):
     """Load all data into SQLite drought.db."""
     print("\n[SQLite] loading into drought.db ...")
@@ -289,7 +340,7 @@ def load_into_sqlite(df, latest_df):
     cols = [
         "district", "tehsil", "village", "observation_period", "year", "month",
         "monthly_rainfall_mm", "chirps_data_through", "spi_1", "spi_3", "spi_6",
-        "spi_12", "spi_reference_period", "ndvi", "evi", "vci", "vhi", "pci",
+        "spi_12", "spi_reference_period", "ndvi", "evi", "vci", "vhi", "nsmi", "pci",
         "composite_drought_score", "composite_drought_class",
         "component_contributions", "composite_formula_version",
         "drought_area_km2", "drought_percentage", "total_polygon_area_km2",
@@ -308,6 +359,7 @@ def load_into_sqlite(df, latest_df):
 
     con = sqlite3.connect(DB_PATH)
     cur = con.cursor()
+    _ensure_schema(cur)
 
     # Build rows from full df
     now = _ts()
@@ -338,6 +390,7 @@ def load_into_sqlite(df, latest_df):
             "evi": _num(r.get("EVI")),
             "vci": _num(r.get("VCI")),
             "vhi": _num(r.get("VHI")),
+            "nsmi": _num(r.get("NSMI")),
             "pci": _num(r.get("PCI")),
             "composite_drought_score": cdi,
             "composite_drought_class": cdi_cls if pd.notna(cdi_cls) else None,
@@ -363,7 +416,8 @@ def load_into_sqlite(df, latest_df):
     for (year, month), g in df.groupby(["year", "month"]):
         for iname, col in {
             "spi1": "SPI1", "spi3": "SPI3", "spi6": "SPI6", "spi12": "SPI12",
-            "ndvi": "NDVI", "evi": "EVI", "vci": "VCI", "vhi": "VHI", "pci": "PCI",
+            "ndvi": "NDVI", "evi": "EVI", "vci": "VCI", "vhi": "VHI",
+            "nsmi": "NSMI", "pci": "PCI",
             "cdi": "composite_drought_score",
         }.items():
             val = _num(g[col].mean())

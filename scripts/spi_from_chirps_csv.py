@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-Compute SPI-1/3/6/12 from the tehsil-level CHIRPS CSV that chirps_gee.py
+Compute SPI-1/3/6/12 from the village-level CHIRPS CSV that chirps_gee.py
 produces. This bridges the real-time GEE path (zonal rainfall) to the
 CDI composite, which needs SPI.
 
-Reads:  data/processed/csv/chirps_tehsil_monthly.csv
-Writes: data/processed/csv/SPI_chirps_district_monthly.csv
+Reads:  data/processed/csv/chirps_village_monthly.csv
+Writes: data/processed/csv/SPI_Latur_district_monthly.csv
 
 The output matches the column format that composite_cdi.py expects so it
 can supplement the village-level SPI when local rasters are unavailable.
@@ -28,8 +28,8 @@ ROOT = HERE.parent
 OUT = Path(os.environ.get("OUTPUT_DIR", ROOT / "data" / "processed"))
 SPI_SCALES = (1, 3, 6, 12)
 
-CHIRPS_CSV = OUT / "csv" / "chirps_tehsil_monthly.csv"
-OUT_CSV = OUT / "csv" / "SPI_chirps_district_monthly.csv"
+CHIRPS_CSV = OUT / "csv" / "chirps_village_monthly.csv"
+OUT_CSV = OUT / "csv" / "SPI_Latur_district_monthly.csv"
 
 
 def _rolling_sum(series: pd.Series, k: int) -> pd.Series:
@@ -90,20 +90,21 @@ def main():
         print("  Run chirps_gee.py first to fetch rainfall from GEE.")
         return
 
-    print("[1] reading CHIRPS tehsil monthly rainfall ...")
+    print("[1] reading CHIRPS village monthly rainfall ...")
     df = pd.read_csv(CHIRPS_CSV)
-    print(f"  {len(df)} rows, tehsils: {sorted(df['tehsil'].unique())}")
+    n_villages = df["village"].nunique() if "village" in df.columns else 0
+    print(f"  {len(df)} rows, {n_villages} villages")
 
-    print("[2] computing district-mean monthly rainfall ...")
+    print("[2] computing district-mean monthly rainfall (averaging all villages) ...")
     district = (df.groupby("period")["rain_mm"]
                   .mean()
                   .reset_index()
-                  .rename(columns={"rain_mm": "rain_mean"})
+                  .rename(columns={"rain_mm": "rain_mm_mean"})
                   .sort_values("period"))
     district = district.set_index("period")
 
     print("[3] computing SPI-1/3/6/12 from district-mean rainfall ...")
-    rain = district["rain_mean"]
+    rain = district["rain_mm_mean"]
     for k in SPI_SCALES:
         col = f"SPI{k}"
         district[col] = compute_spi_for_series(rain, k)
@@ -119,7 +120,7 @@ def main():
     out = district.reset_index().rename(columns={"period": "date"})
     out["year"] = out["date"].str[:4].astype(int)
     out["month"] = out["date"].str[5:7].astype(int)
-    cols = ["date", "year", "month", "rain_mean",
+    cols = ["date", "year", "month", "rain_mm_mean",
             "SPI1", "SPI3", "SPI6", "SPI12"]
     out = out[[c for c in cols if c in out.columns]]
     OUT_CSV.parent.mkdir(parents=True, exist_ok=True)
