@@ -66,7 +66,7 @@ function parseGeometry(geomStr: string | null | undefined, fallbackName?: string
 
 const VALID_INDICES = new Set([
   "spi1", "spi3", "spi6", "spi12",
-  "ndvi", "evi", "pci", "vci", "vhi", "cdi", "cdi_class"
+  "ndvi", "evi", "pci", "vci", "vhi", "nsmi", "cdi", "cdi_class"
 ]);
 
 function getIndexColumn(name: string): string {
@@ -80,6 +80,7 @@ function getIndexColumn(name: string): string {
     case "vci": return "vci";
     case "vhi": return "vhi";
     case "pci": return "pci";
+    case "nsmi": return "nsmi";
     case "cdi": return "composite_drought_score";
     case "cdi_class": return "composite_drought_class";
     default: return name;
@@ -365,7 +366,7 @@ apiRouter.get("/cdi/:year/:month", (req: Request, res: Response) => {
     mean: meanRow?.value ?? null,
     class: meanRow?.class_label ?? "ND",
     tehsils,
-    weights: { SPI: 0.3, VHI: 0.2, VCI: 0.15, NDVI: 0.15, EVI: 0.1, PCI: 0.1 },
+    weights: { SPI: 0.40, VCI: 0.25, NDVI: 0.15, PCI: 0.10, NSMI: 0.10 },
   });
 });
 

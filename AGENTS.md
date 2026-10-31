@@ -11,15 +11,14 @@ authoritative; see `DEVELOPER.md` for the long-form architecture.
 **Real-Time Drought Monitoring — Latur District, Marathwada (2016–2026).**
 A full-stack platform that ingests Sentinel-2 + CHIRPS rasters, computes
 drought indices (SPI, NDVI, EVI, PCI, VHI → **CDI**) in Python, stores
-them in Supabase (Postgres + PostGIS), serves them through a Go API, and
+them in SQLite + Supabase, serves them through a Node.js API, and
 renders maps (Leaflet) and time-series charts (Recharts) in a Next.js
 frontend.
 
 Primary language ranking per the owner's standing preference:
 
-1. **Go** — backend API, ingest CLI
-2. **Python** — scientific processing, Colab scripts
-3. **TypeScript** — Next.js frontend + Node.js gateway
+1. **Python** — scientific processing, Colab scripts
+2. **TypeScript** — Node.js API server + Next.js frontend
 
 ---
 
@@ -31,11 +30,11 @@ Agents MUST follow these without being reminded:
 2. **Never silently change CDI weights or SPI class thresholds** — they
    are documented in `scripts/common/classify.py`. If you change them,
    update `DEVELOPER.md` in the same commit.
-3. **The Python → Go bridge is `outputs/Dashboard/`** — the Go service
-   reads `drought_monitoring_master.csv`, `latest_status.json`,
+3. **The Python → Node bridge is `outputs/Dashboard/`** — the Node.js
+   API reads `drought_monitoring_master.csv`, `latest_status.json`,
    `data_availability.json`, and `processing_manifest.json`. If you add
    a new column, add it to `scripts/dashboard_master.MASTER_COLUMNS` AND
-   to the SQL migration.
+   to the SQLite schema.
 4. **No learned classifier.** The Random Forest classifier has been
    retired. The final drought class is produced by
    `scripts/composite_cdi.py` from a transparent weighted multi-index
@@ -66,7 +65,7 @@ drought-monitoring/
 ├── AGENTS.md              ← you are here
 ├── DEVELOPER.md           ← full architecture + API reference
 ├── README.md
-├── docker-compose.yml     ← local Supabase + Go + Node
+├── docker-compose.yml     ← local Postgres + Node API
 ├── .env.example
 │
 ├── config/
@@ -81,7 +80,7 @@ drought-monitoring/
 │   ├── composite_cdi.py          (CDI: transparent weighted multi-index composite)
 │   ├── build_village_indices.py  (village-level zonal stats + CDI scoring)
 │   ├── build_baseline_drought.py (baseline anomalies + GeoJSON export)
-│   ├── dashboard_master.py       (builds outputs/Dashboard/ for Go API)
+│   ├── dashboard_master.py       (builds outputs/Dashboard/ for Node API)
 │   ├── scheduler.py              (orchestrates incremental pipeline runs)
 │   └── common/{raster.py, classify.py, manifest.py}
 │
@@ -90,9 +89,8 @@ drought-monitoring/
 │   ├── vector/            (AOI: district, tehsils, 954 villages)
 │   └── processed/         (pipeline outputs: CSV, GeoJSON, JSON)
 │
-├── outputs/Dashboard/     ← Go backend reads from here (the bridge)
-├── backend-go/            ← primary REST API (chi + pgx)
-├── backend-node/          ← gateway: auth, uploads, static passthrough
+├── outputs/Dashboard/     ← Node API reads from here (the bridge)
+├── backend-node/          ← API server (Express + SQLite)
 └── frontend/              ← Next.js 14 App Router + Leaflet + Recharts
 ```
 
@@ -150,12 +148,9 @@ cells — not zero.
 cd scripts
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-python latur_chirps_spi.py
-python latur_sentinel_indices.py
-python latur_cdi.py
+python scheduler.py          # runs the full pipeline
 
 # 2. Backend
-cd ../backend-go  && go run ./cmd/server   # → :8080
 cd ../backend-node && pnpm install && pnpm dev   # → :4000
 
 # 3. Frontend
@@ -178,9 +173,9 @@ Or `docker compose up` from repo root.
 
 ### OpenCode
 
-- Primary agent for Go + TypeScript. Default to `go test ./...` and
-  `pnpm test` after any change. Do not bypass CI.
-- When adding a new endpoint, update **both** `DEVELOPER.md §7.2` and
+- Primary agent for TypeScript. Default to `pnpm test` after any
+  change. Do not bypass CI.
+- When adding a new endpoint, update **both** `DEVELOPER.md` and
   the typed client in `frontend/lib/api.ts`.
 
 ### Shared conventions for all agents
@@ -197,7 +192,6 @@ Or `docker compose up` from repo root.
 
 A change is done when **all** of these are true:
 
-- [ ] `go vet ./... && go test ./...` passes in `backend-go/`.
 - [ ] `pnpm lint && pnpm test` passes in `backend-node/`.
 - [ ] `pnpm lint && pnpm build` passes in `frontend/`.
 - [ ] `ruff check . && pytest` passes in `scripts/`.

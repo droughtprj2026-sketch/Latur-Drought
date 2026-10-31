@@ -7,8 +7,8 @@
 This document is for developers who will build, run, and extend the Latur
 Drought Monitoring platform. It covers the full stack: data ingestion
 (Sentinel-2 + CHIRPS), index processing (SPI, NDVI, VHI, PCI, EVI → CDI),
-the Go + Node.js backend, the Next.js + Leaflet frontend, and the
-Supabase data layer.
+the Node.js backend, the Next.js + Leaflet frontend, and the
+Supabase + SQLite data layer.
 
 ---
 
@@ -42,8 +42,8 @@ Supabase data layer.
                                    ▼
    ┌───────────────────────────────────────────────────────────┐
    │  BACKEND                                                  │
-   │  • Go service (primary)   — /api/v1/*  index + CDI queries│
-   │  • Node.js gateway        — auth, upload, static GeoJSON  │
+   │  • Node.js API (:4000)   — /api/v1/* index + CDI queries │
+   │                           — auth, upload, static GeoJSON  │
    └───────────────────────────────────────────────────────────┘
                                    │
                                    ▼
@@ -65,13 +65,12 @@ Supabase data layer.
 | Map rendering         | Leaflet 1.9 + react-leaflet                   |
 | Charts                | Recharts (time-series), D3 (heatmaps)         |
 | Styling               | Tailwind CSS                                  |
-| Backend (primary)     | **Go 1.22** — chi router, pgx, GeoJSON       |
-| Backend (gateway)     | **Node.js 20** (Express) — auth + file upload |
+| Backend               | **Node.js 20** (Express) — API, auth, uploads |
 | Scripting / science   | **Python 3.11** — rasterio, geopandas, scipy  |
-| Database              | **Supabase** (Postgres 15 + PostGIS 3.4)      |
+| Database              | SQLite (local) + **Supabase** (Postgres 15 + PostGIS 3.4) |
 | Object storage        | Supabase Storage                              |
 | Auth                  | Supabase Auth (JWT)                           |
-| Deployment            | Vercel (frontend) · Fly.io / Render (Go) · Supabase cloud |
+| Deployment            | Vercel (frontend) · Fly.io / Render (Node) · Supabase cloud |
 
 ---
 
@@ -117,14 +116,13 @@ drought-monitoring/
 │       ├── json/          # manifest, district monthly, components
 │       └── manifests/     # per-source processing state
 │
-├── outputs/Dashboard/     # Go backend reads from here
+├── outputs/Dashboard/     # Node API reads from here
 │   ├── drought_monitoring_master.csv
 │   ├── latest_status.json
 │   ├── data_availability.json
 │   └── processing_manifest.json
 │
-├── backend-go/            # primary API (chi + pgx)
-├── backend-node/          # gateway: auth, uploads, static passthrough
+├── backend-node/          # API server (Express + SQLite)
 └── frontend/              # Next.js 14 + Leaflet + Recharts
 ```
 
@@ -135,10 +133,9 @@ drought-monitoring/
 Install locally:
 
 - **Node.js 20+** and **pnpm** (`corepack enable`)
-- **Go 1.22+**
 - **Python 3.11+** with `pip` and `virtualenv`
 - **GDAL 3.6+** (required by `rasterio` / `geopandas`)
-- **Docker** (for running Go backend container during integration tests)
+- **Docker** (optional, for running Postgres locally)
 - A **Supabase project** (free tier is fine); keep the project URL and both
   the `anon` and `service_role` keys ready
 - **Google Earth Engine account** (only if you plan to re-download Sentinel-2)
@@ -151,12 +148,11 @@ SUPABASE_URL=https://<project>.supabase.co
 SUPABASE_ANON_KEY=eyJ...
 SUPABASE_SERVICE_ROLE_KEY=eyJ...          # server-side only
 
-# Postgres (same project, direct connection for Go)
+# Postgres (direct connection for Supabase writes)
 DATABASE_URL=postgres://postgres:<pwd>@db.<project>.supabase.co:5432/postgres?sslmode=require
 
 # Backend
-GO_API_PORT=8080
-NODE_GATEWAY_PORT=4000
+PORT=4000
 NEXT_PUBLIC_API_BASE=http://localhost:4000
 
 # Processing
@@ -165,7 +161,7 @@ OUTPUT_DIR=./data/processed
 ```
 
 Frontend reads only `NEXT_PUBLIC_*` keys. Service-role keys must stay on
-the server (Go + Node) side.
+the server (Node) side.
 
 ---
 
@@ -211,7 +207,7 @@ python latur_chirps_spi.py          # writes SPI GeoTIFFs + GeoJSON + CSV
 python latur_sentinel_indices.py    # writes NDVI/EVI/PCI/VHI GeoJSON
 python build_village_indices.py     # village-level zonal stats + CDI composite
 python build_baseline_drought.py    # baseline anomalies + GeoJSON export
-python dashboard_master.py          # builds outputs/Dashboard/ files for Go API
+python dashboard_master.py          # builds outputs/Dashboard/ files for Node API
 ```
 
 ### 5.4 Running the near-real-time pipeline (GEE)
@@ -303,7 +299,7 @@ data/processed/
 load, then requests only the GeoJSON it needs.
 
 **Important:** the processed files are the _only_ bridge between
-Python and the Go backend. The Go service does not re-read rasters.
+Python and the Node.js backend. The API does not re-read rasters.
 
 ---
 
@@ -369,29 +365,24 @@ create policy "public read" on pixel_index    for select using (true);
 
 ### 6.3 Loading processed outputs
 
-Use the Node.js gateway's `/api/ingest` endpoint (admin JWT required),
-or run `backend-go/cmd/ingest` as a one-off CLI:
-
-```bash
-cd backend-go
-go run ./cmd/ingest -input ../data/processed -year 2026
-```
+Use the Node.js API's `/api/v1/admin/ingest` endpoint (service-role JWT
+required). The endpoint re-reads `data/processed/` and loads into SQLite.
 
 ---
 
-## 7. Backend — Go service (primary)
+## 7. Backend — Node.js API server
 
-The Go service exposes the versioned REST API that the frontend uses.
-It is intentionally thin: all heavy computation already happened in
-Python; Go only queries Supabase and emits GeoJSON / JSON.
+The Node.js API server (Express) exposes the versioned REST API that
+the frontend uses. It is intentionally thin: all heavy computation
+already happened in Python; the API reads from SQLite (`data/drought.db`)
+and `outputs/Dashboard/` JSON files.
 
 ### 7.1 Run locally
 
 ```bash
-cd backend-go
-go mod download
-go run ./cmd/server
-# → listening on :8080
+cd backend-node
+pnpm install
+pnpm dev     # → listening on :4000
 ```
 
 ### 7.2 Endpoints
@@ -400,10 +391,12 @@ go run ./cmd/server
 | ------ | ------------------------------------------------ | ------------------------------------------ |
 | GET    | `/api/v1/health`                                 | `{"status":"ok"}`                          |
 | GET    | `/api/v1/manifest`                               | years + indices available                  |
+| GET    | `/api/v1/tehsils`                                | Tehsil polygons (static)                   |
+| GET    | `/api/v1/villages`                               | Village list with centroids                |
 | GET    | `/api/v1/indices/:name/:year/:month`             | GeoJSON FeatureCollection (choropleth)     |
+| GET    | `/api/v1/village-indices/:name/:year/:month`     | Village-level index values                 |
 | GET    | `/api/v1/timeseries/:name?from=YYYY-MM&to=YYYY-MM` | `[{date, value, class}]` district mean   |
 | GET    | `/api/v1/cdi/:year/:month`                       | CDI GeoJSON + per-tehsil summary           |
-| GET    | `/api/v1/tehsils`                                | Tehsil polygons (static)                   |
 | GET    | `/api/v1/status`                                 | `latest_status.json` (header chip)         |
 | GET    | `/api/v1/availability`                           | `data_availability.json` (per-source periods) |
 | GET    | `/api/v1/master?tehsil=&from=&to=`               | rows from `drought_monitoring_master.csv`  |
@@ -411,7 +404,9 @@ go run ./cmd/server
 | GET    | `/api/v1/compare?index=&a=YYYY-MM&b=YYYY-MM`     | two periods side by side                   |
 | GET    | `/api/v1/animation?index=&from=&to=`             | ordered frame list for the player          |
 | POST   | `/api/v1/admin/ingest` (service-role JWT)        | triggers re-ingest of `data/processed`     |
-| POST   | `/api/v1/admin/aoi`    (service-role JWT)        | upload shapefile/GeoJSON AOI → `pipeline_gee.py` |
+| POST   | `/api/v1/admin/aoi`    (service-role JWT)        | upload shapefile/GeoJSON AOI               |
+
+`:name` in {`spi1`, `spi3`, `spi6`, `spi12`, `ndvi`, `evi`, `pci`, `vci`, `vhi`, `nsmi`, `cdi`, `cdi_class`}
 
 ### Dashboard data contract
 
@@ -431,8 +426,6 @@ The per-source authoritative manifests live under
 `data/processed/manifests/{sentinel.json, chirps.json}`. Everything in
 `outputs/Dashboard/` is regenerated by `scripts/dashboard_master.py`.
 
-`:name` ∈ `spi1 | spi3 | spi6 | spi12 | ndvi | evi | pci | vhi | cdi`
-
 ### 7.3 Example response — `/api/v1/timeseries/spi3?from=2024-01&to=2026-10`
 
 ```json
@@ -445,44 +438,22 @@ The per-source authoritative manifests live under
 
 ### 7.4 Project conventions
 
-- Handlers under `internal/api/` are **thin**: parse → call `internal/db`
-  → marshal.
+- Route handlers in `src/routes/api.ts` are **thin**: parse → query DB → serialize.
 - Error envelope: `{"error":{"code":"NOT_FOUND","message":"..."}}`.
-- All responses are gzip-encoded by default.
-- Tests live next to the code (`foo.go` / `foo_test.go`). Run with
-  `go test ./...`. CI must stay green.
+- Auth routes in `src/routes/auth.ts`, upload routes in `src/routes/upload.ts`.
+- Tests: `pnpm test` (vitest). CI must stay green.
 
----
-
-## 8. Backend — Node.js gateway
-
-Thin Express gateway. Its only jobs:
-
-1. **Auth** — exchanges Supabase session JWTs; stamps them onto outgoing
-   requests to the Go service.
-2. **Uploads** — accepts processed GeoJSON / CSV files from the admin UI
-   and writes them to Supabase Storage.
-3. **Static passthrough** — serves `data/processed/*` as a CDN fallback
-   when the Go service is cold.
-
-```bash
-cd backend-node
-pnpm install
-pnpm dev     # → :4000
-```
-
-Routes:
+### 7.5 Additional routes
 
 ```
 POST  /auth/login       → Supabase email + password
 POST  /auth/logout
 POST  /upload/geojson   (admin) → Supabase Storage bucket `processed/`
-GET   /api/v1/*         → proxied to Go service
 ```
 
 ---
 
-## 9. Frontend — Next.js + Leaflet
+## 8. Frontend — Next.js + Leaflet
 
 ```bash
 cd frontend
@@ -490,7 +461,7 @@ pnpm install
 pnpm dev     # → http://localhost:3000
 ```
 
-### 9.1 Pages
+### 8.1 Pages
 
 - `/` — **dashboard**. Title bar at the top; controls strip with an
   **index dropdown** (NDVI / SPI / VCI / VHI / EVI / PCI / CDI) + **year
@@ -507,7 +478,7 @@ pnpm dev     # → http://localhost:3000
 - `/sources` — every satellite, rainfall and vector dataset the
   dashboard draws on, with full citations and the index formulas.
 
-### 9.2 Map component (`components/map/LaturMap.tsx`)
+### 8.2 Map component (`components/map/LaturMap.tsx`)
 
 - Loads `latur_tehsils.geojson` from `/public/data/` for the base boundary.
 - Pulls the active index as GeoJSON from
@@ -530,13 +501,13 @@ pnpm dev     # → http://localhost:3000
   const LaturMap = dynamic(() => import('@/components/map/LaturMap'), { ssr: false });
   ```
 
-### 9.3 Charts
+### 8.3 Charts
 
 - `SPIChart.tsx` — multi-scale bar chart (SPI-1/3/6/12) on one shared
   x-axis; colors come from the same class scale as the map.
 - `CDIHeatmap.tsx` — year × month heatmap, D3 color scale.
 
-### 9.4 API wrapper (`lib/api.ts`)
+### 8.4 API wrapper (`lib/api.ts`)
 
 ```ts
 export async function getManifest()                      { ... }
@@ -545,36 +516,33 @@ export async function getTimeseries(name, from, to)      { ... }
 ```
 
 All calls go through `NEXT_PUBLIC_API_BASE` so you can point the frontend
-at a local Go service, the Node gateway, or production without rebuild.
+at the local Node API or production without rebuild.
 
 ---
 
-## 10. Development Workflow
+## 9. Development Workflow
 
-### 10.1 Branching
+### 9.1 Branching
 
 - `main` — protected, always deployable.
 - `feat/<topic>` — feature branches, squash-merged.
 - `fix/<topic>` — bug fixes.
 - Open a PR early; keep it under ~400 lines of diff where possible.
 
-### 10.2 Commits
+### 9.2 Commits
 
 Conventional Commits:
 
 ```
 feat(map): add CDI layer toggle
-fix(go): clamp SPI value when gamma fit fails
+fix(api): clamp SPI value when gamma fit fails
 chore(deps): bump next to 14.2.5
 ```
 
-### 10.3 Local verification before pushing
+### 9.3 Local verification before pushing
 
 ```bash
-# Go
-cd backend-go  && go vet ./... && go test ./...
-
-# Node
+# Backend
 cd backend-node && pnpm lint && pnpm test
 
 # Frontend
@@ -584,33 +552,32 @@ cd frontend    && pnpm lint && pnpm build
 cd scripts     && ruff check . && pytest
 ```
 
-### 10.4 CI
+### 9.4 CI
 
-GitHub Actions runs the four pipelines above on every PR. A PR cannot
-merge until all four are green.
+GitHub Actions runs the three pipelines above on every PR. A PR cannot
+merge until all three are green.
 
 ---
 
-## 11. Deployment
+## 10. Deployment
 
 | Component           | Host                     | Notes                                       |
 | ------------------- | ------------------------ | ------------------------------------------- |
 | Frontend            | Vercel                   | Project root `frontend/`                    |
-| Go API              | Fly.io (or Render)       | Dockerfile at `backend-go/Dockerfile`       |
-| Node gateway        | Fly.io (or Render)       | Deploy from `backend-node/`                 |
-| Supabase            | Supabase cloud           | Migrations in `backend-go/migrations/*.sql` |
+| Node API            | Fly.io (or Render)       | Deploy from `backend-node/`                 |
+| Supabase            | Supabase cloud           | Schema in DEVELOPER.md section 6            |
 | Processed GeoJSON   | Supabase Storage         | Bucket `processed/`, public read            |
 
 Secrets live in each host's env panel. Never commit `.env`.
 
-### 11.1 Supabase setup
+### 10.1 Supabase setup
 
 1. Create a Supabase project (ap-south-1 Mumbai for low latency).
 2. Enable PostGIS: `create extension if not exists postgis;`
 3. Run the schema migration from the SQL Editor (tables above in §6.1).
 4. Copy `Project URL`, `anon key`, and `service_role key` into `.env`.
 
-### 11.2 Vercel frontend
+### 10.2 Vercel frontend
 
 1. Import the GitHub repository in Vercel.
 2. Set Root Directory to `frontend/`.
@@ -620,7 +587,7 @@ Secrets live in each host's env panel. Never commit `.env`.
 
 ---
 
-## 12. Troubleshooting
+## 11. Troubleshooting
 
 | Symptom                                                       | Likely cause / fix                                                  |
 | ------------------------------------------------------------- | ------------------------------------------------------------------- |
@@ -629,12 +596,12 @@ Secrets live in each host's env panel. Never commit `.env`.
 | SPI values clamp at ±3.72                                     | Expected — `Hx` is clipped to `[0.0001, 0.9999]`. See script.       |
 | Supabase insert fails with `permission denied`                | You're using the `anon` key for writes. Use `service_role`.         |
 | Frontend shows 2026 months with no data                       | Pipeline hasn't been re-run for the current month; re-ingest.       |
-| CORS error from Next → Go                                     | Set `ALLOWED_ORIGINS=http://localhost:3000` on the Go service.      |
+| CORS error from Next → API                                    | Set `ALLOWED_ORIGINS=http://localhost:3000` on the Node API.        |
 | Record-length warning in SPI output                           | Only ~10 years of CHIRPS used. WMO recommends ≥ 30 years; extend `CALIB_START` once older rasters are added (CHIRPS goes back to 1981). |
 
 ---
 
-## 13. Known Limitations
+## 12. Known Limitations
 
 - **SPI uses ~10-year record** (2016-2026), not the WMO-recommended 30 years.
   Extend `CALIB_START` in `config/spi.yaml` once older CHIRPS data is loaded
@@ -653,17 +620,16 @@ Secrets live in each host's env panel. Never commit `.env`.
 
 ---
 
-## 14. Roadmap (short)
+## 13. Roadmap (short)
 
 - [ ] Replace static GeoJSON fetch with Mapbox Vector Tiles for pixel layer
-- [ ] Nightly scheduled ingest (GitHub Actions → Go `ingest` CLI)
+- [ ] Nightly scheduled ingest (GitHub Actions → `scheduler.py`)
 - [ ] User alerts: email when CDI < −1.5 for any tehsil
 - [ ] Switch SPI calibration to 1981 – 2010 once older CHIRPS is loaded
 - [ ] Mobile layout for the map + chart dashboard
 
 ---
 
-## 15. Contact
+## 14. Contact
 
 Project owner: **rajnandinikadam221@gmail.com**
-See `CODE_OF_CONDUCT.md` for community guidelines.

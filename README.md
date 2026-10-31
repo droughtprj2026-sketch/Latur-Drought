@@ -13,7 +13,7 @@ GEE (Sentinel-2 + CHIRPS)
         |
    Python pipeline  -->  data/processed/  -->  outputs/Dashboard/
                                                        |
-                                               Go API (:8080)
+                                             Node.js API (:4000)
                                                        |
                                              Next.js dashboard (:3000)
 ```
@@ -23,8 +23,8 @@ GEE (Sentinel-2 + CHIRPS)
 | Layer       | Technology                                |
 | ----------- | ----------------------------------------- |
 | Pipeline    | Python 3.11 (earthengine-api, geopandas)  |
-| Backend     | Go 1.22 (chi, pgx) + Node.js 20 gateway  |
-| Database    | Supabase (Postgres 15 + PostGIS 3.4)      |
+| Backend     | Node.js 20 (Express, SQLite, Supabase)    |
+| Database    | SQLite (local) + Supabase (Postgres 15)   |
 | Frontend    | Next.js 14 + Leaflet + Recharts + Tailwind |
 
 ## Quick start
@@ -51,7 +51,7 @@ python dashboard_master.py
 ### Start the stack
 
 ```bash
-docker compose up                            # Go API + Node gateway + Postgres
+docker compose up                            # Node API + Postgres
 cd frontend && pnpm install && pnpm dev      # http://localhost:3000
 ```
 
@@ -62,9 +62,8 @@ config/              CDI weights + SPI config (composite.yaml, spi.yaml)
 scripts/             Python pipeline (GEE ingest, indices, CDI, dashboard)
 data/vector/         AOI boundaries (district, tehsils, 954 villages)
 data/processed/      Pipeline outputs (CSV, GeoJSON, JSON)
-outputs/Dashboard/   Go backend reads these files directly
-backend-go/          Primary REST API (chi + pgx)
-backend-node/        Auth gateway (Express)
+outputs/Dashboard/   Node.js API reads these files directly
+backend-node/        API server (Express + SQLite)
 frontend/            Next.js 14 dashboard (Leaflet + Recharts)
 ```
 
