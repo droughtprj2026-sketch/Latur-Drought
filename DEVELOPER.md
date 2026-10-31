@@ -91,6 +91,7 @@ drought-monitoring/
 ├── scripts/               # Python pipeline
 │   ├── chirps_gee.py      # real-time: CHIRPS from GEE
 │   ├── pipeline_gee.py    # real-time: Sentinel-2 from GEE
+│   ├── spi_from_chirps_csv.py    # real-time: SPI from GEE CHIRPS CSV
 │   ├── latur_chirps_spi.py       # batch: SPI from local rasters
 │   ├── latur_sentinel_indices.py # batch: indices from local rasters
 │   ├── composite_cdi.py          # CDI composite computation
@@ -187,7 +188,7 @@ Latur_precip_YYYY_MM.tif
 
 | Index  | Script                                      | Formula (summary)                                           |
 | ------ | ------------------------------------------- | ----------------------------------------------------------- |
-| SPI-k  | `latur_chirps_spi.py`                       | Gamma CDF fit per pixel per calendar month (McKee 1993). Zero-rain correction `H = q + (1 − q) · G`, with `H(0) = q/2` (Stagge 2015). SPI = Φ⁻¹(H). Computed for k = 1, 3, 6, 12 months. |
+| SPI-k  | `latur_chirps_spi.py` (batch), `spi_from_chirps_csv.py` (real-time) | Gamma CDF fit per calendar month (McKee 1993). Zero-rain correction `H = q + (1 − q) · G`, with `H(0) = q/2` (Stagge 2015). SPI = Phi-inv(H). Computed for k = 1, 3, 6, 12. Batch: per-pixel from rasters. Real-time: district-mean from GEE CHIRPS CSV. |
 | NDVI   | `latur_sentinel_indices.py`                 | `(NIR − RED) / (NIR + RED)` on Sentinel-2 B8, B4            |
 | EVI    | `latur_sentinel_indices.py`                 | `2.5 · (NIR − RED) / (NIR + 6·RED − 7.5·BLUE + 1)`          |
 | PCI    | `latur_sentinel_indices.py`                 | `(P − P_min) / (P_max − P_min)` using CHIRPS monthly        |
@@ -227,18 +228,21 @@ Run each step independently or use the scheduler:
 # 1. Pull CHIRPS monthly (incremental — only missing months)
 python scripts/chirps_gee.py --from 2016-01 --to latest
 
-# 2. Recompute SPI only for the months CHIRPS marked stale
-python scripts/latur_chirps_spi.py
+# 2. Compute SPI from the GEE CHIRPS CSV (district-level, gamma CDF)
+python scripts/spi_from_chirps_csv.py
 
 # 3. Pull Sentinel-2 for the AOI (independent cadence)
 python scripts/pipeline_gee.py \
     --aoi data/vector/latur_tehsils.geojson \
     --from 2016-01 --to 2026-10
 
-# 4. Compute the transparent multi-index composite
+# 4. Village-level zonal stats (builds the CSV composite_cdi reads)
+python scripts/build_village_indices.py --stage zonal
+
+# 5. Compute the transparent multi-index composite
 python scripts/composite_cdi.py
 
-# 5. Build dashboard master + status files
+# 6. Build dashboard master + status files
 python scripts/dashboard_master.py
 
 # Or do steps 1-5 in one tick:

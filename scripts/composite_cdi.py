@@ -169,6 +169,9 @@ def _district_frame(cfg: dict) -> pd.DataFrame:
     (per-village, per-period indices already computed by the SPI/sentinel
     scripts).  We average across villages to obtain the district frame that
     composite_cdi.py then normalises + fuses into CDI.
+
+    When village-level SPI columns are mostly NaN (no local rasters), the
+    district-level SPI from spi_from_chirps_csv.py is used as a fallback.
     """
     vil = pd.read_csv(OUT / "csv" / "village_Latur_monthly_indices.csv")
     vil["date"] = vil["date"].astype(str)
@@ -186,13 +189,36 @@ def _district_frame(cfg: dict) -> pd.DataFrame:
     spi_col = {"SPI-1": "SPI1", "SPI-3": "SPI3", "SPI-6": "SPI6", "SPI-12": "SPI12"}[
         cfg["spi_accumulation"]]
     agg = agg.rename(columns={spi_col: "SPI", "Rain_mm": "rain_mm_mean"})
-    # Recompute PCI from district-mean rainfall (Oliver's PCI) so the
-    # composite is self-consistent with the normalisation config.
+
+    _fill_spi_from_chirps_csv(agg, spi_col)
+
     agg["PCI"] = _compute_pci_from_rain(
         agg[["date", "rain_mm_mean"]].copy()
     ).reset_index(drop=True).values
     df = agg.set_index("date").sort_index()
     return df
+
+
+def _fill_spi_from_chirps_csv(agg: pd.DataFrame, spi_col: str) -> None:
+    """Fill NaN SPI values in `agg` from the GEE-derived district SPI CSV."""
+    fallback = OUT / "csv" / "SPI_chirps_district_monthly.csv"
+    if not fallback.exists():
+        return
+    spi_df = pd.read_csv(fallback)
+    spi_df["date"] = spi_df["date"].astype(str)
+    spi_df = spi_df.set_index("date")
+    filled = 0
+    for i, row in agg.iterrows():
+        if pd.notna(row.get("SPI")):
+            continue
+        d = row["date"]
+        if d in spi_df.index and spi_col in spi_df.columns:
+            val = spi_df.loc[d, spi_col]
+            if pd.notna(val):
+                agg.at[i, "SPI"] = val
+                filled += 1
+    if filled:
+        print(f"  filled {filled} SPI values from GEE-derived district CSV")
 
 
 def _tehsil_frame() -> pd.DataFrame:

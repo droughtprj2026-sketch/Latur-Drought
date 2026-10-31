@@ -75,6 +75,7 @@ drought-monitoring/
 ├── scripts/               ← Python pipeline
 │   ├── chirps_gee.py      (real-time: CHIRPS monthly from GEE)
 │   ├── pipeline_gee.py    (real-time: Sentinel-2 from GEE → NDVI/EVI/NDMI/NSMI)
+│   ├── spi_from_chirps_csv.py    (real-time: SPI from GEE CHIRPS CSV)
 │   ├── latur_chirps_spi.py       (batch: SPI from local rasters, reference)
 │   ├── latur_sentinel_indices.py (batch: indices from local rasters, reference)
 │   ├── composite_cdi.py          (CDI: transparent weighted multi-index composite)

@@ -75,10 +75,10 @@ def main():
     # 2) SPI recomputation only if CHIRPS added or revised a month.
     stale_path = OUT / "manifests" / "spi_stale.json"
     if stale_path.exists():
-        ok, msg = _run("spi", [sys.executable, str(HERE / "latur_chirps_spi.py")])
+        ok, msg = _run("spi", [sys.executable, str(HERE / "spi_from_chirps_csv.py")])
         results["steps"].append({"step": "spi", "ok": ok, "msg": msg})
         if ok:
-            stale_path.unlink()  # SPI consumed the hint
+            stale_path.unlink()
     else:
         results["steps"].append({"step": "spi", "skipped": "no stale months"})
 
