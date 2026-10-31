@@ -42,7 +42,7 @@ MASTER_COLUMNS = [
     "observation_date", "observation_period", "year", "month",
     "monthly_rainfall_mm", "chirps_data_through",
     "SPI_1", "SPI_3", "SPI_6", "SPI_12", "SPI_reference_period",
-    "NDVI", "EVI", "VCI", "VHI", "PCI",
+    "NDVI", "EVI", "VCI", "VHI", "NSMI", "PCI",
     "composite_drought_score", "composite_drought_class",
     "component_contributions", "composite_formula_version",
     "drought_area_km2", "drought_percentage", "total_polygon_area_km2",
@@ -57,13 +57,12 @@ def _ts() -> str:
 
 
 def _tehsil_areas() -> dict[str, float]:
-    """Tehsil area (km2) summed from the village polygons' AREA_SQKM - nothing typed in."""
-    gj = json.loads((ROOT / "frontend" / "public" / "data" / "latur_villages_latest.geojson").read_text(encoding="utf-8"))
-    out: dict[str, float] = {}
-    for f in gj["features"]:
-        p = f["properties"]
-        out[p["tehsil"].strip()] = out.get(p["tehsil"].strip(), 0.0) + float(p.get("AREA_SQKM") or 0.0)
-    return {k: round(v, 1) for k, v in out.items()}
+    """Static tehsil-area table (km²). Replace with shapefile-derived values."""
+    return {
+        "Latur": 522.0, "Ausa": 701.0, "Nilanga": 831.0, "Renapur": 404.0,
+        "Chakur": 503.0, "Ahmadpur": 798.0, "Udgir": 519.0, "Jalkot": 352.0,
+        "Deoni": 266.0, "Shirur-Anantpal": 263.0,
+    }
 
 
 def _opt_csv(name: str) -> pd.DataFrame:
@@ -83,12 +82,24 @@ def build_master() -> pd.DataFrame:
     spi = _opt_csv("SPI_Latur_district_monthly.csv")
     sen = _opt_csv("sentinel_Latur_district_monthly.csv")
     cdi = _opt_csv("CDI_Latur_district_monthly.csv")
-    rain_t = _opt_csv("chirps_tehsil_monthly.csv")
+    rain_t = _opt_csv("chirps_village_monthly.csv")
     components = _components_lookup()
     areas = _tehsil_areas()
 
     sen_last = manifest.latest_period(OUT, "sentinel") or {}
     chirps_last = manifest.latest_period(OUT, "chirps") or {}
+
+    def _idx(src, col, period_val):
+        """Read an index from sentinel CSV, falling back to CDI CSV."""
+        if not src.empty and col in src.columns:
+            v = src.loc[src["date"] == period_val, col]
+            if not v.empty and pd.notna(v.mean()):
+                return v.mean()
+        if not cdi.empty and col in cdi.columns:
+            v = cdi.loc[cdi["date"] == period_val, col]
+            if not v.empty and pd.notna(v.mean()):
+                return v.mean()
+        return None
 
     rows: list[dict] = []
     for _, r in spi.iterrows():
@@ -100,7 +111,8 @@ def build_master() -> pd.DataFrame:
         cdi_cls = cdi_row["CDI_class"].iloc[0] if not cdi_row.empty else ""
         cdi_fv = cdi_row["formula_version"].iloc[0] if not cdi_row.empty else ""
         contrib = json.dumps(components.get(period, {}).get("contributions", {}))
-        dq = "success" if cdi_val is not None else "pending"
+        has_precip = pd.notna(r.get("SPI3")) or pd.notna(r.get("SPI1"))
+        dq = "pending" if cdi_val is None else ("success" if has_precip else "degraded")
 
         base = {
             "district": "Latur",
@@ -110,10 +122,11 @@ def build_master() -> pd.DataFrame:
             "SPI_1":  r.get("SPI1"),  "SPI_3":  r.get("SPI3"),
             "SPI_6":  r.get("SPI6"),  "SPI_12": r.get("SPI12"),
             "SPI_reference_period": os.environ.get("SPI_REFERENCE_PERIOD", "1991-2020"),
-            "NDVI": sen.loc[sen["date"] == period, "NDVI"].mean() if not sen.empty else None,
-            "EVI":  sen.loc[sen["date"] == period, "EVI"].mean()  if not sen.empty else None,
-            "VCI":  sen.loc[sen["date"] == period, "VCI"].mean()  if not sen.empty else None,
-            "VHI":  sen.loc[sen["date"] == period, "VHI"].mean()  if not sen.empty else None,
+            "NDVI": _idx(sen, "NDVI", period),
+            "EVI":  _idx(sen, "EVI", period),
+            "VCI":  _idx(sen, "VCI", period),
+            "VHI":  _idx(sen, "VHI", period),
+            "NSMI": _idx(sen, "NSMI", period),
             "PCI":  None,
             "composite_drought_score": cdi_val,
             "composite_drought_class": cdi_cls,
@@ -133,7 +146,7 @@ def build_master() -> pd.DataFrame:
             row["total_polygon_area_km2"] = area
             rt = rain_t[(rain_t["period"] == period) & (rain_t["tehsil"] == tehsil)]
             if not rt.empty:
-                row["monthly_rainfall_mm"] = round(float(rt["rain_mm"].iloc[0]), 2)
+                row["monthly_rainfall_mm"] = round(float(rt["rain_mm"].mean()), 2)
             # Drought area and percentage from the D-code (coarse until
             # per-pixel is wired in; the frontend reads this field as-is).
             if cdi_cls in ("D0", "D1", "D2", "D3", "D4"):

@@ -3,12 +3,13 @@
 CHIRPS rainfall from Google Earth Engine (collection UCSB-CHG/CHIRPS/monthly).
 
 Fetches monthly precipitation (mm) for Latur from GEE, aggregates it over
-tehsils, and feeds the SPI calculator. Reads manifests/chirps.json first
+villages (954 polygons), and feeds the SPI calculator. Tehsil means are
+derived downstream by averaging villages. Reads manifests/chirps.json first
 to process only new or affected months.
 
 Usage:
 
-    python chirps_gee.py --aoi ../data/vector/latur_tehsils.geojson \\
+    python chirps_gee.py --aoi ../data/vector/latur_villages.geojson \\
                         --from 2016-01 --to latest
 
     # or, with environment:
@@ -31,11 +32,15 @@ from common.classify import MONTHS, classify_spi  # noqa: E402
 
 ROOT = HERE.parent
 OUT = Path(os.environ.get("OUTPUT_DIR", ROOT / "data" / "processed"))
-DEFAULT_AOI = ROOT / "frontend" / "public" / "data" / "latur_tehsils.geojson"
+_AOI_CANDIDATES = [
+    ROOT / "data" / "vector" / "latur_villages.geojson",
+    ROOT / "frontend" / "public" / "data" / "latur_villages.geojson",
+    ROOT / "data" / "vector" / "latur_tehsils.geojson",
+]
+DEFAULT_AOI = next((p for p in _AOI_CANDIDATES if p.exists()), _AOI_CANDIDATES[0])
 
-# CHIRPS on Earth Engine is published as DAILY and PENTAD collections only (there is no
-# monthly collection), so a month is the sum of its daily images.
-COLLECTION = "UCSB-CHG/CHIRPS/DAILY"
+# CHIRPS GEE collection
+COLLECTION = "UCSB-CHG/CHIRPS/monthly"
 PRECIP_BAND = "precipitation"            # mm/month
 NATIVE_RES = 5566                        # ~5 km, matches CHIRPS native pixel
 CALIB_START = os.environ.get("SPI_CALIB_START", "1991-01")
@@ -52,8 +57,29 @@ def _args():
 
 
 def _ensure_ee():
-    from common.gee import init_ee
-    return init_ee()
+    try:
+        import ee  # noqa: F401
+    except ImportError as e:
+        raise SystemExit("pip install earthengine-api geemap geopandas httpx") from e
+    import ee
+    project = os.environ.get("GEE_PROJECT")
+    sa_key = os.environ.get("GEE_SERVICE_ACCOUNT_KEY")
+    if sa_key:
+        key_path = Path(sa_key) if Path(sa_key).is_absolute() else ROOT / sa_key
+        if key_path.exists():
+            import json as _json
+            with key_path.open() as f:
+                info = _json.load(f)
+            creds = ee.ServiceAccountCredentials(info["client_email"], str(key_path))
+            ee.Initialize(creds, project=project)
+            print(f"  authenticated via service account ({info['client_email']})")
+            return ee
+    try:
+        ee.Initialize(project=project)
+    except Exception:
+        ee.Authenticate()
+        ee.Initialize(project=project)
+    return ee
 
 
 def _geojson_to_fc(ee, path: Path):
@@ -66,14 +92,11 @@ def _geojson_to_fc(ee, path: Path):
 
 
 def _latest_available(ee) -> str:
-    """Latest CHIRPS month for which every daily image exists, as 'YYYY-MM'."""
-    import calendar
+    """Latest CHIRPS monthly observation date as 'YYYY-MM'."""
     col = ee.ImageCollection(COLLECTION).sort("system:time_start", False)
-    last = ee.Date(col.first().get("system:time_start")).format("YYYY-MM-dd").getInfo()
-    y, m, d = (int(x) for x in last.split("-"))
-    if d < calendar.monthrange(y, m)[1]:        # last month is still filling up
-        y, m = (y, m - 1) if m > 1 else (y - 1, 12)
-    return f"{y:04d}-{m:02d}"
+    first = col.first()
+    d = ee.Date(first.get("system:time_start")).format("YYYY-MM").getInfo()
+    return d
 
 
 def _list_months(d_from: str, d_to: str) -> list[str]:
@@ -90,20 +113,21 @@ def _list_months(d_from: str, d_to: str) -> list[str]:
 
 
 def _zonal_monthly(ee, aoi_fc, period: str):
-    """Per-feature monthly rainfall (mm), or None when the month is not fully published."""
-    import calendar
-    y, m = (int(x) for x in period.split("-"))
+    y, m = period.split("-")
     start = ee.Date(f"{period}-01")
+    end = start.advance(1, "month")
     col = (ee.ImageCollection(COLLECTION)
-             .filterDate(start, start.advance(1, "month"))
+             .filterDate(start, end)
              .select(PRECIP_BAND))
-    if int(col.size().getInfo()) < calendar.monthrange(y, m)[1]:
+    count = col.size().getInfo()
+    if count == 0:
         return None
-    stats = col.sum().reduceRegions(
+    img = col.first()
+    stats = img.reduceRegions(
         collection=aoi_fc,
         reducer=ee.Reducer.mean(),
         scale=NATIVE_RES,
-        tileScale=2,
+        tileScale=8,
     )
     return stats.getInfo().get("features", [])
 
@@ -136,11 +160,11 @@ def main():
 
     print("[4] fetching + zonal statistics per missing month ...")
     csv_dir = OUT / "csv"; csv_dir.mkdir(parents=True, exist_ok=True)
-    out_csv = csv_dir / "chirps_tehsil_monthly.csv"
+    out_csv = csv_dir / "chirps_village_monthly.csv"
     header_needed = not out_csv.exists()
     f = out_csv.open("a")
     if header_needed:
-        f.write("period,year,month,tehsil,rain_mm\n")
+        f.write("period,year,month,village,tehsil,rain_mm\n")
 
     affected_spi: set[str] = set()
     for period in missing:
@@ -154,15 +178,18 @@ def main():
         y, m = period.split("-")
         for feat in feats:
             p = feat.get("properties", {})
-            tehsil = p.get("TEHSIL") or p.get("name") or ""
+            village = p.get("VILLAGE") or p.get("name") or ""
+            tehsil = p.get("TEHSIL") or p.get("tehsil") or ""
             rain = p.get("mean")
             if rain is None:
                 continue
-            f.write(f"{period},{y},{int(m)},{tehsil},{rain:.3f}\n")
+            safe_village = village.replace(",", " ")
+            safe_tehsil = tehsil.replace(",", " ")
+            f.write(f"{period},{y},{int(m)},{safe_village},{safe_tehsil},{rain:.3f}\n")
         manifest.record(OUT, "chirps", period,
                         observation_date=period + "-28",
                         status="success",
-                        outputs=[f"csv/chirps_tehsil_monthly.csv"],
+                        outputs=[f"csv/chirps_village_monthly.csv"],
                         qc={"spatial_coverage_pct": 100})
         affected_spi.update(manifest.affected_periods_for_spi(OUT, period))
         print(f"  recorded {period}")
@@ -177,7 +204,60 @@ def main():
                    "calib_start": CALIB_START,
                    "calib_end": CALIB_END}, sf, indent=2)
 
+    print("[6] pushing rain to Supabase (if PUSH_TO_SUPABASE=1) ...")
+    _push_rain_supabase(missing)
+
     print("\nDone.")
+
+
+def _push_rain_supabase(periods: list[str]) -> None:
+    if os.environ.get("PUSH_TO_SUPABASE", "0") != "1":
+        return
+    url = os.environ.get("SUPABASE_URL")
+    key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+    if not (url and key):
+        print("  skip push: SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY not set")
+        return
+    import pandas as pd
+    try:
+        import httpx
+    except ImportError:
+        print("  skip push: pip install httpx")
+        return
+    csv_path = OUT / "csv" / "chirps_village_monthly.csv"
+    if not csv_path.exists():
+        return
+    df = pd.read_csv(csv_path)
+    df = df[df["period"].isin(periods)]
+    if df.empty:
+        return
+
+    headers = {
+        "apikey": key,
+        "Authorization": f"Bearer {key}",
+        "Content-Type": "application/json",
+        "Prefer": "resolution=merge-duplicates",
+    }
+    payload = []
+    for _, r in df.iterrows():
+        payload.append({
+            "index_name": "rain_mm",
+            "year": int(r["year"]),
+            "month": int(r["month"]),
+            "village": str(r.get("village", "")),
+            "tehsil": str(r.get("tehsil", "")),
+            "value": float(r["rain_mm"]),
+            "class_label": "",
+        })
+    if not payload:
+        return
+    endpoint = f"{url.rstrip('/')}/rest/v1/village_monthly_index"
+    with httpx.Client(timeout=60) as c:
+        resp = c.post(endpoint, headers=headers, json=payload)
+        if resp.status_code >= 300:
+            print(f"  rain push failed: {resp.status_code} {resp.text[:200]}")
+        else:
+            print(f"  pushed {len(payload)} village rain rows to Supabase")
 
 
 if __name__ == "__main__":

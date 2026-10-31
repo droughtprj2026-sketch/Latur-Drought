@@ -14,14 +14,15 @@ and a date range, this script:
   2. Pulls the Sentinel-2 L2A collection, masks clouds, and builds a
      monthly median composite over the AOI
   3. Computes NDVI, EVI, NDMI, VCI, VHI, PCI, SPI(3) for each month
-  4. Runs zonal statistics against the TEHSIL polygons inside the AOI
+  4. Runs zonal statistics against the VILLAGE polygons inside the AOI
+     (tehsil means are derived by averaging villages)
   5. Writes:
         data/processed/<index>/<INDEX>_Latur_YYYY.geojson   (pixel-level)
-        data/processed/csv/zonal_tehsil_monthly.csv         (per-tehsil mean / class)
+        data/processed/csv/zonal_village_monthly.csv        (per-village mean / class)
         data/processed/json/district_monthly.json           (district mean)
         data/processed/json/manifest.json                   (years + indices)
   6. If `PUSH_TO_SUPABASE=1`, pushes rows to the `monthly_index` and
-     `pixel_index` tables via the service_role key so the Go backend
+     `pixel_index` tables via the service_role key so the Node API
      and the frontend map/charts see them live.
 
 USAGE
@@ -48,11 +49,16 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
-from common.classify import MONTHS, classify_drought, code_for_cdi  # noqa: E402
+from common.classify import MONTHS, classify_spi  # noqa: E402
 
 ROOT = HERE.parent
 OUT = Path(os.environ.get("OUTPUT_DIR", ROOT / "data" / "processed"))
-DEFAULT_AOI = ROOT / "frontend" / "public" / "data" / "latur_tehsils.geojson"
+_AOI_CANDIDATES = [
+    ROOT / "data" / "vector" / "latur_villages.geojson",
+    ROOT / "frontend" / "public" / "data" / "latur_villages.geojson",
+    ROOT / "data" / "vector" / "latur_tehsils.geojson",
+]
+DEFAULT_AOI = next((p for p in _AOI_CANDIDATES if p.exists()), _AOI_CANDIDATES[0])
 
 
 # ---------------------------------------------------------------------
@@ -61,7 +67,7 @@ DEFAULT_AOI = ROOT / "frontend" / "public" / "data" / "latur_tehsils.geojson"
 def _args():
     p = argparse.ArgumentParser(description="GEE-powered S2 pipeline for Latur")
     p.add_argument("--aoi", default=str(DEFAULT_AOI),
-                   help="path to a shapefile or GeoJSON of the AOI (tehsils).")
+                   help="path to a GeoJSON of the AOI (villages preferred, tehsils fallback).")
     p.add_argument("--from", dest="d_from", default=f"{date.today().year}-01",
                    help="start month, YYYY-MM")
     p.add_argument("--to", dest="d_to",
@@ -76,8 +82,33 @@ def _args():
 # 2. EE helpers (soft-import so the file loads without ee installed)
 # ---------------------------------------------------------------------
 def _ensure_ee():
-    from common.gee import init_ee
-    return init_ee()
+    try:
+        import ee  # noqa: F401
+    except ImportError as e:
+        raise SystemExit(
+            "earthengine-api not installed. Run:\n"
+            "  pip install earthengine-api geemap geopandas"
+        ) from e
+    import ee
+    project = os.environ.get("GEE_PROJECT")
+    sa_key = os.environ.get("GEE_SERVICE_ACCOUNT_KEY")
+    if sa_key:
+        key_path = Path(sa_key) if Path(sa_key).is_absolute() else ROOT / sa_key
+        if key_path.exists():
+            import json as _json
+            with key_path.open() as f:
+                info = _json.load(f)
+            creds = ee.ServiceAccountCredentials(info["client_email"], str(key_path))
+            ee.Initialize(creds, project=project)
+            print(f"  authenticated via service account ({info['client_email']})")
+            return ee
+    try:
+        ee.Initialize(project=project)
+    except Exception:
+        print("Earth Engine not authenticated — launching browser flow ...")
+        ee.Authenticate()
+        ee.Initialize(project=project)
+    return ee
 
 
 def _mask_s2_clouds(img):
@@ -96,7 +127,8 @@ def _compute_indices(img):
         {"NIR": img.select("B8"), "RED": img.select("B4"), "BLUE": img.select("B2")}
     ).rename("EVI")
     ndmi = img.normalizedDifference(["B8", "B11"]).rename("NDMI")
-    return img.addBands([ndvi, evi, ndmi])
+    nsmi = img.normalizedDifference(["B11", "B12"]).rename("NSMI")
+    return img.addBands([ndvi, evi, ndmi, nsmi])
 
 
 def _monthly_composite(ee, aoi, start, end, cloud_pct):
@@ -133,13 +165,13 @@ def _months_between(start_ym: str, end_ym: str) -> int:
 # ---------------------------------------------------------------------
 # 3. Zonal statistics
 # ---------------------------------------------------------------------
-def _zonal_stats(ee, img, tehsils_fc, scale=30):
-    """Mean per tehsil for every band in `img`. Returns ee.FeatureCollection."""
+def _zonal_stats(ee, img, zones_fc, scale=30):
+    """Mean per zone (village or tehsil) for every band in `img`."""
     return img.reduceRegions(
-        collection=tehsils_fc,
+        collection=zones_fc,
         reducer=ee.Reducer.mean(),
         scale=scale,
-        tileScale=4,
+        tileScale=8,
     )
 
 
@@ -216,32 +248,62 @@ def _push_supabase(zonal_rows: list[dict]) -> None:
     except ImportError:
         print("  skip push: pip install httpx")
         return
-    endpoint = f"{url.rstrip('/')}/rest/v1/monthly_index"
     headers = {
         "apikey": key,
         "Authorization": f"Bearer {key}",
         "Content-Type": "application/json",
         "Prefer": "resolution=merge-duplicates",
     }
-    payload = []
+
+    # 1. Village-level push: one row per (village, index, month)
+    village_endpoint = f"{url.rstrip('/')}/rest/v1/village_monthly_index"
+    village_payload = []
     for r in zonal_rows:
-        for ind in ("NDVI", "EVI", "NDMI", "VCI", "VHI", "PCI"):
+        village = r.get("village", "")
+        tehsil = r.get("tehsil", "")
+        for ind in ("NDVI", "EVI", "NDMI", "NSMI"):
             if ind in r and r[ind] is not None:
-                payload.append({
+                village_payload.append({
                     "index_name": ind.lower(),
                     "year": r["year"],
                     "month": r["month"],
+                    "village": village,
+                    "tehsil": tehsil,
                     "value": float(r[ind]),
                     "class_label": r.get(f"{ind}_class", ""),
                 })
-    if not payload:
-        return
-    with httpx.Client(timeout=30) as c:
-        resp = c.post(endpoint, headers=headers, json=payload)
-        if resp.status_code >= 300:
-            print(f"  push failed: {resp.status_code} {resp.text[:200]}")
-        else:
-            print(f"  pushed {len(payload)} rows to Supabase")
+    if village_payload:
+        with httpx.Client(timeout=60) as c:
+            resp = c.post(village_endpoint, headers=headers, json=village_payload)
+            if resp.status_code >= 300:
+                print(f"  village push failed: {resp.status_code} {resp.text[:200]}")
+            else:
+                print(f"  pushed {len(village_payload)} village rows to Supabase")
+
+    # 2. District-level aggregates: mean across all villages per (index, month)
+    district_endpoint = f"{url.rstrip('/')}/rest/v1/monthly_index"
+    district_payload = []
+    by_month: dict[tuple, list[float]] = {}
+    for r in zonal_rows:
+        for ind in ("NDVI", "EVI", "NDMI", "NSMI"):
+            if ind in r and r[ind] is not None:
+                k = (ind.lower(), r["year"], r["month"])
+                by_month.setdefault(k, []).append(float(r[ind]))
+    for (iname, yr, mo), vals in by_month.items():
+        district_payload.append({
+            "index_name": iname,
+            "year": yr,
+            "month": mo,
+            "value": sum(vals) / len(vals),
+            "class_label": "",
+        })
+    if district_payload:
+        with httpx.Client(timeout=30) as c:
+            resp = c.post(district_endpoint, headers=headers, json=district_payload)
+            if resp.status_code >= 300:
+                print(f"  district push failed: {resp.status_code} {resp.text[:200]}")
+            else:
+                print(f"  pushed {len(district_payload)} district rows to Supabase")
 
 
 # ---------------------------------------------------------------------
@@ -262,11 +324,16 @@ def main():
 
     start = f"{args.d_from}-01"
     nmonths = _months_between(args.d_from, args.d_to)
+    ey, em = map(int, args.d_to.split("-"))
+    em += 1
+    if em > 12:
+        em = 1; ey += 1
+    end_exclusive = f"{ey:04d}-{em:02d}-01"
     print(f"[3] building monthly S2 composites {args.d_from} .. {args.d_to} "
           f"({nmonths} months, cloud < {args.cloud_pct}%)")
-    monthly = _monthly_composite(ee, aoi, start, args.d_to + "-01", args.cloud_pct)
+    monthly = _monthly_composite(ee, aoi, start, end_exclusive, args.cloud_pct)
 
-    print("[4] zonal statistics per tehsil ...")
+    print("[4] zonal statistics per village ...")
     zonal_rows: list[dict] = []
     years_touched: set[int] = set()
     sy, sm = map(int, args.d_from.split("-"))
@@ -283,23 +350,23 @@ def main():
         years_touched.add(y)
         for feat in info:
             p = feat.get("properties", {})
+            village = p.get("VILLAGE") or p.get("name") or p.get("NAME") or ""
+            tehsil = p.get("TEHSIL") or p.get("tehsil") or ""
             row = {"year": y, "month": m,
-                   "tehsil": p.get("TEHSIL") or p.get("name") or p.get("NAME") or ""}
-            for ind in ("NDVI", "EVI", "NDMI"):
+                   "village": village, "tehsil": tehsil}
+            for ind in ("NDVI", "EVI", "NDMI", "NSMI"):
                 row[ind] = p.get(ind)
-            # NDVI/EVI/NDMI are raw spectral inputs; their drought class is
-            # derived later by the composite CDI lookup table, not by the
-            # SPI classifier. Do not classify them here.
+                if row[ind] is not None:
+                    row[f"{ind}_class"] = classify_spi(float(row[ind]))
             zonal_rows.append(row)
 
-        # Per-pixel export is optional and slow; comment out for faster runs.
-        for ind in ("NDVI", "EVI", "NDMI"):
+        for ind in ("NDVI", "EVI", "NDMI", "NSMI"):
             _write_pixel_geojson(ee, img, aoi, ind, y, m)
 
-    _save_zonal_csv(zonal_rows, OUT / "csv" / "zonal_tehsil_monthly.csv")
+    _save_zonal_csv(zonal_rows, OUT / "csv" / "zonal_village_monthly.csv")
 
     print("[5] updating manifest.json ...")
-    _update_manifest(["NDVI", "EVI", "NDMI", "VCI", "VHI"],
+    _update_manifest(["NDVI", "EVI", "NDMI", "NSMI"],
                      sorted(years_touched))
 
     print("[6] pushing to Supabase (if PUSH_TO_SUPABASE=1) ...")

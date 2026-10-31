@@ -169,22 +169,29 @@ def _district_frame(cfg: dict) -> pd.DataFrame:
     (per-village, per-period indices already computed by the SPI/sentinel
     scripts).  We average across villages to obtain the district frame that
     composite_cdi.py then normalises + fuses into CDI.
+
+    When village-level SPI columns are mostly NaN (no local rasters), the
+    district-level SPI from spi_from_chirps_csv.py is used as a fallback.
     """
     vil = pd.read_csv(OUT / "csv" / "village_Latur_monthly_indices.csv")
     vil["date"] = vil["date"].astype(str)
-    agg = vil.groupby("date").agg({
+    agg_cols = {
         "NDVI": "mean", "EVI": "mean", "VCI": "mean", "VHI": "mean",
         "Rain_mm": "mean", "PCI": "mean",
         "SPI1": "mean", "SPI3": "mean", "SPI6": "mean", "SPI12": "mean",
-    }).reset_index()
+    }
+    if "NSMI" in vil.columns:
+        agg_cols["NSMI"] = "mean"
+    agg = vil.groupby("date").agg(agg_cols).reset_index()
     dt = pd.to_datetime(agg["date"], format="%Y-%m", errors="coerce")
     agg["year"] = dt.dt.year
     agg["month"] = dt.dt.month
     spi_col = {"SPI-1": "SPI1", "SPI-3": "SPI3", "SPI-6": "SPI6", "SPI-12": "SPI12"}[
         cfg["spi_accumulation"]]
     agg = agg.rename(columns={spi_col: "SPI", "Rain_mm": "rain_mm_mean"})
-    # Recompute PCI from district-mean rainfall (Oliver's PCI) so the
-    # composite is self-consistent with the normalisation config.
+
+    _fill_spi_from_chirps_csv(agg, spi_col)
+
     agg["PCI"] = _compute_pci_from_rain(
         agg[["date", "rain_mm_mean"]].copy()
     ).reset_index(drop=True).values
@@ -192,8 +199,30 @@ def _district_frame(cfg: dict) -> pd.DataFrame:
     return df
 
 
-def _tehsil_frame() -> pd.DataFrame:
-    p = OUT / "csv" / "zonal_tehsil_monthly.csv"
+def _fill_spi_from_chirps_csv(agg: pd.DataFrame, spi_col: str) -> None:
+    """Fill NaN SPI values in `agg` from the GEE-derived district SPI CSV."""
+    fallback = OUT / "csv" / "SPI_Latur_district_monthly.csv"
+    if not fallback.exists():
+        return
+    spi_df = pd.read_csv(fallback)
+    spi_df["date"] = spi_df["date"].astype(str)
+    spi_df = spi_df.set_index("date")
+    filled = 0
+    for i, row in agg.iterrows():
+        if pd.notna(row.get("SPI")):
+            continue
+        d = row["date"]
+        if d in spi_df.index and spi_col in spi_df.columns:
+            val = spi_df.loc[d, spi_col]
+            if pd.notna(val):
+                agg.at[i, "SPI"] = val
+                filled += 1
+    if filled:
+        print(f"  filled {filled} SPI values from GEE-derived district CSV")
+
+
+def _village_frame() -> pd.DataFrame:
+    p = OUT / "csv" / "zonal_village_monthly.csv"
     if p.exists():
         return pd.read_csv(p)
     return pd.DataFrame()
@@ -258,11 +287,10 @@ def main():
             "components_by_period": components_log,
         }, f, indent=2)
 
-    tdf = _tehsil_frame()
-    if not tdf.empty:
-        # Keep whatever columns exist; the tehsil-level CDI uses the same
-        # normalisation but per-tehsil values (missing cols are allowed).
-        print("  (tehsil-level fusion would run here when zonal CSV is populated)")
+    vdf = _village_frame()
+    if not vdf.empty:
+        print(f"  village-level GEE frame: {len(vdf)} rows, "
+              f"{vdf['village'].nunique() if 'village' in vdf.columns else 0} villages")
 
     print("[6] writing per-period GeoJSON ...")
     _write_period_geojson(df, cfg)
@@ -280,8 +308,8 @@ def _district_geometry() -> dict | None:
     from shapely.geometry import mapping, Point
     from shapely.ops import unary_union
 
-    root = HERE.parent.parent
-    gpath = root / "Latur_villages.geojson"
+    root = HERE.parent
+    gpath = root / "data" / "vector" / "latur_villages.geojson"
     if gpath.exists():
         try:
             import geopandas as gpd
@@ -306,7 +334,7 @@ def _write_period_geojson(df: pd.DataFrame, cfg: dict) -> None:
     geom = _district_geometry()
 
     props_cols = [
-        "SPI", "NDVI", "EVI", "VCI", "VHI", "PCI",
+        "SPI", "NDVI", "EVI", "VCI", "VHI", "NSMI", "PCI",
         "CDI", "CDI_class", "CDI_label", "formula_version",
         "rain_mm_mean",
     ]
