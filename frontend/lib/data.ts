@@ -9,7 +9,7 @@ import { fetchData } from "./dataSource";
 export interface TsPoint {
   p: string;
   cdi: number | null; cls: string;
-  ndvi: number | null; evi: number | null; vci: number | null; vhi: number | null; pci: number | null;
+  ndvi: number | null; evi: number | null; vci: number | null; vhi: number | null; nsmi?: number | null; pci: number | null;
   tci?: number | null; smi?: number | null; lst?: number | null; vv?: number | null;
   rain: number | null;
   spi1: number | null; spi3: number | null; spi6: number | null; spi12: number | null;

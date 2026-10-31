@@ -76,6 +76,7 @@ DEFAULT_SPI = ROOT / "output" / "spi" / "csv"
 DEFAULT_VILLAGES = ROOT / "frontend" / "public" / "data" / "latur_villages.geojson"
 DEFAULT_OUT = Path(os.environ.get("OUTPUT_DIR", ROOT / "data" / "processed"))
 DEFAULT_RASTERS = ROOT / "output" / "indices" / "rasters"
+DEFAULT_NSMI_CSV = ROOT / "data" / "processed" / "csv" / "village_Latur_monthly_NSMI.csv"
 CFG_PATH = ROOT / "config" / "composite.yaml"
 
 DST_CRS = "EPSG:32643"
@@ -230,7 +231,7 @@ def _read_bands_by_description(path: Path, target_res: float):
             short = BAND_DESC_TO_NAME.get(desc)
             if short is None:
                 continue  # skip non-spectral bands (e.g. valid_weeks)
-            a = src.read(band=b, out_shape=(h, w),
+            a = src.read(b, out_shape=(h, w),
                          resampling=Resampling.average).astype("float32")
             if nodata is not None:
                 a[a == nodata] = np.nan
@@ -354,7 +355,8 @@ def estimate_offsets(raster_dir: Path, index: str) -> dict:
     groups: dict[str, list[str]] = {}
     for period, m in meta.items():
         if (raster_dir / index / f"{index}_{period}.tif").exists():
-            groups.setdefault(m["group"], []).append(period)
+            grp = m.get("group", _group_of(m.get("source", "")))
+            groups.setdefault(grp, []).append(period)
     if not groups:
         return {"reference": None, "groups": {}}
     ref = max(groups, key=lambda g: len(groups[g]))
@@ -558,6 +560,18 @@ def load_spi_long(spi_dir: Path) -> pd.DataFrame:
     return out.drop_duplicates(subset=["village", "tehsil", "period"])
 
 
+def load_nsmi(nsmi_csv: Path) -> pd.DataFrame:
+    if not nsmi_csv.exists():
+        print(f"    NSMI CSV not found: {nsmi_csv}")
+        return pd.DataFrame(columns=["village_idx", "period", "NSMI"])
+    df = pd.read_csv(nsmi_csv)
+    df = df[["village_idx", "period", "NSMI"]].copy()
+    df["village_idx"] = df["village_idx"].astype(int)
+    df["period"] = df["period"].astype(str)
+    df = df.drop_duplicates(["village_idx", "period"])
+    return df
+
+
 def sample_chirps(chirps_dir: Path, villages: list[dict]) -> pd.DataFrame:
     cent = [centroid_lonlat(v["geom"]) for v in villages]
     lons = np.array([c[0] for c in cent])
@@ -580,9 +594,111 @@ def sample_chirps(chirps_dir: Path, villages: list[dict]) -> pd.DataFrame:
 # =====================================================================
 # derived indices + composite CDI
 # =====================================================================
-from common.village_cdi import (  # noqa: E402,F401
-    NORMALISERS, _classify, _load_cfg, _robust_z, _row_cdi, derive_indices, fuse_cdi,
-)
+def _load_cfg() -> dict:
+    import yaml
+    with CFG_PATH.open(encoding="utf-8") as f:
+        return yaml.safe_load(f)
+
+
+NORMALISERS = {
+    "neg_clip": lambda s: (-s / 3.0).clip(0.0, 1.0),
+    "inv_0_100": lambda s: (1.0 - s / 100.0).clip(0.0, 1.0),
+}
+
+
+def _robust_z(df: pd.DataFrame, col: str) -> pd.Series:
+    """Per (village, calendar month) robust standardised anomaly -> 0..1.
+
+    S = clip(-z / 3, 0, 1) with z = (x - median) / (1.4826 * MAD).
+    A normal month (z ~ 0) gives S ~ 0 (None/D0); only deficits score.
+    """
+    keys = [df["village_idx"], df["month"]]
+    med = df.groupby(["village_idx", "month"])[col].transform("median")
+    mad = ((df[col] - med).abs()
+           .groupby([df["village_idx"], df["month"]]).transform("median"))
+    scale = 1.4826 * mad
+    z = (df[col] - med) / scale.where(scale > 1e-9)
+    return (-z / 3.0).clip(0.0, 1.0)
+
+
+def _classify(v, thresholds) -> str:
+    if v is None or (isinstance(v, float) and math.isnan(v)):
+        return "ND"
+    for t in thresholds:
+        if v < t["max"]:
+            return t["code"]
+    return "D4"
+
+
+def _row_cdi(vals: dict, weights: dict, min_inputs: int):
+    num = den = 0.0
+    contrib = {}
+    used = 0
+    for name, s in vals.items():
+        if s is None or (isinstance(s, float) and math.isnan(s)):
+            continue
+        w = weights.get(name)
+        if w is None:
+            continue
+        num += w * s
+        den += w
+        contrib[name] = round(w * s, 4)
+        used += 1
+    if used < min_inputs or den == 0:
+        return None, contrib
+    return round(num / den, 4), contrib
+
+
+def derive_indices(panel: pd.DataFrame, cfg: dict) -> pd.DataFrame:
+    panel = panel.copy()
+    panel["month"] = panel["period"].str.slice(5, 7).astype(int)
+    g_rain = panel.groupby(["village_idx", "month"])["Rain_mm"]
+    lo = g_rain.transform("min")
+    hi = g_rain.transform("max")
+    rng = hi - lo
+    panel["PCI"] = ((100.0 * (panel["Rain_mm"] - lo) / rng)
+                    .where(rng > 0.1)).clip(0.0, 100.0)
+    return panel
+
+
+def fuse_cdi(panel: pd.DataFrame, cfg: dict) -> pd.DataFrame:
+    weights = cfg["weights"]
+    min_inputs = int(cfg["min_inputs"])
+    norm_cfg = cfg["normalisation"]
+    spi_col = {"SPI-1": "SPI1", "SPI-3": "SPI3", "SPI-6": "SPI6",
+               "SPI-12": "SPI12"}[cfg["spi_accumulation"]]
+
+    panel = panel.copy()
+    panel["SPI"] = panel.get(spi_col)
+    sig = {}
+    for name in weights:
+        method = norm_cfg.get(name, {}).get("method", "robust_z")
+        if method == "robust_z":
+            sig[name] = _robust_z(panel, name)
+        elif method in NORMALISERS:
+            sig[name] = NORMALISERS[method](panel[name])
+        else:
+            sig[name] = pd.Series(np.nan, index=panel.index)
+
+    cdis, contribs = [], []
+    for i in range(len(panel)):
+        vals = {m: sig[m].iloc[i] for m in weights}
+        cdi, contrib = _row_cdi(vals, weights, min_inputs)
+        cdis.append(cdi)
+        contribs.append(json.dumps(contrib))
+    panel["composite_drought_score"] = pd.to_numeric(
+        pd.Series(cdis, index=panel.index), errors="coerce")
+    panel["component_contributions"] = contribs
+    panel["composite_drought_class"] = [
+        _classify(v, cfg["thresholds"]) for v in panel["composite_drought_score"]]
+    panel["formula_version"] = cfg["formula_version"]
+    panel["SPI_scaled"] = np.clip((panel["SPI3"] + 2.0) / 4.0 * 100.0, 0, 100)
+    has_cdi = panel["composite_drought_score"].notna()
+    has_precip = panel["SPI"].notna() | panel.get("PCI", pd.Series(dtype=float)).notna()
+    panel["data_quality_status"] = np.where(
+        ~has_cdi, "pending",
+        np.where(has_precip, "success", "degraded"))
+    return panel
 
 
 # =====================================================================
@@ -605,7 +721,7 @@ def write_outputs(panel, villages, out_dir, cfg, scenes) -> None:
 
     tidy_cols = [
         "village_idx", "village", "tehsil", "name", "year", "month", "date",
-        "NDVI", "EVI", "VCI", "VHI", "Rain_mm",
+        "NDVI", "EVI", "VCI", "VHI", "NSMI", "Rain_mm",
         "SPI1", "SPI3", "SPI6", "SPI12", "PCI", "SPI_scaled",
         "composite_drought_score", "component_contributions",
         "composite_drought_class", "formula_version", "data_quality_status",
@@ -620,7 +736,7 @@ def write_outputs(panel, villages, out_dir, cfg, scenes) -> None:
           f"({len(tidy)} rows)")
 
     num = ["SPI1", "SPI3", "SPI6", "SPI12", "Rain_mm", "NDVI", "EVI",
-           "VCI", "VHI", "PCI", "composite_drought_score"]
+           "VCI", "VHI", "NSMI", "PCI", "composite_drought_score"]
     dist = (df.groupby(["year", "month"])[num].mean(numeric_only=True)
               .reset_index())
     dist["date"] = (dist["year"].astype(str) + "-" +
@@ -655,7 +771,8 @@ def write_outputs(panel, villages, out_dir, cfg, scenes) -> None:
             "SPI6": _f(r["SPI6"]), "SPI12": _f(r["SPI12"]),
             "Rain_mm": _f(r["Rain_mm"]), "NDVI": _f(r["NDVI"]),
             "EVI": _f(r["EVI"]), "VCI": _f(r["VCI"]), "VHI": _f(r["VHI"]),
-            "PCI": _f(r["PCI"]), "CDI": _f(r["composite_drought_score"]),
+            "NSMI": _f(r["NSMI"]), "PCI": _f(r["PCI"]),
+            "CDI": _f(r["composite_drought_score"]),
             "class": r["composite_drought_class"],
         } for _, r in g.iterrows()]
         series[str(vidx)] = {"id": int(vidx),
@@ -676,8 +793,8 @@ def write_outputs(panel, villages, out_dir, cfg, scenes) -> None:
             "id": int(r["village_idx"]), "tehsil": r["tehsil"],
             "village": r["village"], "date": r["period"],
             "SPI3": _f(r["SPI3"]), "NDVI": _f(r["NDVI"]), "EVI": _f(r["EVI"]),
-            "VCI": _f(r["VCI"]), "VHI": _f(r["VHI"]), "PCI": _f(r["PCI"]),
-            "CDI": _f(r["composite_drought_score"]),
+            "VCI": _f(r["VCI"]), "VHI": _f(r["VHI"]), "NSMI": _f(r["NSMI"]),
+            "PCI": _f(r["PCI"]), "CDI": _f(r["composite_drought_score"]),
             "class": r["composite_drought_class"],
         }
     (out_dir / "json" / "village_latest.json").write_text(
@@ -703,7 +820,8 @@ def _write_latest_geojson(villages, latest_df, path: Path) -> None:
     for _, r in latest_df.iterrows():
         vals[int(r["village_idx"])] = {
             "NDVI": _f(r["NDVI"]), "EVI": _f(r["EVI"]), "VCI": _f(r["VCI"]),
-            "VHI": _f(r["VHI"]), "PCI": _f(r["PCI"]), "SPI3": _f(r["SPI3"]),
+            "VHI": _f(r["VHI"]), "NSMI": _f(r["NSMI"]), "PCI": _f(r["PCI"]),
+            "SPI3": _f(r["SPI3"]),
             "CDI": _f(r["composite_drought_score"]),
             "class": r["composite_drought_class"],
         }
@@ -740,6 +858,7 @@ def main():
     ap.add_argument("--sentinel-dir", type=Path, default=DEFAULT_SENTINEL)
     ap.add_argument("--chirps-dir", type=Path, default=DEFAULT_CHIRPS)
     ap.add_argument("--spi-dir", type=Path, default=DEFAULT_SPI)
+    ap.add_argument("--nsmi-csv", type=Path, default=DEFAULT_NSMI_CSV)
     ap.add_argument("--villages", type=Path, default=DEFAULT_VILLAGES)
     ap.add_argument("--out-dir", type=Path, default=DEFAULT_OUT)
     ap.add_argument("--raster-dir", type=Path, default=DEFAULT_RASTERS)
@@ -831,6 +950,14 @@ def main():
         panel = panel.merge(spi, on=["village_idx", "period"], how="left")
         chirps = sample_chirps(args.chirps_dir, villages)
         panel = panel.merge(chirps, on=["village_idx", "period"], how="left")
+
+        nsmi = load_nsmi(args.nsmi_csv)
+        if not nsmi.empty:
+            panel = panel.merge(nsmi, on=["village_idx", "period"], how="left")
+            nsmi_ok = panel["NSMI"].notna().sum()
+            print(f"  NSMI merged: {nsmi_ok}/{len(panel)} rows")
+        else:
+            panel["NSMI"] = np.nan
 
         cfg = _load_cfg()
         panel = derive_indices(panel, cfg)

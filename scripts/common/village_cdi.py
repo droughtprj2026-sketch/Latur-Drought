@@ -28,7 +28,7 @@ def _load_cfg(path: str | Path | None = None) -> dict:
     p = Path(path or os.environ.get("COMPOSITE_CONFIG") or CFG_PATH)
     if not p.is_absolute():
         p = CFG_PATH.parent.parent / p
-    with p.open() as f:
+    with p.open(encoding="utf-8") as f:
         return yaml.safe_load(f)
 
 

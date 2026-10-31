@@ -1,5 +1,5 @@
 // Supabase client for the frontend (anon key only). The service_role key
-// stays in the Node gateway.
+// stays in the Node API server.
 import { createClient } from "@supabase/supabase-js";
 
 const url  = process.env.NEXT_PUBLIC_SUPABASE_URL;

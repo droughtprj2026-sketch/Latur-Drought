@@ -1,9 +1,9 @@
 // Typed fetch wrapper for the Latur drought-monitoring API.
-// Everything the frontend calls flows through the Node gateway (/api/v1).
+// Everything the frontend calls flows through the Node API (/api/v1).
 
 export type IndexName =
   | "spi1" | "spi3" | "spi6" | "spi12"
-  | "ndvi" | "evi"  | "ndmi" | "vci"
+  | "ndvi" | "evi"  | "ndmi" | "nsmi" | "vci"
   | "vhi"  | "pci"
   | "cdi" | "cdi_class";
 

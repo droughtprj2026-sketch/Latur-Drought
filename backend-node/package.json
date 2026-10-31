@@ -1,8 +1,8 @@
 {
-  "name": "latur-drought-gateway",
+  "name": "latur-drought-api",
   "version": "0.1.0",
   "private": true,
-  "description": "Thin Node.js gateway in front of the Go drought-monitoring API: auth, uploads, static passthrough.",
+  "description": "Node.js API server for Latur drought monitoring: indices, CDI, time-series, auth, and uploads.",
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
@@ -16,7 +16,7 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
-    "http-proxy-middleware": "^3.0.0",
+
     "multer": "^1.4.5-lts.1",
     "pino": "^9.0.0",
     "pino-http": "^10.0.0",

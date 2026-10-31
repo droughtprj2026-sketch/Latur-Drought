@@ -36,6 +36,7 @@ export interface VillageProperties {
   EVI?: number | null;
   VCI?: number | null;
   VHI?: number | null;
+  NSMI?: number | null;
   PCI?: number | null;
   SPI1?: number | null;
   SPI3?: number | null;
@@ -309,6 +310,17 @@ export function VillageIntelligenceDrawer({ village, onClose }: Props) {
                     {village.VHI != null ? village.VHI.toFixed(1) : "—"}
                   </div>
                   <div className="text-[10px] text-slate-500 mt-0.5">Vegetation Health Index</div>
+                </div>
+
+                <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
+                  <div className="text-[11px] text-slate-500 flex items-center justify-between">
+                    <span className="font-semibold text-slate-700">NSMI (Soil)</span>
+                    <span className="text-[10px] font-mono text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200">Sentinel-1</span>
+                  </div>
+                  <div className="text-xl font-bold font-mono text-slate-900 mt-1">
+                    {village.NSMI != null ? village.NSMI.toFixed(3) : "—"}
+                  </div>
+                  <div className="text-[10px] text-slate-500 mt-0.5">Radar Soil Moisture Proxy</div>
                 </div>
 
                 <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
