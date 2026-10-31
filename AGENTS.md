@@ -63,31 +63,37 @@ Agents MUST follow these without being reminded:
 
 ```
 drought-monitoring/
-├── AGENTS.md           ← you are here
-├── DEVELOPER.md        ← full architecture + API reference
-├── CODE_OF_CONDUCT.md
+├── AGENTS.md              ← you are here
+├── DEVELOPER.md           ← full architecture + API reference
 ├── README.md
-├── docker-compose.yml  ← local Supabase + Go + Node
+├── docker-compose.yml     ← local Supabase + Go + Node
 ├── .env.example
 │
-├── scripts/            ← Python processing
-│   ├── latur_chirps_spi.py       (CHIRPS → SPI, reference, do not break)
-│   ├── latur_sentinel_indices.py (local-raster path: NDVI/EVI/NDMI/VCI from the raw folders)
-│   ├── latur_cdi.py              (fuses SPI + NDVI + VHI + PCI → CDI)
-│   ├── pipeline_gee.py           (near-real-time S2 from GEE for an AOI)
-│   ├── chirps_gee.py             (near-real-time CHIRPS from GEE, UCSB-CHG/CHIRPS/monthly)
-│   ├── composite_cdi.py          (transparent weighted multi-index composite)
-│   ├── dashboard_master.py       (builds outputs/Dashboard/{master.csv,status,avail,manifest}.json)
-│   ├── scheduler.py              (orchestrates incremental updates with manifests)
+├── config/
+│   ├── composite.yaml     (CDI weights, thresholds, formula_version)
+│   └── spi.yaml           (SPI reference climatology + QC rules)
+│
+├── scripts/               ← Python pipeline
+│   ├── chirps_gee.py      (real-time: CHIRPS monthly from GEE)
+│   ├── pipeline_gee.py    (real-time: Sentinel-2 from GEE → NDVI/EVI/NDMI/NSMI)
+│   ├── latur_chirps_spi.py       (batch: SPI from local rasters, reference)
+│   ├── latur_sentinel_indices.py (batch: indices from local rasters, reference)
+│   ├── composite_cdi.py          (CDI: transparent weighted multi-index composite)
+│   ├── build_village_indices.py  (village-level zonal stats + CDI scoring)
+│   ├── build_baseline_drought.py (baseline anomalies + GeoJSON export)
+│   ├── dashboard_master.py       (builds outputs/Dashboard/ for Go API)
+│   ├── scheduler.py              (orchestrates incremental pipeline runs)
 │   └── common/{raster.py, classify.py, manifest.py}
 │
-├── config/
-│   ├── composite.yaml            (CDI weights, normalisation, thresholds, formula_version)
-│   └── spi.yaml                  (SPI reference climatology + QC rules)
+├── data/
+│   ├── raw/               (NEVER COMMIT — large rasters)
+│   ├── vector/            (AOI: district, tehsils, 954 villages)
+│   └── processed/         (pipeline outputs: CSV, GeoJSON, JSON)
 │
-├── backend-go/         ← primary API (chi + pgx)
-├── backend-node/       ← gateway: auth, uploads, static passthrough
-└── frontend/           ← Next.js 14 App Router + Leaflet + Recharts
+├── outputs/Dashboard/     ← Go backend reads from here (the bridge)
+├── backend-go/            ← primary REST API (chi + pgx)
+├── backend-node/          ← gateway: auth, uploads, static passthrough
+└── frontend/              ← Next.js 14 App Router + Leaflet + Recharts
 ```
 
 ---

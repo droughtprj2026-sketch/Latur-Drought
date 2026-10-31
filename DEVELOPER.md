@@ -79,73 +79,53 @@ Supabase data layer.
 
 ```
 drought-monitoring/
-├── DEVELOPER.md
-├── CODE_OF_CONDUCT.md
 ├── README.md
+├── DEVELOPER.md           # this file
+├── AGENTS.md              # rules for coding agents
+├── docker-compose.yml
+├── .env.example
 │
-├── scripts/                      # Python processing (one-off / Colab)
-│   ├── latur_chirps_spi.py       # SPI-1/3/6/12 from CHIRPS rainfall
-│   ├── latur_sentinel_indices.py # NDVI, EVI, PCI, VHI from Sentinel-2
-│   ├── latur_cdi.py              # Composite Drought Index
+├── config/
+│   ├── composite.yaml     # CDI weights, thresholds, formula_version
+│   └── spi.yaml           # SPI reference climatology + QC rules
+│
+├── scripts/               # Python pipeline
+│   ├── chirps_gee.py      # real-time: CHIRPS from GEE
+│   ├── pipeline_gee.py    # real-time: Sentinel-2 from GEE
+│   ├── latur_chirps_spi.py       # batch: SPI from local rasters
+│   ├── latur_sentinel_indices.py # batch: indices from local rasters
+│   ├── composite_cdi.py          # CDI composite computation
+│   ├── build_village_indices.py  # village-level zonal stats + CDI
+│   ├── build_baseline_drought.py # baseline anomalies + GeoJSON
+│   ├── dashboard_master.py       # builds outputs/Dashboard/
+│   ├── scheduler.py              # orchestrates pipeline runs
 │   ├── common/
-│   │   ├── raster.py             # read_stack / reproject helpers
-│   │   └── classify.py           # drought-class thresholds
+│   │   ├── raster.py      # file scanning, dedupe, read_stack
+│   │   ├── classify.py    # SPI/CDI class thresholds
+│   │   └── manifest.py    # incremental processing manifest
 │   └── requirements.txt
 │
 ├── data/
-│   ├── raw/                      # DO NOT COMMIT — large rasters
-│   │   ├── sentinel/{YYYY}/
-│   │   └── chirps/{YYYY}/
-│   ├── vector/
+│   ├── raw/               # DO NOT COMMIT — large rasters
+│   ├── vector/            # AOI boundaries
 │   │   ├── latur_district.geojson
-│   │   └── latur_tehsils.geojson
-│   └── processed/                # outputs the frontend consumes
-│       ├── spi/SPI_Latur_{YYYY}.geojson
-│       ├── ndvi/NDVI_Latur_{YYYY}.geojson
-│       ├── cdi/CDI_Latur_{YYYY}.geojson
-│       ├── csv/*.csv
-│       └── json/district_monthly.json
+│   │   ├── latur_tehsils.geojson
+│   │   └── latur_villages.geojson  (954 villages)
+│   └── processed/         # pipeline outputs
+│       ├── csv/           # village/district/tehsil time series
+│       ├── geojson/       # per-period village GeoJSON
+│       ├── json/          # manifest, district monthly, components
+│       └── manifests/     # per-source processing state
 │
-├── backend-go/                   # primary API
-│   ├── cmd/server/main.go
-│   ├── internal/
-│   │   ├── api/                  # chi handlers
-│   │   ├── db/                   # pgx + sqlc queries
-│   │   ├── indices/              # SPI/NDVI/CDI domain logic
-│   │   └── geojson/              # polygon encoders
-│   ├── migrations/               # SQL files applied to Supabase
-│   ├── go.mod
-│   └── Dockerfile
+├── outputs/Dashboard/     # Go backend reads from here
+│   ├── drought_monitoring_master.csv
+│   ├── latest_status.json
+│   ├── data_availability.json
+│   └── processing_manifest.json
 │
-├── backend-node/                 # gateway: auth, uploads, static
-│   ├── src/
-│   │   ├── index.ts
-│   │   ├── routes/
-│   │   │   ├── auth.ts
-│   │   │   ├── upload.ts         # upload processed GeoJSON
-│   │   │   └── proxy.ts          # proxies /api/v1 to Go service
-│   │   └── middleware/supabase.ts
-│   ├── package.json
-│   └── tsconfig.json
-│
-└── frontend/                     # Next.js app
-    ├── app/
-    │   ├── layout.tsx
-    │   ├── page.tsx              # dashboard shell
-    │   ├── map/page.tsx
-    │   └── timeseries/page.tsx
-    ├── components/
-    │   ├── map/LaturMap.tsx      # Leaflet choropleth
-    │   ├── map/LegendBar.tsx
-    │   ├── charts/SPIChart.tsx
-    │   ├── charts/CDIHeatmap.tsx
-    │   └── ui/IndexSelector.tsx
-    ├── lib/
-    │   ├── api.ts                # typed fetch wrapper
-    │   └── supabase.ts
-    ├── public/data/              # small bootstrap GeoJSON
-    ├── package.json
-    └── next.config.mjs
+├── backend-go/            # primary API (chi + pgx)
+├── backend-node/          # gateway: auth, uploads, static passthrough
+└── frontend/              # Next.js 14 + Leaflet + Recharts
 ```
 
 ---

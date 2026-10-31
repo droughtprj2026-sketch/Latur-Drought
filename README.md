@@ -1,52 +1,89 @@
-# Real-Time Drought Monitoring — Latur District, Marathwada
+# Latur Drought Monitoring System
 
-A full-stack platform that turns Sentinel-2 and CHIRPS rasters (2016 – 2026)
-into actionable drought information. Computes SPI, NDVI, EVI, PCI, VHI
-and a composite CDI; serves them through a Go API; renders them on a
-Leaflet map and Recharts time series in a Next.js dashboard.
+Real-time drought monitoring for Latur District, Marathwada (2016-2026).
+Ingests Sentinel-2 and CHIRPS data via Google Earth Engine, computes
+drought indices (SPI, NDVI, VCI, PCI, NSMI), fuses them into a
+Composite Drought Index (CDI), and serves the results through a
+web dashboard with maps and time-series charts.
+
+## Architecture
+
+```
+GEE (Sentinel-2 + CHIRPS)
+        |
+   Python pipeline  -->  data/processed/  -->  outputs/Dashboard/
+                                                       |
+                                               Go API (:8080)
+                                                       |
+                                             Next.js dashboard (:3000)
+```
 
 ## Stack
 
-| Layer       | Technology                              |
-| ----------- | --------------------------------------- |
-| Processing  | Python 3.11 (rasterio, geopandas, scipy) |
-| Backend     | **Go 1.22** (chi, pgx) + Node 20 gateway |
-| Database    | **Supabase** (Postgres 15 + PostGIS 3.4) |
+| Layer       | Technology                                |
+| ----------- | ----------------------------------------- |
+| Pipeline    | Python 3.11 (earthengine-api, geopandas)  |
+| Backend     | Go 1.22 (chi, pgx) + Node.js 20 gateway  |
+| Database    | Supabase (Postgres 15 + PostGIS 3.4)      |
 | Frontend    | Next.js 14 + Leaflet + Recharts + Tailwind |
 
 ## Quick start
 
 ```bash
-cp .env.example .env         # fill in Supabase keys
-docker compose up            # starts Go API, Node gateway, local Postgres
-cd frontend && pnpm install && pnpm dev     # http://localhost:3000
+cp .env.example .env     # fill in GEE + Supabase credentials
 ```
 
-To re-run processing (requires raw rasters under `data/raw/`):
+### Run the pipeline
 
 ```bash
-cd scripts
-pip install -r requirements.txt
-python latur_chirps_spi.py
-python latur_sentinel_indices.py
-python latur_cdi.py
+cd scripts && pip install -r requirements.txt
+
+# One command runs everything (CHIRPS, Sentinel-2, SPI, CDI, dashboard):
+python scheduler.py
+
+# Or run steps individually:
+python chirps_gee.py --from 2016-01 --to latest
+python pipeline_gee.py --from 2026-01 --to 2026-10
+python composite_cdi.py
+python dashboard_master.py
 ```
 
-## Migration note (Oct 2026)
+### Start the stack
 
-The Random Forest classifier has been **retired**. The final drought
-class is now produced by a transparent weighted multi-index composite
-(see `config/composite.yaml`). No learned model is loaded at runtime,
-and the master table no longer carries `rf_*` columns.
+```bash
+docker compose up                            # Go API + Node gateway + Postgres
+cd frontend && pnpm install && pnpm dev      # http://localhost:3000
+```
+
+## Project structure
+
+```
+config/              CDI weights + SPI config (composite.yaml, spi.yaml)
+scripts/             Python pipeline (GEE ingest, indices, CDI, dashboard)
+data/vector/         AOI boundaries (district, tehsils, 954 villages)
+data/processed/      Pipeline outputs (CSV, GeoJSON, JSON)
+outputs/Dashboard/   Go backend reads these files directly
+backend-go/          Primary REST API (chi + pgx)
+backend-node/        Auth gateway (Express)
+frontend/            Next.js 14 dashboard (Leaflet + Recharts)
+```
+
+## CDI formula (v2026.11)
+
+```
+CDI = 0.40*SPI + 0.25*VCI + 0.15*NDVI + 0.10*PCI + 0.10*NSMI
+```
+
+Weights and thresholds are in `config/composite.yaml`. Change the YAML
+and re-run `python scripts/composite_cdi.py` — no code changes needed.
 
 ## Documentation
 
-- `AGENTS.md` — rules of the road for coding agents (Antigravity, OpenCode, …)
-- `DEVELOPER.md` — full architecture, API reference, deployment
-- `CODE_OF_CONDUCT.md` — community guidelines + scientific integrity clause
-- `RUN.md` — end-to-end run guide + test matrix
+- **DEVELOPER.md** — full architecture, API reference, pipeline details, deployment
+- **AGENTS.md** — rules for coding agents working on this repo
 
-## License
+## Data sources
 
-TBD. Data derived from CHIRPS (UCSB CHG), Sentinel-2 (Copernicus, ESA),
-Google Earth Engine. Credit upstream providers in any publication.
+- Sentinel-2 L2A (Copernicus/ESA) via Google Earth Engine
+- CHIRPS monthly precipitation (UCSB Climate Hazards Group)
+- Village boundaries (Revenue Department, Government of Maharashtra)
