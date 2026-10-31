@@ -13,7 +13,7 @@
     2025,
     2026
   ],
-  "as_of": "2026-10-27T09:30:10.424033+00:00",
+  "as_of": "2026-10-31T15:28:31.775187+00:00",
   "notes": "Latur multi-index drought dataset (2016-2026). Full indices computed.",
   "indices": {
     "spi1": {
@@ -189,40 +189,6 @@
     "cdi_class": {
       "source": "Composite Drought Class",
       "unit": "D0-D4",
-      "years": [
-        2016,
-        2017,
-        2018,
-        2019,
-        2020,
-        2021,
-        2022,
-        2023,
-        2024,
-        2025,
-        2026
-      ]
-    },
-    "ndmi": {
-      "source": "Sentinel-2 L2A (B8 & B11)",
-      "unit": "-1..1",
-      "years": [
-        2016,
-        2017,
-        2018,
-        2019,
-        2020,
-        2021,
-        2022,
-        2023,
-        2024,
-        2025,
-        2026
-      ]
-    },
-    "nsmi": {
-      "source": "Sentinel-2 L2A (B11 & B12)",
-      "unit": "-1..1",
       "years": [
         2016,
         2017,

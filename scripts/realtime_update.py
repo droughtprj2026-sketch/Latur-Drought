@@ -419,7 +419,7 @@ def refresh_latest_geojson(panel: pd.DataFrame, cfg: dict) -> str:
         cls = _classify(cdi, cfg["thresholds"]) if cdi is not None else "ND"
         p.update({"date": latest, "period": latest, "CDI": cdi, "CDI_class": cls, "class": cls,
                   "composite_formula_version": cfg["formula_version"]})
-        for k, c in (("NDVI", "NDVI"), ("EVI", "EVI"), ("VCI", "VCI"), ("VHI", "VHI"), ("PCI", "PCI"),
+        for k, c in (("NDVI", "NDVI"), ("EVI", "EVI"), ("VCI", "VCI"), ("VHI", "VHI"), ("NSMI", "NSMI"), ("PCI", "PCI"),
                      ("SPI1", "SPI1"), ("SPI3", "SPI3"), ("SPI6", "SPI6"), ("SPI12", "SPI12"),
                      ("Rain_mm", "Rain_mm"), ("TCI", "TCI"), ("SMI", "SMI"), ("LST", "LST")):
             p[k] = num(r[c]) if r is not None and c in r.index else None

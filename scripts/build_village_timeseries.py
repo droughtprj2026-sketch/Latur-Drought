@@ -96,7 +96,7 @@ def build() -> dict:
             pt["cdi"] = _r(cdi, 3) if has_cdi else None
             pt["cls"] = str(cls) if has_cdi and pd.notna(cls) else "ND"
             for k, col, nd in (("ndvi", "NDVI", 3), ("evi", "EVI", 3), ("vci", "VCI", 1),
-                               ("vhi", "VHI", 1), ("pci", "PCI", 1), ("tci", "TCI", 1),
+                               ("vhi", "VHI", 1), ("nsmi", "NSMI", 3), ("pci", "PCI", 1), ("tci", "TCI", 1),
                                ("smi", "SMI", 1), ("lst", "LST", 1), ("vv", "VV", 2)):
                 pt[k] = _r(row[col], nd) if row is not None and col in row.index else None
             for k, ser in series.items():

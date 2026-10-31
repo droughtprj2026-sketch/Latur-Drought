@@ -10,7 +10,7 @@ import { D_COLORS, D_LABELS } from "./classify";
 export type MetricName =
   | "cdi"
   | "spi1" | "spi3" | "spi6" | "spi12"
-  | "ndvi" | "vci" | "vhi" | "pci" | "rain"
+  | "ndvi" | "vci" | "vhi" | "nsmi" | "pci" | "rain"
   | "tci" | "smi" | "lst"
   | "base_ndvi" | "base_rain" | "z_ndvi" | "z_rain";
 
@@ -51,6 +51,7 @@ export interface ActiveVillage {
   evi?: number | null;
   vci?: number | null;
   vhi?: number | null;
+  nsmi?: number | null;
   pci?: number | null;
   tci?: number | null;
   smi?: number | null;
@@ -159,6 +160,15 @@ const PCT_BINS: Bin[] = [
 const zOf = (v?: number | null, mu?: number | null, sd?: number | null) =>
   v == null || mu == null || !sd ? null : (v - mu) / sd;
 
+
+const NSMI_BINS: Bin[] = [
+  bin(-INF, 0.10, C_D4,  "Extremely dry",  "< 0.10"),
+  bin(0.10, 0.15, C_D3,  "Very dry",       "0.10 – 0.15"),
+  bin(0.15, 0.20, C_D2,  "Dry",            "0.15 – 0.20"),
+  bin(0.20, 0.25, C_D0,  "Mild deficit",   "0.20 – 0.25"),
+  bin(0.25, INF,  C_NONE,"Adequate",       "≥ 0.25"),
+];
+
 export const METRICS: Record<MetricName, MetricSpec> = {
   cdi: {
     id: "cdi", label: "Composite drought (CDI)", group: "Drought", cadence: "monthly", unit: "0–1", decimals: 3,
@@ -190,6 +200,9 @@ export const METRICS: Record<MetricName, MetricSpec> = {
   vhi: { id: "vhi", label: "VHI · vegetation health", group: "Vegetation", cadence: "monthly", unit: "0–100", decimals: 1,
     title: "Vegetation Health Index", definition: "0.5·VCI + 0.5·TCI (Kogan). Where no land-surface temperature is available it equals VCI. Below 40 means stress.",
     bins: KOGAN_BINS, value: (p) => p.vhi },
+  nsmi: { id: "nsmi", label: "Soil moisture (NSMI)", group: "Thermal & soil", cadence: "monthly", unit: "0–1", decimals: 3,
+    title: "Normalized Soil Moisture Index (Sentinel-1)", definition: "Radar backscatter soil moisture proxy (VV). Higher = wetter soil.",
+    bins: NSMI_BINS, value: (p) => p.nsmi },
   pci: { id: "pci", label: "PCI · precipitation condition", group: "Rainfall", cadence: "monthly", unit: "0–100", decimals: 1,
     title: "Precipitation Condition Index", definition: "Month's rainfall position between its historical min and max. Below 40 means deficit.",
     bins: KOGAN_BINS, value: (p) => p.pci },
