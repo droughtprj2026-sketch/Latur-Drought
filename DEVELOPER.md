@@ -216,9 +216,11 @@ Latur_precip_YYYY_MM.tif
 | EVI    | `latur_sentinel_indices.py`                 | `2.5 · (NIR − RED) / (NIR + 6·RED − 7.5·BLUE + 1)`          |
 | PCI    | `latur_sentinel_indices.py`                 | `(P − P_min) / (P_max − P_min)` using CHIRPS monthly        |
 | VHI    | `latur_sentinel_indices.py`                 | `α·VCI + (1 − α)·TCI`, α = 0.5                              |
-| **CDI** | `composite_cdi.py`                         | Transparent weighted multi-index composite. Weights, normalisation and D-thresholds come from `config/composite.yaml` (default `0.30·SPI + 0.20·VHI + 0.15·VCI + 0.15·NDVI + 0.10·EVI + 0.10·PCI`). Missing inputs are excluded from both numerator and denominator; fewer than `min_inputs` components → `pending`. Formula version stamped on every row. **Replaces the retired Random Forest classifier.** |
+| NSMI   | `export_ndmi_nsmi_rasters.py`               | `(SWIR1 − SWIR2) / (SWIR1 + SWIR2)` — Normalised Soil Moisture Index (Boles 2020) |
+| NDMI   | `export_ndmi_nsmi_rasters.py`               | `(NIR − SWIR1) / (NIR + SWIR1)` — Normalised Difference Moisture Index (Gao 1996)  |
+| **CDI** | `build_village_indices.py`                 | Transparent weighted multi-index composite (cdi-v2026.11). Weights from `config/composite.yaml`: `0.40·SPI + 0.25·VCI + 0.15·NDVI + 0.10·PCI + 0.10·NSMI`. Aligned with Marathwada PCA-CDI evidence (Pawar 2022) and NDMA 2016 framework. Missing inputs excluded; fewer than `min_inputs` → `pending`. References: WMO (2012), McKee (1993), Kogan (1995), NDMA (2016), Pawar (2022). **Replaces the retired Random Forest classifier.** |
 
-### 5.3 Running the pipeline (local)
+### 5.3 Running the historical pipeline (local batch)
 
 ```bash
 cd scripts
@@ -227,10 +229,71 @@ pip install -r requirements.txt
 
 python latur_chirps_spi.py          # writes SPI GeoTIFFs + GeoJSON + CSV
 python latur_sentinel_indices.py    # writes NDVI/EVI/PCI/VHI GeoJSON
-python latur_cdi.py                 # fuses to CDI GeoJSON + CSV
+python build_village_indices.py     # village-level zonal stats + CDI composite
+python build_baseline_drought.py    # baseline anomalies + GeoJSON export
+python dashboard_master.py          # builds outputs/Dashboard/ files for Go API
 ```
 
-### 5.4 Running the pipeline (Colab)
+### 5.4 Running the near-real-time pipeline (GEE)
+
+The incremental pipeline fetches new Sentinel-2 and CHIRPS data from
+Google Earth Engine using a service account. Set these env vars in `.env`:
+
+```env
+GEE_PROJECT=<your-gee-project-id>
+GEE_SERVICE_ACCOUNT_KEY=<path-to-service-account-key.json>
+PIPELINE_SINCE=2026-01          # start month for incremental runs
+```
+
+Run each step independently or use the scheduler:
+
+```bash
+# 1. Pull CHIRPS monthly (incremental — only missing months)
+python scripts/chirps_gee.py --from 2016-01 --to latest
+
+# 2. Recompute SPI only for the months CHIRPS marked stale
+python scripts/latur_chirps_spi.py
+
+# 3. Pull Sentinel-2 for the AOI (independent cadence)
+python scripts/pipeline_gee.py \
+    --aoi data/vector/latur_tehsils.geojson \
+    --from 2016-01 --to 2026-10
+
+# 4. Compute the transparent multi-index composite
+python scripts/composite_cdi.py
+
+# 5. Build dashboard master + status files
+python scripts/dashboard_master.py
+
+# Or do steps 1-5 in one tick:
+python scripts/scheduler.py
+```
+
+### 5.5 Changing composite weights without touching code
+
+Edit `config/composite.yaml`, then re-run:
+
+```bash
+python scripts/composite_cdi.py && python scripts/dashboard_master.py
+```
+
+`composite_formula_version` is stamped on every row so classifications
+remain traceable to the config that produced them.
+
+### 5.6 Testing matrix
+
+| Scenario                                     | Expected behavior                                      |
+| -------------------------------------------- | ------------------------------------------------------ |
+| New CHIRPS monthly observation               | Affected month + its SPI windows recomputed            |
+| New Sentinel-2 scene                         | Only that period's NDVI/EVI/VCI/VHI recomputed         |
+| CHIRPS updates, Sentinel-2 does not          | SPI refreshes; vegetation indices unchanged            |
+| Sentinel-2 updates, CHIRPS does not          | Vegetation indices refresh; SPI stays as last valid    |
+| SPI cannot be calculated (insufficient data) | Row written with empty `SPI_*`; composite re-weights   |
+| < `min_inputs` composite components available| Row written; class = `pending`; CDI empty              |
+| Processing fails mid-run                     | Last validated master stays published                  |
+| Composite weights changed in YAML            | Next run produces rows stamped with new formula_version |
+
+### 5.7 Running the pipeline (Colab)
 
 The CHIRPS → SPI script is also designed for Colab. See its docstring
 header: zip the raw folder, upload or point `ZIP_PATH` at Drive, then
@@ -560,6 +623,21 @@ merge until all four are green.
 
 Secrets live in each host's env panel. Never commit `.env`.
 
+### 11.1 Supabase setup
+
+1. Create a Supabase project (ap-south-1 Mumbai for low latency).
+2. Enable PostGIS: `create extension if not exists postgis;`
+3. Run the schema migration from the SQL Editor (tables above in §6.1).
+4. Copy `Project URL`, `anon key`, and `service_role key` into `.env`.
+
+### 11.2 Vercel frontend
+
+1. Import the GitHub repository in Vercel.
+2. Set Root Directory to `frontend/`.
+3. Add env vars: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`,
+   `NEXT_PUBLIC_API_BASE`.
+4. Deploy — Vercel runs `pnpm build` automatically.
+
 ---
 
 ## 12. Troubleshooting
@@ -576,7 +654,26 @@ Secrets live in each host's env panel. Never commit `.env`.
 
 ---
 
-## 13. Roadmap (short)
+## 13. Known Limitations
+
+- **SPI uses ~10-year record** (2016-2026), not the WMO-recommended 30 years.
+  Extend `CALIB_START` in `config/spi.yaml` once older CHIRPS data is loaded
+  (CHIRPS goes back to 1981).
+- **NSMI-NDVI collinearity** (r=0.858) — both derive from Sentinel-2 spectral
+  bands. The vegetation-only CDI (no rain data) is not fully independent.
+  Months with only vegetation inputs are marked `degraded`.
+- **VHI = VCI placeholder** — no real LST (Land Surface Temperature) data yet.
+  Replace with Landsat/MODIS LST when available.
+- **PCI edge values** — ~11% at both 0 and 100 due to the short 10-year record
+  for min-max normalization. Will improve as years accumulate.
+- **Map uses centroid points**, not full village polygons, for performance.
+  Polygon boundaries exist in `frontend/public/data/latur_villages.geojson`.
+- **Missing Sentinel years**: 2019 and 2025 have no rasters. The pipeline
+  leaves those months as `NaN` and the frontend renders grey "no data" cells.
+
+---
+
+## 14. Roadmap (short)
 
 - [ ] Replace static GeoJSON fetch with Mapbox Vector Tiles for pixel layer
 - [ ] Nightly scheduled ingest (GitHub Actions → Go `ingest` CLI)
@@ -586,7 +683,7 @@ Secrets live in each host's env panel. Never commit `.env`.
 
 ---
 
-## 14. Contact
+## 15. Contact
 
 Project owner: **rajnandinikadam221@gmail.com**
 See `CODE_OF_CONDUCT.md` for community guidelines.

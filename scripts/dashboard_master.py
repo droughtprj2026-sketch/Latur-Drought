@@ -42,7 +42,7 @@ MASTER_COLUMNS = [
     "observation_date", "observation_period", "year", "month",
     "monthly_rainfall_mm", "chirps_data_through",
     "SPI_1", "SPI_3", "SPI_6", "SPI_12", "SPI_reference_period",
-    "NDVI", "EVI", "VCI", "VHI", "PCI",
+    "NDVI", "EVI", "VCI", "VHI", "NSMI", "PCI",
     "composite_drought_score", "composite_drought_class",
     "component_contributions", "composite_formula_version",
     "drought_area_km2", "drought_percentage", "total_polygon_area_km2",
@@ -99,7 +99,8 @@ def build_master() -> pd.DataFrame:
         cdi_cls = cdi_row["CDI_class"].iloc[0] if not cdi_row.empty else ""
         cdi_fv = cdi_row["formula_version"].iloc[0] if not cdi_row.empty else ""
         contrib = json.dumps(components.get(period, {}).get("contributions", {}))
-        dq = "success" if cdi_val is not None else "pending"
+        has_precip = pd.notna(r.get("SPI3")) or pd.notna(r.get("SPI1"))
+        dq = "pending" if cdi_val is None else ("success" if has_precip else "degraded")
 
         base = {
             "district": "Latur",
@@ -113,6 +114,7 @@ def build_master() -> pd.DataFrame:
             "EVI":  sen.loc[sen["date"] == period, "EVI"].mean()  if not sen.empty else None,
             "VCI":  sen.loc[sen["date"] == period, "VCI"].mean()  if not sen.empty else None,
             "VHI":  sen.loc[sen["date"] == period, "VHI"].mean()  if not sen.empty else None,
+            "NSMI": sen.loc[sen["date"] == period, "NSMI"].mean() if not sen.empty and "NSMI" in sen.columns else None,
             "PCI":  None,
             "composite_drought_score": cdi_val,
             "composite_drought_class": cdi_cls,

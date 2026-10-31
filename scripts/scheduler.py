@@ -28,6 +28,12 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
 ROOT = HERE.parent
+
+try:
+    from dotenv import load_dotenv
+    load_dotenv(ROOT / ".env")
+except ImportError:
+    pass
 OUT  = Path(os.environ.get("OUTPUT_DIR", ROOT / "data" / "processed"))
 LOG  = ROOT / "logs"; LOG.mkdir(parents=True, exist_ok=True)
 
@@ -59,9 +65,11 @@ def main():
 
     results = {"started_at": _ts(), "steps": []}
 
+    since = os.environ.get("PIPELINE_SINCE", f"{datetime.now().year}-01")
+
     # 1) CHIRPS: fast, authoritative source — always run first.
     ok, msg = _run("chirps_gee", [sys.executable, str(HERE / "chirps_gee.py"),
-                                   "--to", "latest"])
+                                   "--from", since, "--to", "latest"])
     results["steps"].append({"step": "chirps_gee", "ok": ok, "msg": msg})
 
     # 2) SPI recomputation only if CHIRPS added or revised a month.
@@ -76,6 +84,7 @@ def main():
 
     # 3) Sentinel-2: medium-latency, run independently.
     ok, msg = _run("pipeline_gee", [sys.executable, str(HERE / "pipeline_gee.py"),
+                                     "--from", since,
                                      "--to", datetime.now().strftime("%Y-%m")])
     results["steps"].append({"step": "pipeline_gee", "ok": ok, "msg": msg})
 

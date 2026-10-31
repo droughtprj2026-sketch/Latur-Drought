@@ -227,6 +227,7 @@ def generate_village_geojson(df, latest_period, villages_src, out_geojson, out_j
             "EVI": _num(r.get("EVI")),
             "VCI": _num(r.get("VCI")),
             "VHI": _num(r.get("VHI")),
+            "NSMI": _num(r.get("NSMI")),
             "PCI": _num(r.get("PCI")),
             "SPI1": _num(r.get("SPI1")),
             "SPI3": _num(r.get("SPI3")),
@@ -412,7 +413,7 @@ def load_into_sqlite(df, latest_df):
 def main():
     import yaml
     cfg_path = ROOT / "config" / "composite.yaml"
-    with cfg_path.open() as f:
+    with cfg_path.open(encoding="utf-8") as f:
         cfg = yaml.safe_load(f)
 
     print("=" * 60)

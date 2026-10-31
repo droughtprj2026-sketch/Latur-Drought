@@ -31,7 +31,11 @@ from common.classify import MONTHS, classify_spi  # noqa: E402
 
 ROOT = HERE.parent
 OUT = Path(os.environ.get("OUTPUT_DIR", ROOT / "data" / "processed"))
-DEFAULT_AOI = ROOT / "data" / "vector" / "latur_tehsils.geojson"
+_AOI_CANDIDATES = [
+    ROOT / "data" / "vector" / "latur_tehsils.geojson",
+    ROOT / "frontend" / "public" / "data" / "latur_tehsils.geojson",
+]
+DEFAULT_AOI = next((p for p in _AOI_CANDIDATES if p.exists()), _AOI_CANDIDATES[0])
 
 # CHIRPS GEE collection
 COLLECTION = "UCSB-CHG/CHIRPS/monthly"
@@ -56,10 +60,23 @@ def _ensure_ee():
     except ImportError as e:
         raise SystemExit("pip install earthengine-api geemap geopandas httpx") from e
     import ee
+    project = os.environ.get("GEE_PROJECT")
+    sa_key = os.environ.get("GEE_SERVICE_ACCOUNT_KEY")
+    if sa_key:
+        key_path = Path(sa_key) if Path(sa_key).is_absolute() else ROOT / sa_key
+        if key_path.exists():
+            import json as _json
+            with key_path.open() as f:
+                info = _json.load(f)
+            creds = ee.ServiceAccountCredentials(info["client_email"], str(key_path))
+            ee.Initialize(creds, project=project)
+            print(f"  authenticated via service account ({info['client_email']})")
+            return ee
     try:
-        ee.Initialize()
+        ee.Initialize(project=project)
     except Exception:
-        ee.Authenticate(); ee.Initialize()
+        ee.Authenticate()
+        ee.Initialize(project=project)
     return ee
 
 

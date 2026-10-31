@@ -11,17 +11,29 @@
 # If fewer than `min_inputs` components are available, the composite
 # for that polygon-period is marked UNAVAILABLE (class = "pending").
 
-formula_version: "cdi-v2026.10"
+formula_version: "cdi-v2026.11"
 
 min_inputs: 3                       # polygons with fewer available indices → unavailable
 
+# Weights aligned with Marathwada PCA-CDI evidence (Pawar et al. 2022):
+#   SPI ≈ 45%, VCI ≈ 43% of drought variance in Marathwada.
+# Adjustments from cdi-v2026.10:
+#   - SPI raised from 0.30 → 0.40 (closer to 45% PCA loading)
+#   - VCI raised from 0.15 → 0.25 (absorbs VHI; VHI=VCI without thermal)
+#   - EVI removed (ρ > 0.95 with NDVI at monthly composite scale)
+#   - VHI removed (= VCI without LST; double-counted vegetation signal)
+#   - NSMI added at 0.10 (soil moisture proxy per NDMA 2016 Trigger 2.3)
+#   - NDVI kept at 0.15, PCI kept at 0.10
+# References:
+#   WMO (2012) SPI User Guide No. 1090; McKee et al. (1993);
+#   Kogan (1995, 2001) VCI/VHI; NDMA (2016) Manual for Drought Management;
+#   Pawar et al. (2022) PCA-CDI Marathwada; Boles et al. (2020) NSMI.
 weights:
-  SPI:  0.30
-  VHI:  0.20
-  VCI:  0.15
+  SPI:  0.40
+  VCI:  0.25
   NDVI: 0.15
-  EVI:  0.10
   PCI:  0.10
+  NSMI: 0.10
 
 # How each raw index is turned into a 0..1 drought-intensity signal.
 #
@@ -34,10 +46,9 @@ weights:
 normalisation:
   SPI:  { method: neg_clip }
   NDVI: { method: robust_z }
-  EVI:  { method: robust_z }
   PCI:  { method: robust_z }
   VCI:  { method: robust_z }
-  VHI:  { method: robust_z }
+  NSMI: { method: robust_z }
 
 # Which SPI accumulation feeds the composite. "SPI-3" is the agricultural
 # default; change to SPI-1 for faster response or SPI-6 for slower.

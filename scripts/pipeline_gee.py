@@ -52,7 +52,11 @@ from common.classify import CDI_WEIGHTS, MONTHS, classify_spi  # noqa: E402
 
 ROOT = HERE.parent
 OUT = Path(os.environ.get("OUTPUT_DIR", ROOT / "data" / "processed"))
-DEFAULT_AOI = ROOT / "data" / "vector" / "latur_tehsils.geojson"
+_AOI_CANDIDATES = [
+    ROOT / "data" / "vector" / "latur_tehsils.geojson",
+    ROOT / "frontend" / "public" / "data" / "latur_tehsils.geojson",
+]
+DEFAULT_AOI = next((p for p in _AOI_CANDIDATES if p.exists()), _AOI_CANDIDATES[0])
 
 
 # ---------------------------------------------------------------------
@@ -84,12 +88,24 @@ def _ensure_ee():
             "  pip install earthengine-api geemap geopandas"
         ) from e
     import ee
+    project = os.environ.get("GEE_PROJECT")
+    sa_key = os.environ.get("GEE_SERVICE_ACCOUNT_KEY")
+    if sa_key:
+        key_path = Path(sa_key) if Path(sa_key).is_absolute() else ROOT / sa_key
+        if key_path.exists():
+            import json as _json
+            with key_path.open() as f:
+                info = _json.load(f)
+            creds = ee.ServiceAccountCredentials(info["client_email"], str(key_path))
+            ee.Initialize(creds, project=project)
+            print(f"  authenticated via service account ({info['client_email']})")
+            return ee
     try:
-        ee.Initialize()
+        ee.Initialize(project=project)
     except Exception:
-        print("Earth Engine not authenticated — launching browser flow …")
+        print("Earth Engine not authenticated — launching browser flow ...")
         ee.Authenticate()
-        ee.Initialize()
+        ee.Initialize(project=project)
     return ee
 
 
@@ -109,7 +125,8 @@ def _compute_indices(img):
         {"NIR": img.select("B8"), "RED": img.select("B4"), "BLUE": img.select("B2")}
     ).rename("EVI")
     ndmi = img.normalizedDifference(["B8", "B11"]).rename("NDMI")
-    return img.addBands([ndvi, evi, ndmi])
+    nsmi = img.normalizedDifference(["B11", "B12"]).rename("NSMI")
+    return img.addBands([ndvi, evi, ndmi, nsmi])
 
 
 def _monthly_composite(ee, aoi, start, end, cloud_pct):
@@ -238,7 +255,7 @@ def _push_supabase(zonal_rows: list[dict]) -> None:
     }
     payload = []
     for r in zonal_rows:
-        for ind in ("NDVI", "EVI", "NDMI", "VCI", "VHI", "PCI"):
+        for ind in ("NDVI", "EVI", "NDMI", "NSMI", "VCI", "VHI", "PCI"):
             if ind in r and r[ind] is not None:
                 payload.append({
                     "index_name": ind.lower(),
@@ -298,20 +315,20 @@ def main():
             p = feat.get("properties", {})
             row = {"year": y, "month": m,
                    "tehsil": p.get("TEHSIL") or p.get("name") or p.get("NAME") or ""}
-            for ind in ("NDVI", "EVI", "NDMI"):
+            for ind in ("NDVI", "EVI", "NDMI", "NSMI"):
                 row[ind] = p.get(ind)
                 if row[ind] is not None:
                     row[f"{ind}_class"] = classify_spi(float(row[ind]))
             zonal_rows.append(row)
 
         # Per-pixel export is optional and slow; comment out for faster runs.
-        for ind in ("NDVI", "EVI", "NDMI"):
+        for ind in ("NDVI", "EVI", "NDMI", "NSMI"):
             _write_pixel_geojson(ee, img, aoi, ind, y, m)
 
     _save_zonal_csv(zonal_rows, OUT / "csv" / "zonal_tehsil_monthly.csv")
 
     print("[5] updating manifest.json ...")
-    _update_manifest(["NDVI", "EVI", "NDMI", "VCI", "VHI"],
+    _update_manifest(["NDVI", "EVI", "NDMI", "NSMI", "VCI", "VHI"],
                      sorted(years_touched))
 
     print("[6] pushing to Supabase (if PUSH_TO_SUPABASE=1) ...")

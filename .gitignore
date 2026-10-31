@@ -2,6 +2,9 @@
 .env
 .env.*
 !.env.example
+*.json.key
+*-*.iam.gserviceaccount.com*
+igneous-effort-*.json
 
 # Raw data (large, external rasters)
 data/raw/
@@ -26,10 +29,10 @@ __pycache__/
 *.egg-info/
 
 # OS / editor
-#.DS_Store
-#Thumbs.db
-#.vscode/
-#.idea/
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
 *.swp
 
 # Supabase local
@@ -64,5 +67,13 @@ output/spi/geotiff_*/
 # Agent tool caches & configurations
 .opencode/
 .antigravity/
+.agents/
+.claude/
+output/.claude/
 
+# Excel exports (generated, large)
+data/processed/excel/
+*.xlsx
 
+# Logs
+logs/
