@@ -94,8 +94,8 @@ def cmap_for(column: str):
 def save(fig, section: str, filename: str, caption: str, source: str = "") -> Path:
     """Write a figure to its section folder and record it in the index."""
     out_dir = C.section_dir(section)
-    out_dir.mkdir(parents=True, exist_ok=True)
     path = out_dir / filename
+    path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(path, dpi=C.DPI, bbox_inches="tight", facecolor="white")
     plt.close(fig)
     report.register(section=section, filename=filename, caption=caption, source=source, path=path)

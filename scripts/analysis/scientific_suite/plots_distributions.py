@@ -282,10 +282,174 @@ def fig_component_contributions(panel: pd.DataFrame) -> None:
     )
 
 
+def fig_index_distribution_context(panel: pd.DataFrame, focus: str, out_name: str) -> dict:
+    """Distribution of ONE index set against every other index.
+
+    Three panels: the raw distribution with its own reference spans, the same
+    distribution standardised and overlaid on all the others, and an ECDF
+    comparison against the CDI components. This is the figure that answers
+    "show me the distribution of NDVI together with all the indices".
+    """
+    if focus not in panel.columns or panel[focus].notna().sum() < 10:
+        return {}
+
+    spec = C.COL[focus]
+    values = panel[focus].dropna()
+    others = [s for s in C.INDEXES if s.column != focus and s.column in panel.columns
+              and panel[s.column].notna().sum() > 10]
+
+    fig = plt.figure(figsize=(15.6, 10.4))
+    gs = fig.add_gridspec(2, 2, height_ratios=[1.05, 0.95], hspace=0.34, wspace=0.22)
+    ax_raw = fig.add_subplot(gs[0, :])
+    ax_z = fig.add_subplot(gs[1, 0])
+    ax_ecdf = fig.add_subplot(gs[1, 1])
+
+    # ---- Panel A: the focus distribution, raw -----------------------------
+    color = ST.cmap_for(focus)(0.72)
+
+    if spec.kind == "composite":
+        from common import classify as _clf
+
+        prev = 0.0
+        for band in _clf.composite_thresholds():
+            lo, hi = prev, float(band["max"])
+            code = band["code"]
+            ax_raw.axvspan(lo, hi, color=C.DROUGHT_COLORS[code], alpha=0.42, linewidth=0)
+            if lo < values.max():
+                ax_raw.text(min((lo + hi) / 2.0, values.max()), 0.965, code,
+                            transform=ax_raw.get_xaxis_transform(),
+                            ha="center", va="top", fontsize=8.5, weight="bold", color="#333333")
+            prev = hi
+    elif spec.kind == "spi":
+        bands = [(-10.0, -2.0, "D4"), (-2.0, -1.6, "D3"), (-1.6, -1.3, "D2"),
+                 (-1.3, -0.8, "D1"), (-0.8, -0.5, "D0")]
+        for lo, hi, code in bands:
+            ax_raw.axvspan(lo, hi, color=C.DROUGHT_COLORS[code], alpha=0.38, linewidth=0)
+        ax_raw.axvspan(-0.5, float(values.max()) + 0.2,
+                       color=C.DROUGHT_COLORS["None"], alpha=0.28, linewidth=0)
+
+    ax_raw.hist(values, bins=70, density=True, color=color, alpha=0.72,
+                edgecolor="white", linewidth=0.3)
+    sns.kdeplot(values, ax=ax_raw, color="#111111", lw=1.9)
+
+    mean, median = float(values.mean()), float(values.median())
+    p10, p90 = values.quantile([0.10, 0.90])
+    ax_raw.axvline(mean, color="#C23B22", ls="--", lw=1.5, label=f"mean {mean:.3f}")
+    ax_raw.axvline(median, color="#17405F", ls=":", lw=1.5, label=f"median {median:.3f}")
+    for q, lab in ((p10, "p10"), (p90, "p90")):
+        ax_raw.axvline(q, color="#777777", ls="-.", lw=0.9)
+        ax_raw.text(q, ax_raw.get_ylim()[1] * 0.02, lab, rotation=90, fontsize=7,
+                    ha="right", va="bottom", color="#555555")
+
+    ax_raw.set_xlabel(f"{spec.label} [{spec.unit}]" if spec.unit != "-" else spec.label)
+    ax_raw.set_ylabel("probability density")
+    ax_raw.set_title(f"{spec.short}: distribution over all {len(values):,} observed village-months",
+                     fontsize=11.5, loc="left")
+    ax_raw.legend(loc="upper right")
+    ax_raw.grid(axis="y", alpha=0.3)
+
+    summary = {
+        "index": spec.short,
+        "n": int(len(values)),
+        "mean": round(mean, 4),
+        "median": round(median, 4),
+        "sd": round(float(values.std()), 4),
+        "cv": round(float(values.std() / mean), 4) if mean else np.nan,
+        "skew": round(float(values.skew()), 4),
+        "kurtosis": round(float(values.kurtosis()), 4),
+        "p10": round(float(p10), 4),
+        "p90": round(float(p90), 4),
+        "min": round(float(values.min()), 4),
+        "max": round(float(values.max()), 4),
+        "share_below_zero": round(float(100.0 * (values < 0).mean()), 2),
+    }
+    ST.stats_box(
+        ax_raw,
+        [f"n      = {summary['n']:,}", f"mean   = {summary['mean']:.3f}",
+         f"median = {summary['median']:.3f}", f"sd     = {summary['sd']:.3f}",
+         f"skew   = {summary['skew']:+.2f}"],
+        loc="upper left",
+    )
+
+    # ---- Panel B: standardised overlay of every index ---------------------
+    for spec_o in others:
+        z = (panel[spec_o.column] - panel[spec_o.column].mean()) / panel[spec_o.column].std()
+        z = z.dropna()
+        if len(z) < 20:
+            continue
+        sns.kdeplot(z, ax=ax_z, color="#9E9E9E", lw=0.85, alpha=0.65, zorder=1)
+
+    focus_z = ((values - mean) / values.std()).dropna()
+    sns.kdeplot(focus_z, ax=ax_z, color=color, lw=2.8, zorder=3, label=f"{spec.short} (focus)")
+    ax_z.axvline(0, color="#333333", lw=0.9)
+    ax_z.set_xlim(-4, 4)
+    ax_z.set_xlabel("standardised value (z-score)")
+    ax_z.set_ylabel("density")
+    ax_z.set_title("Same distribution against every other index, standardised", fontsize=10.5, loc="left")
+    ax_z.legend(loc="upper right")
+    ax_z.grid(alpha=0.3)
+    ax_z.text(0.015, 0.03, "grey = the other ten indices", transform=ax_z.transAxes,
+              fontsize=7.6, color="#555555")
+
+    # ---- Panel C: ECDF against the CDI components -------------------------
+    components = [c for c in ("SPI3", "NDVI", "VCI", "NSMI") if c in panel.columns]
+    ordered = components + [focus]
+    palette = plt.cm.viridis(np.linspace(0.1, 0.85, len(ordered)))
+    for col, colr in zip(ordered, palette):
+        v = panel[col].dropna()
+        if len(v) < 20:
+            continue
+        # ECDF on the index's own 0-1 min-max scale so the panels are comparable.
+        span = v.max() - v.min()
+        scaled = (v - v.min()) / span if span else v * 0.0
+        xs = np.sort(scaled.to_numpy())
+        ys = np.arange(1, xs.size + 1) / xs.size * 100.0
+        ax_ecdf.plot(xs, ys, lw=2.2 if col == focus else 1.3, color=colr,
+                     label=C.COL[col].short, alpha=1.0 if col == focus else 0.8)
+    ax_ecdf.set_xlabel("value rescaled to each index's own 0-1 range")
+    ax_ecdf.set_ylabel("cumulative share of observations (%)")
+    ax_ecdf.set_title("Empirical CDF against the CDI components", fontsize=10.5, loc="left")
+    ax_ecdf.grid(alpha=0.3)
+    ax_ecdf.legend(loc="lower right", ncol=2, fontsize=7.8)
+    ax_ecdf.set_xlim(0, 1)
+
+    fig.suptitle(
+        f"Distribution of {spec.short} in the context of every index\n"
+        f"{spec.label}: shape, spread and position relative to the rest of the record",
+        fontsize=13.5,
+    )
+    ST.save(
+        fig, "distribution", out_name,
+        f"Distribution of {spec.short} against all other indices: raw density, standardised overlay and ECDF.",
+        source="village_with_baseline.csv",
+    )
+    return summary
+
+
 def build(panel: pd.DataFrame) -> dict[str, pd.DataFrame]:
     fig_index_distributions(panel)
     fig_monthly_climatology(panel)
     separation = fig_class_separation(panel)
     variability = fig_village_variability(panel)
     fig_component_contributions(panel)
-    return {"class_separation": separation, "village_variability": variability}
+
+    # One full "this index against all the others" figure per index, with the
+    # composite and NDVI written first because they are the headline products.
+    priority = [C.CDI_COLUMN, "NDVI"]
+    ordered = priority + [s.column for s in C.INDEXES if s.column not in priority]
+    summaries = []
+    for column in ordered:
+        spec = C.COL.get(column)
+        if spec is None:
+            continue
+        summary = fig_index_distribution_context(
+            panel, column, f"per_index/d6_distribution_{spec.short}.png"
+        )
+        if summary:
+            summaries.append(summary)
+
+    return {
+        "class_separation": separation,
+        "village_variability": variability,
+        "distribution_summary": pd.DataFrame(summaries),
+    }
