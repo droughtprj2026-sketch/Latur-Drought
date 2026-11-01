@@ -3,6 +3,8 @@ message: "If you use this system, please cite it as below."
 title: "Near Real-Time Drought Monitoring System, Latur District, Marathwada"
 type: software
 authors:
+  - family-names: Udupi
+    given-names: Satwik K.
   - family-names: Kadam
     given-names: Rajnandini U.
   - family-names: Jagtap
@@ -14,9 +16,6 @@ authors:
   - family-names: Jadhav
     given-names: Trupti U.
 contributors:
-family-names: Udupi
-    given-names: Satwik K.
-    name-particle: Er.
   - family-names: Panhalkar
     given-names: Sachin S.
     name-particle: Dr.
