@@ -25,27 +25,38 @@ SOURCE_COLORS = {
 
 
 def fig_tehsil_year_availability(panel: pd.DataFrame) -> None:
-    fig, axes = plt.subplots(1, 3, figsize=(16.5, 5.4))
-    for ax, (label, column) in zip(axes, SOURCES.items()):
-        grid = D.availability_matrix(panel, column)
-        if grid.empty:
-            ax.axis("off")
-            continue
+    grids = {label: D.availability_matrix(panel, column) for label, column in SOURCES.items()}
+    grids = {k: v for k, v in grids.items() if not v.empty}
+    if not grids:
+        return
+
+    # One shared tehsil order for all three panels, ranked by the first source.
+    first = next(iter(grids.values()))
+    order = first.mean(axis=1).sort_values(ascending=False).index
+    grids = {k: v.reindex(order) for k, v in grids.items()}
+
+    fig, axes = plt.subplots(1, len(grids), figsize=(16.5, 6.0), layout="constrained")
+    axes = np.atleast_1d(axes)
+    for i, (ax, (label, grid)) in enumerate(zip(axes, grids.items())):
         sns.heatmap(
             grid, ax=ax, cmap=ST.COVERAGE_CMAP, vmin=0, vmax=100,
             annot=True, fmt=".0f", annot_kws={"size": 7},
             linewidths=0.5, linecolor="white",
-            cbar=(ax is axes[-1]),
-            cbar_kws={"label": "coverage (%)", "shrink": 0.85} if ax is axes[-1] else None,
+            cbar=(i == len(grids) - 1),
+            cbar_kws={"label": "coverage (%)", "shrink": 0.8} if i == len(grids) - 1 else None,
         )
-        ax.set_title(label, fontsize=10)
+        ax.set_title(label, fontsize=10, pad=8)
         ax.set_xlabel("Year")
-        ax.set_ylabel("Tehsil" if ax is axes[0] else "")
+        ax.set_ylabel("Tehsil (ranked by coverage)" if i == 0 else "")
         ax.tick_params(axis="x", rotation=90, labelsize=8)
         ax.tick_params(axis="y", rotation=0, labelsize=8)
         for text in ax.texts:
-            value = float(text.get_text() or 0)
+            try:
+                value = float(text.get_text())
+            except (TypeError, ValueError):
+                continue
             text.set_color("white" if value >= 62 else "#1A1A1A")
+            text.set_fontweight("bold" if value >= 90 else "normal")
 
     fig.suptitle(
         "Source availability by tehsil and year\n"
@@ -54,8 +65,8 @@ def fig_tehsil_year_availability(panel: pd.DataFrame) -> None:
     )
     ST.figure_note(
         fig,
-        "A grey-free cell still includes partial coverage; a fully missed month is formed from the "
-        "denominator, so monsoon gaps are real and not zero-filled.",
+        "100 means every village was observed in every month of that year. A value of 33 in 2018 is the "
+        "shared gap in all three sources, so it is a pipeline gap rather than cloud cover.",
     )
     ST.save(
         fig, "availability", "a1_tehsil_year_availability.png",
@@ -123,10 +134,10 @@ def fig_tehsil_availability_bars(panel: pd.DataFrame) -> None:
     ax.set_title("Sampling completeness by tehsil")
     ax.grid(axis="x", alpha=0.5)
     ax.axvline(100, color="#999999", lw=0.8, ls=":")
-    ax.legend(loc="lower right")
+    ax.legend(ncol=3, loc="upper center", bbox_to_anchor=(0.5, -0.13), fontsize=8)
 
     bars = ax2.barh(
-        np.arange(len(summary)), summary["coverage_pct"],
+        np.arange(len(summary)), summary["coverage_pct"], height=0.55,
         color=[SOURCE_COLORS.get(s, "#777777") for s in summary["source"]],
         edgecolor="white",
     )
@@ -153,42 +164,54 @@ def fig_tehsil_availability_bars(panel: pd.DataFrame) -> None:
 
 
 def fig_annual_availability_trend(panel: pd.DataFrame) -> None:
-    fig, axes = plt.subplots(1, 2, figsize=(14, 5.4), sharey=True)
+    fig, axes = plt.subplots(1, 2, figsize=(14.4, 5.6), layout="constrained")
+
+    # Left: how many calendar months of each year exist in the panel at all.
+    observed = panel.groupby("year")["period"].nunique()
+    expected = D.months_per_year(panel)
+    axes[0].bar(observed.index.astype(str), observed.to_numpy(), color="#3C7FB3",
+                edgecolor="#1B3A52", linewidth=0.6, label="months in the panel")
+    axes[0].plot(expected.index.astype(str), expected.to_numpy(), color="#C23B22", marker="o",
+                 ms=5, lw=1.8, label="months in the study window")
+    for x, (year, value) in enumerate(observed.items()):
+        gap = int(expected.get(year, 0)) - int(value)
+        axes[0].text(x, value + 0.25, f"{value}", ha="center", va="bottom", fontsize=8)
+        if gap > 0:
+            axes[0].text(x, value - 1.1, f"-{gap}", ha="center", va="top", fontsize=7.5,
+                         color="#C23B22", weight="bold")
+    axes[0].set_title("Months present in the panel, against the study window")
+    axes[0].set_xlabel("Year")
+    axes[0].set_ylabel("Calendar months")
+    axes[0].set_ylim(0, 13.4)
+    axes[0].grid(axis="y", alpha=0.45)
+    axes[0].legend(loc="lower left")
+    axes[0].tick_params(axis="x", rotation=45)
+
+    # Right: spatial completeness once a month exists, per source.
     for label, column in SOURCES.items():
         annual = D.annual_availability(panel, column)
         if annual.empty:
             continue
-        color = SOURCE_COLORS.get(label, "#777777")
-        axes[0].plot(annual["year"], annual["month_pct"], marker="o", ms=4.5, lw=1.8,
-                     color=color, label=label)
-        axes[1].plot(annual["year"], annual["village_month_pct"], marker="s", ms=4.5, lw=1.8,
-                     color=color, label=label)
-
-    axes[0].set_title("Share of months observed in each year")
+        axes[1].plot(annual["year"], annual["village_month_pct"], marker="s", ms=5, lw=1.9,
+                     color=SOURCE_COLORS.get(label, "#777777"), label=label)
+    axes[1].axhline(90, color="#B71C1C", lw=0.9, ls="--")
     axes[1].set_title("Share of village-months covered in each year")
-    for ax in axes:
-        ax.set_xlabel("Year")
-        ax.set_ylim(0, 105)
-        ax.set_ylabel("Coverage (%)")
-        ax.grid(alpha=0.45)
-        ax.axhline(90, color="#B71C1C", lw=0.9, ls="--")
-        ax.legend(loc="lower left")
-
-    axes[0].text(0.99, 0.02, "90% target", transform=axes[0].transAxes,
+    axes[1].set_xlabel("Year")
+    axes[1].set_ylabel("Coverage (%)")
+    axes[1].set_ylim(0, 105)
+    axes[1].grid(alpha=0.45)
+    axes[1].legend(loc="lower left")
+    axes[1].text(0.99, 0.02, "90% target", transform=axes[1].transAxes,
                  ha="right", va="bottom", fontsize=8, color="#B71C1C")
 
     fig.suptitle(
-        "Annual sampling record: temporal completeness versus spatial completeness",
-        fontsize=13,
-    )
-    ST.figure_note(
-        fig,
-        "Temporal completeness collapses in monsoon months (cloud in the optical record); spatial "
-        "completeness shows whether the surviving months still cover every village.",
+        "Annual sampling record: temporal completeness versus spatial completeness\n"
+        "A month either exists for every village or for none, so the two panels answer different questions",
+        fontsize=12.5,
     )
     ST.save(
         fig, "availability", "a4_annual_availability_trend.png",
-        "Per-year temporal and spatial completeness for each source, against a 90% target.",
+        "Per-year count of months present and the spatial coverage of each source within those months.",
         source="village_with_baseline.csv",
     )
 

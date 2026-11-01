@@ -1,0 +1,4 @@
+source,column,coverage_pct,tehsil_min_pct,tehsil_max_pct,tehsil_spread_pct
+Sentinel-2 optical (NDVI),NDVI,67.76,66.34,69.22,2.88
+Sentinel-1 soil moisture (NSMI),NSMI,66.99,65.58,68.47,2.88
+CHIRPS rainfall,Rain_mm,79.75,78.3,80.0,1.7

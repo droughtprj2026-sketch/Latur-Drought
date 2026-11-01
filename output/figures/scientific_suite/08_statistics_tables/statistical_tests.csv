@@ -1,0 +1,14 @@
+test,variable,statistic,p_value,groups
+Kruskal-Wallis across drought classes,SPI-3,5755.21,0.0,5
+Kruskal-Wallis across drought classes,Normalized Soil Moisture Index,452.603,1.1888776698843997e-96,5
+Kruskal-Wallis across drought classes,NDVI,783.006,3.682522022664983e-168,5
+Kruskal-Wallis across drought classes,Vegetation Condition Index,4215.758,0.0,5
+Kruskal-Wallis across drought classes,Composite Drought Index,23809.656,0.0,5
+Kruskal-Wallis across tehsils,SPI-3,16.591,0.05552185883509815,10
+Kruskal-Wallis across tehsils,NDVI,200.938,2.1063448804244187e-38,10
+Kruskal-Wallis across tehsils,Normalized Soil Moisture Index,218.968,3.448776633452417e-42,10
+Kruskal-Wallis across tehsils,Composite Drought Index,124.406,1.670914470518408e-22,10
+Shapiro-Wilk,SPI-3,0.9922,5.762476348258585e-16,97953
+Shapiro-Wilk,NDVI,0.955,9.894439288124828e-37,84034
+Shapiro-Wilk,Normalized Soil Moisture Index,0.9616,1.8462028705790689e-34,83080
+Shapiro-Wilk,Composite Drought Index,0.8113,1.6947768534825112e-60,101042

@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>Latur drought - scientific visualization suite</title>
+<style>
+:root{--ink:#1b1b1b;--muted:#666;--line:#e2e2e2;--bg:#fafafa}
+*{box-sizing:border-box}
+body{margin:0;padding:32px 40px 80px;background:var(--bg);color:var(--ink);font:15px/1.55 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+h1{font-size:27px;margin:0 0 6px;letter-spacing:-.02em}
+.meta{color:var(--muted);font-size:13px;margin-bottom:26px}
+.meta b{color:var(--ink);font-weight:600}
+h2{font-size:17px;margin:44px 0 14px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(420px,1fr));gap:26px}
+figure{margin:0;background:#fff;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+figure img{width:100%;display:block;background:#fff}
+figcaption{padding:12px 14px 14px;font-size:12.5px;color:#333;border-top:1px solid var(--line)}
+figcaption code{display:block;color:var(--muted);font-size:11px;margin-top:6px}
+</style></head><body>
+<h1>Drought monitoring - scientific visualization suite</h1>
+<div class="meta">Study area <b>Latur</b> &middot; period <b>2016-01 to 2026-10 (2016-2026)</b> &middot; <b>954</b> villages &middot; <b>10</b> tehsils &middot; <b>101,124</b> village-months &middot; <b>5</b> figures &middot; generated 2026-11-01T10:50:02</div>
+<h2>01_image_availability - Image availability and sampling completeness</h2>
+<div class="grid">
+<figure><img src="01_image_availability/a1_tehsil_year_availability.png" alt="a1_tehsil_year_availability.png" loading="lazy"><figcaption>Sentinel-2, Sentinel-1 and CHIRPS coverage (%) for every tehsil and year.<code>01_image_availability/a1_tehsil_year_availability.png</code></figcaption></figure>
+<figure><img src="01_image_availability/a2_month_year_availability.png" alt="a2_month_year_availability.png" loading="lazy"><figcaption>Month x year availability grid for all three sources; grey cells are months with no observation at all.<code>01_image_availability/a2_month_year_availability.png</code></figcaption></figure>
+<figure><img src="01_image_availability/a3_tehsil_availability_ranking.png" alt="a3_tehsil_availability_ranking.png" loading="lazy"><figcaption>Tehsil-level coverage bars for each source, plus the district-wide figure with the min-max tehsil range.<code>01_image_availability/a3_tehsil_availability_ranking.png</code></figcaption></figure>
+<figure><img src="01_image_availability/a4_annual_availability_trend.png" alt="a4_annual_availability_trend.png" loading="lazy"><figcaption>Per-year temporal and spatial completeness for each source, against a 90% target.<code>01_image_availability/a4_annual_availability_trend.png</code></figcaption></figure>
+<figure><img src="01_image_availability/a5_component_completeness.png" alt="a5_component_completeness.png" loading="lazy"><figcaption>Distribution of available CDI components per village-month and the drought class reached at each level.<code>01_image_availability/a5_component_completeness.png</code></figcaption></figure>
+</div>
+</body></html>

@@ -165,8 +165,7 @@ def availability_by_month(df: pd.DataFrame, column: str) -> pd.DataFrame:
     total = n_villages(df)
     observed = df[df[column].notna()].groupby(["year", "month"]).size()
     pct = 100.0 * observed / total
-    grid = pct.unstack("month")
-    grid = grid.reindex(index=sorted(df["year"].unique()), columns=C.MONTH_NUMBERS)
+    grid = pct.unstack("year").reindex(index=C.MONTH_NUMBERS, columns=sorted(df["year"].unique()))
     return grid.clip(upper=100)
 
 

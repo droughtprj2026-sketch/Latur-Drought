@@ -14,6 +14,14 @@ from . import stats as S
 MISSING_FACE = "#E4E4E4"
 
 
+def norm_fmt(fmt: str) -> str:
+    """Accept both ``"{:.2f}"`` and ``".2f"``; seaborn wants the bare spec."""
+    if fmt.startswith("{") and fmt.endswith("}"):
+        inner = fmt[1:-1]
+        return inner[1:] if inner.startswith(":") else inner
+    return fmt
+
+
 def month_year_matrix(df: pd.DataFrame, column: str, agg: str = "mean") -> pd.DataFrame:
     """Calendar month (rows) x year (columns) aggregate of one index."""
     if column not in df.columns:
@@ -97,7 +105,7 @@ def draw_month_year(ax, grid: pd.DataFrame, cmap=None, norm=None, annot: bool = 
         norm=norm,
         mask=mask,
         annot=annot,
-        fmt=fmt,
+        fmt=norm_fmt(fmt),
         annot_kws={"size": annot_size},
         linewidths=linewidths,
         linecolor="white",
@@ -126,7 +134,7 @@ def draw_corr(ax, corr: pd.DataFrame, annot: bool = True, fmt: str = "{:.2f}",
         vmax=vmax,
         center=0.0,
         annot=annot,
-        fmt=fmt,
+        fmt=norm_fmt(fmt),
         square=True,
         linewidths=0.6,
         linecolor="white",
@@ -157,7 +165,7 @@ def draw_signed_heatmap(ax, matrix: pd.DataFrame, cbar_label: str, annot: bool =
         norm=norm,
         mask=~np.isfinite(values),
         annot=annot,
-        fmt=fmt,
+        fmt=norm_fmt(fmt),
         annot_kws={"size": annot_size},
         linewidths=0.4,
         linecolor="white",
