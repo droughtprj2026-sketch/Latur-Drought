@@ -247,7 +247,8 @@ class CartographicAtlasRenderer:
                 spine.set_linewidth(0.7)
 
         # Single North Arrow in top-right corner of entire figure (in figure fraction, clear of all grids)
-        fig.annotate(
+        top_right_ax = axes_flat[ncols - 1]
+        top_right_ax.annotate(
             "N", xy=(0.945, 0.970), xytext=(0.945, 0.932),
             xycoords="figure fraction", textcoords="figure fraction",
             ha="center", va="bottom", fontsize=11.5, fontweight="bold", fontfamily="serif",

@@ -1,6 +1,6 @@
 # Scientific Visualization Suite — Drought Monitoring Atlas
 
-**Generated:** 2026-11-01T12:22:05  
+**Generated:** 2026-11-01T12:29:12  
 **Study Area:** Latur District, Marathwada  
 **Temporal Scope:** 2016-01 to 2026-10 (129 Continuous Months)  
 **Administrative Resolution:** 954 Villages across 10 Tehsils  
