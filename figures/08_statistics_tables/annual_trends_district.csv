@@ -1,0 +1,7 @@
+series,n_years,first_year,last_year,mean,sens_slope_per_year,sens_slope_lo,sens_slope_hi,mk_tau,mk_p,trend,scope
+Annual mean CDI,11,2016,2026,0.15,-0.013986,-0.031483,0.004475,-0.4182,0.0867681727038756,no trend,district
+Village-months in drought (%),11,2016,2026,28.8358,-4.375071,-7.6957,1.3583,-0.3455,0.16112494928905186,no trend,district
+Annual mean SPI-3,11,2016,2026,-0.0143,0.07195,-0.067567,0.142814,0.2727,0.27575784782750934,no trend,district
+Annual mean SPI-12,11,2016,2026,0.0076,0.12566,-0.06405,0.29386,0.3818,0.11947098677170076,no trend,district
+Annual mean monthly rainfall (mm),11,2016,2026,85.5698,1.578817,-2.11736,5.08425,0.2,0.4362749288405292,no trend,district
+Annual mean NDVI,11,2016,2026,0.2533,0.008825,-0.0016,0.023183,0.4182,0.0867681727038756,no trend,district

@@ -1,0 +1,2306 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Academic and Operational Drought Monitoring Suite developed by Shivaji University, Kolhapur">
+      
+      
+        <meta name="author" content="Department of Geoinformatics, Shivaji University">
+      
+      
+        <link rel="canonical" href="https://droughtprj2026-sketch.github.io/Latur-Drought/science/equations/">
+      
+      
+        <link rel="prev" href="../indices/">
+      
+      
+        <link rel="next" href="../../data/satellites/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Mathematical Formulations - Near Real-Time Drought Monitoring System — Latur District</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="blue">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#mathematical-formulations-index-formulations" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Near Real-Time Drought Monitoring System — Latur District" class="md-header__button md-logo" aria-label="Near Real-Time Drought Monitoring System — Latur District" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Near Real-Time Drought Monitoring System — Latur District
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Mathematical Formulations
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="blue"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="blue"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/droughtprj2026-sketch/Latur-Drought" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    droughtprj2026-sketch/Latur-Drought
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../literature/" class="md-tabs__link">
+          
+  
+  
+  Scientific Foundation
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../data/satellites/" class="md-tabs__link">
+          
+  
+  
+  Satellite Data & Ingestion
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../pipeline/architecture/" class="md-tabs__link">
+          
+  
+  
+  Methodology & Pipeline
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../results/cartographic-atlas/" class="md-tabs__link">
+          
+  
+  
+  Results & Analytics
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../system/dashboard/" class="md-tabs__link">
+          
+  
+  
+  System Architecture
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../developer/setup/" class="md-tabs__link">
+          
+  
+  
+  Developer & Operations
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../DATA_ACCURACY_AUDIT/" class="md-tabs__link">
+          
+  
+  
+  Archival Reports
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Near Real-Time Drought Monitoring System — Latur District" class="md-nav__button md-logo" aria-label="Near Real-Time Drought Monitoring System — Latur District" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Near Real-Time Drought Monitoring System — Latur District
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/droughtprj2026-sketch/Latur-Drought" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    droughtprj2026-sketch/Latur-Drought
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Scientific Foundation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Scientific Foundation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../literature/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Literature Review & Foundations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../indices/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Drought Indices Encyclopedia
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mathematical Formulations
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Mathematical Formulations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-optical-vegetation-reflectance-formulations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Optical Vegetation Reflectance Formulations
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Optical Vegetation Reflectance Formulations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#11-normalized-difference-vegetation-index-ndvi" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.1 Normalized Difference Vegetation Index (NDVI)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#12-enhanced-vegetation-index-evi" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.2 Enhanced Vegetation Index (EVI)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#13-vegetation-condition-index-vci" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.3 Vegetation Condition Index (VCI)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-thermal-surface-energy-balance-formulations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Thermal &amp; Surface Energy Balance Formulations
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Thermal &amp; Surface Energy Balance Formulations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#21-land-surface-temperature-lst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.1 Land Surface Temperature (LST)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#22-temperature-condition-index-tci" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.2 Temperature Condition Index (TCI)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-synthetic-aperture-radar-sar-soil-moisture-formulations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Synthetic Aperture Radar (SAR) Soil Moisture Formulations
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Synthetic Aperture Radar (SAR) Soil Moisture Formulations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#31-normalized-soil-moisture-index-nsmi" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.1 Normalized Soil Moisture Index (NSMI)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-meteorological-drought-formulations-spi" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Meteorological Drought Formulations (SPI)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Meteorological Drought Formulations (SPI)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#41-cumulative-precipitation-aggregation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.1 Cumulative Precipitation Aggregation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#42-gamma-distribution-fitting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.2 Gamma Distribution Fitting
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#43-cumulative-probability-standard-normal-transformation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.3 Cumulative Probability &amp; Standard Normal Transformation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-composite-drought-index-cdi-dynamic-re-weighting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Composite Drought Index (CDI) &amp; Dynamic Re-weighting
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Composite Drought Index (CDI) &amp; Dynamic Re-weighting">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#51-nominal-weight-formulation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.1 Nominal Weight Formulation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#52-dynamic-component-re-weighting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.2 Dynamic Component Re-weighting
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Satellite Data & Ingestion
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Satellite Data & Ingestion
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../data/satellites/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sensor Ingestion & Satellites
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../data/ingestion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Harmonization & Quality
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../data/accuracy-audit/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Sensor Availability Audit
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Methodology & Pipeline
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Methodology & Pipeline
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dual Engine Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/composite-cdi/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Multi-Index Composite (CDI)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/classification/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Drought Classification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/manifests/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Incremental Processing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Results & Analytics
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Results & Analytics
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../results/cartographic-atlas/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cartographic Atlas
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../results/statistical-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Statistical Findings
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../results/ppt-animations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PowerPoint Animations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../results/data-tables/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Machine-Readable Data Tables
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    System Architecture
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    System Architecture
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../system/dashboard/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interactive Next.js Dashboard
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../system/limitations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Known Limitations & Recovery
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Developer & Operations
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Developer & Operations
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../developer/setup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development Setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../developer/workflows/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pipeline Runbook
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Archival Reports
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Archival Reports
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../DATA_ACCURACY_AUDIT/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Accuracy Audit
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../HISTORICAL_ANALYSIS_AND_VALIDATION/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Historical Analysis & Validation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../NEAR_REALTIME_PIPELINE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Near Real-Time Pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../SATELLITE_IMAGE_AVAILABILITY_AND_DATA_HARMONIZATION/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Image Availability Harmonization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../SCIENTIFIC_METHODOLOGY_AND_PROOF/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Scientific Methodology & Proof
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../THERMAL_AND_SOIL_MOISTURE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Thermal & Soil Moisture Specs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../VALIDATION_AND_ACCURACY_REPORT/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation Accuracy Report
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../RUNBOOK_ANTIGRAVITY/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Operations Runbook
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-optical-vegetation-reflectance-formulations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Optical Vegetation Reflectance Formulations
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Optical Vegetation Reflectance Formulations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#11-normalized-difference-vegetation-index-ndvi" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.1 Normalized Difference Vegetation Index (NDVI)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#12-enhanced-vegetation-index-evi" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.2 Enhanced Vegetation Index (EVI)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#13-vegetation-condition-index-vci" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.3 Vegetation Condition Index (VCI)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-thermal-surface-energy-balance-formulations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Thermal &amp; Surface Energy Balance Formulations
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Thermal &amp; Surface Energy Balance Formulations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#21-land-surface-temperature-lst" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.1 Land Surface Temperature (LST)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#22-temperature-condition-index-tci" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.2 Temperature Condition Index (TCI)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-synthetic-aperture-radar-sar-soil-moisture-formulations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Synthetic Aperture Radar (SAR) Soil Moisture Formulations
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Synthetic Aperture Radar (SAR) Soil Moisture Formulations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#31-normalized-soil-moisture-index-nsmi" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.1 Normalized Soil Moisture Index (NSMI)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-meteorological-drought-formulations-spi" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Meteorological Drought Formulations (SPI)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Meteorological Drought Formulations (SPI)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#41-cumulative-precipitation-aggregation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.1 Cumulative Precipitation Aggregation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#42-gamma-distribution-fitting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.2 Gamma Distribution Fitting
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#43-cumulative-probability-standard-normal-transformation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.3 Cumulative Probability &amp; Standard Normal Transformation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-composite-drought-index-cdi-dynamic-re-weighting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Composite Drought Index (CDI) &amp; Dynamic Re-weighting
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Composite Drought Index (CDI) &amp; Dynamic Re-weighting">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#51-nominal-weight-formulation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.1 Nominal Weight Formulation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#52-dynamic-component-re-weighting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.2 Dynamic Component Re-weighting
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="mathematical-formulations-index-formulations">Mathematical Formulations &amp; Index Formulations<a class="headerlink" href="#mathematical-formulations-index-formulations" title="Permanent link">&para;</a></h1>
+<p>This document provides the definitive mathematical formulations for every biophysical, meteorological, and composite drought indicator computed in the system.</p>
+<hr />
+<h2 id="1-optical-vegetation-reflectance-formulations">1. Optical Vegetation Reflectance Formulations<a class="headerlink" href="#1-optical-vegetation-reflectance-formulations" title="Permanent link">&para;</a></h2>
+<h3 id="11-normalized-difference-vegetation-index-ndvi">1.1 Normalized Difference Vegetation Index (NDVI)<a class="headerlink" href="#11-normalized-difference-vegetation-index-ndvi" title="Permanent link">&para;</a></h3>
+<p>NDVI is formulated as the normalized ratio of the surface reflectance difference between the Near-Infrared (<span class="arithmatex">\(\text{NIR}\)</span>, <span class="arithmatex">\(\lambda \approx 842\text{ nm}\)</span>, Sentinel-2 Band 8) and Red (<span class="arithmatex">\(\text{Red}\)</span>, <span class="arithmatex">\(\lambda \approx 665\text{ nm}\)</span>, Sentinel-2 Band 4) spectral bands:</p>
+<div class="arithmatex">\[\text{NDVI} = \frac{\rho_{\text{NIR}} - \rho_{\text{Red}}}{\rho_{\text{NIR}} + \rho_{\text{Red}}}\]</div>
+<p>where:
+- <span class="arithmatex">\(\rho_{\text{NIR}}\)</span>: Top-of-Canopy (TOC) Bottom-of-Atmosphere (BOA) reflectance in the NIR spectrum (<span class="arithmatex">\(0.0 \le \rho_{\text{NIR}} \le 1.0\)</span>).
+- <span class="arithmatex">\(\rho_{\text{Red}}\)</span>: BOA surface reflectance in the red chlorophyll-absorption band (<span class="arithmatex">\(0.0 \le \rho_{\text{Red}} \le 1.0\)</span>).</p>
+<h3 id="12-enhanced-vegetation-index-evi">1.2 Enhanced Vegetation Index (EVI)<a class="headerlink" href="#12-enhanced-vegetation-index-evi" title="Permanent link">&para;</a></h3>
+<p>In high-biomass agricultural regimes, NDVI exhibits asymptotic saturation. EVI incorporates the blue band (<span class="arithmatex">\(\rho_{\text{Blue}}\)</span>, <span class="arithmatex">\(\lambda \approx 490\text{ nm}\)</span>, Sentinel-2 Band 2) and empirical coefficients to decouple canopy reflectance from atmospheric aerosol scattering and background vertisol soil brightness:</p>
+<div class="arithmatex">\[\text{EVI} = G \times \frac{\rho_{\text{NIR}} - \rho_{\text{Red}}}{\rho_{\text{NIR}} + C_1 \cdot \rho_{\text{Red}} - C_2 \cdot \rho_{\text{Blue}} + L}\]</div>
+<p>Standard MODIS/Copernicus parameterized coefficients:
+- <span class="arithmatex">\(G = 2.5\)</span> (Gain factor)
+- <span class="arithmatex">\(C_1 = 6.0\)</span> (Aerosol resistance coefficient for red band)
+- <span class="arithmatex">\(C_2 = 7.5\)</span> (Aerosol resistance coefficient for blue band)
+- <span class="arithmatex">\(L = 1.0\)</span> (Canopy background brightness adjustment factor)</p>
+<h3 id="13-vegetation-condition-index-vci">1.3 Vegetation Condition Index (VCI)<a class="headerlink" href="#13-vegetation-condition-index-vci" title="Permanent link">&para;</a></h3>
+<p>VCI scales current vegetative greenness relative to the historical ecological potential of each individual village polygon for the specific calendar month (<span class="arithmatex">\(m\)</span>):</p>
+<div class="arithmatex">\[\text{VCI}_{v, m} = \left( \frac{\text{NDVI}_{v, m} - \text{NDVI}_{\min}(v, m)}{\text{NDVI}_{\max}(v, m) - \text{NDVI}_{\min}(v, m)} \right) \times 100\]</div>
+<p>where:
+- <span class="arithmatex">\(\text{NDVI}_{v, m}\)</span>: Observed mean NDVI for village polygon <span class="arithmatex">\(v\)</span> during month <span class="arithmatex">\(m\)</span>.
+- <span class="arithmatex">\(\text{NDVI}_{\min}(v, m)\)</span>: Historical minimum NDVI observed in village <span class="arithmatex">\(v\)</span> during month <span class="arithmatex">\(m\)</span> across the 2016–2026 baseline.
+- <span class="arithmatex">\(\text{NDVI}_{\max}(v, m)\)</span>: Historical maximum NDVI observed in village <span class="arithmatex">\(v\)</span> during month <span class="arithmatex">\(m\)</span> across the 2016–2026 baseline.</p>
+<hr />
+<h2 id="2-thermal-surface-energy-balance-formulations">2. Thermal &amp; Surface Energy Balance Formulations<a class="headerlink" href="#2-thermal-surface-energy-balance-formulations" title="Permanent link">&para;</a></h2>
+<h3 id="21-land-surface-temperature-lst">2.1 Land Surface Temperature (LST)<a class="headerlink" href="#21-land-surface-temperature-lst" title="Permanent link">&para;</a></h3>
+<p>From Landsat 8/9 Thermal Infrared Sensor (TIRS Band 10), at-sensor spectral radiance <span class="arithmatex">\(L_\lambda\)</span> (<span class="arithmatex">\(\text{W}\cdot\text{m}^{-2}\cdot\text{sr}^{-1}\cdot\mu\text{m}^{-1}\)</span>) is converted to effective at-satellite brightness temperature <span class="arithmatex">\(T_B\)</span> (<span class="arithmatex">\(\text{K}\)</span>) via Planck's inverse function:</p>
+<div class="arithmatex">\[T_B = \frac{K_2}{\ln \left( \frac{K_1}{L_\lambda} + 1 \right)}\]</div>
+<p>where calibration constants for TIRS Band 10 are:
+- <span class="arithmatex">\(K_1 = 774.8853\ \text{W}\cdot\text{m}^{-2}\cdot\text{sr}^{-1}\cdot\mu\text{m}^{-1}\)</span>
+- <span class="arithmatex">\(K_2 = 1321.0789\ \text{K}\)</span></p>
+<p>Surface-emissivity corrected Land Surface Temperature (<span class="arithmatex">\(\text{LST}\)</span>, in <span class="arithmatex">\({}^\circ\text{C}\)</span>) is then derived as:</p>
+<div class="arithmatex">\[\text{LST} = \left( \frac{T_B}{1 + \left( \frac{\lambda \cdot T_B}{\rho} \right) \ln \varepsilon} \right) - 273.15\]</div>
+<p>where <span class="arithmatex">\(\lambda = 10.895\ \mu\text{m}\)</span> (effective wavelength), <span class="arithmatex">\(\rho = h \cdot c / \sigma_B = 1.438 \times 10^{-2}\ \text{m}\cdot\text{K}\)</span>, and <span class="arithmatex">\(\varepsilon\)</span> is fractional vegetation cover emissivity derived from NDVI.</p>
+<h3 id="22-temperature-condition-index-tci">2.2 Temperature Condition Index (TCI)<a class="headerlink" href="#22-temperature-condition-index-tci" title="Permanent link">&para;</a></h3>
+<p>Because high thermal radiance indicates evaporative drought stress, TCI inverts the temperature scale:</p>
+<div class="arithmatex">\[\text{TCI}_{v, m} = \left( \frac{\text{LST}_{\max}(v, m) - \text{LST}_{v, m}}{\text{LST}_{\max}(v, m) - \text{LST}_{\min}(v, m)} \right) \times 100\]</div>
+<hr />
+<h2 id="3-synthetic-aperture-radar-sar-soil-moisture-formulations">3. Synthetic Aperture Radar (SAR) Soil Moisture Formulations<a class="headerlink" href="#3-synthetic-aperture-radar-sar-soil-moisture-formulations" title="Permanent link">&para;</a></h2>
+<h3 id="31-normalized-soil-moisture-index-nsmi">3.1 Normalized Soil Moisture Index (NSMI)<a class="headerlink" href="#31-normalized-soil-moisture-index-nsmi" title="Permanent link">&para;</a></h3>
+<p>From Sentinel-1 C-band (<span class="arithmatex">\(5.405\text{ GHz}\)</span>) dual-polarization (<span class="arithmatex">\(\sigma^\circ_{\text{VV}}\)</span>, <span class="arithmatex">\(\sigma^\circ_{\text{VH}}\)</span>) radar backscatter, relative surface soil moisture is calculated by normalising backscatter against dry and saturated reference baselines:</p>
+<div class="arithmatex">\[\text{SMI} = \frac{\sigma^\circ_{\text{VV}} - \sigma^\circ_{\text{dry}}}{\sigma^\circ_{\text{wet}} - \sigma^\circ_{\text{dry}}}\]</div>
+<p>For cross-index parity, Normalized Soil Moisture Index (<span class="arithmatex">\(\text{NSMI}\)</span>) is mapped to <span class="arithmatex">\([0.0, 1.0]\)</span>:</p>
+<div class="arithmatex">\[\text{NSMI}_{v, m} = \min \left( 1.0, \max \left( 0.0, \frac{\text{SMI}_{v, m} - \text{SMI}_{\min}(v, m)}{\text{SMI}_{\max}(v, m) - \text{SMI}_{\min}(v, m)} \right) \right)\]</div>
+<hr />
+<h2 id="4-meteorological-drought-formulations-spi">4. Meteorological Drought Formulations (SPI)<a class="headerlink" href="#4-meteorological-drought-formulations-spi" title="Permanent link">&para;</a></h2>
+<h3 id="41-cumulative-precipitation-aggregation">4.1 Cumulative Precipitation Aggregation<a class="headerlink" href="#41-cumulative-precipitation-aggregation" title="Permanent link">&para;</a></h3>
+<p>For each monthly period <span class="arithmatex">\(t\)</span> and timescale <span class="arithmatex">\(k \in \{1, 3, 6, 12\}\)</span> months, cumulative precipitation <span class="arithmatex">\(A_{k, t}\)</span> is:</p>
+<div class="arithmatex">\[A_{k, t} = \sum_{i=0}^{k-1} P_{t - i}\]</div>
+<p>where <span class="arithmatex">\(P_t\)</span> is the monthly CHIRPS v2.0 precipitation depth (<span class="arithmatex">\(\text{mm}\)</span>) for village polygon <span class="arithmatex">\(v\)</span>.</p>
+<h3 id="42-gamma-distribution-fitting">4.2 Gamma Distribution Fitting<a class="headerlink" href="#42-gamma-distribution-fitting" title="Permanent link">&para;</a></h3>
+<p>Precipitation accumulations are fitted to a two-parameter Gamma probability density function:</p>
+<div class="arithmatex">\[g(x; \alpha, \beta) = \frac{1}{\beta^\alpha \Gamma(\alpha)} x^{\alpha - 1} e^{-x / \beta}, \quad x &gt; 0\]</div>
+<p>where <span class="arithmatex">\(\alpha &gt; 0\)</span> is the shape parameter, <span class="arithmatex">\(\beta &gt; 0\)</span> is the scale parameter, and <span class="arithmatex">\(\Gamma(\alpha)\)</span> is the standard Gamma function:</p>
+<div class="arithmatex">\[\Gamma(\alpha) = \int_0^\infty u^{\alpha - 1} e^{-u} du\]</div>
+<p>Parameters are estimated via Maximum Likelihood Estimation (MLE) using Thom's approximation:</p>
+<div class="arithmatex">\[\alpha = \frac{1}{4A} \left( 1 + \sqrt{1 + \frac{4A}{3}} \right), \quad \beta = \frac{\bar{x}}{\alpha}\]</div>
+<p>where <span class="arithmatex">\(A = \ln(\bar{x}) - \frac{1}{n} \sum_{i=1}^n \ln(x_i)\)</span>.</p>
+<h3 id="43-cumulative-probability-standard-normal-transformation">4.3 Cumulative Probability &amp; Standard Normal Transformation<a class="headerlink" href="#43-cumulative-probability-standard-normal-transformation" title="Permanent link">&para;</a></h3>
+<p>Accounting for zero-precipitation probability <span class="arithmatex">\(q = P(x = 0) = m_0 / n\)</span>:</p>
+<div class="arithmatex">\[H(x) = q + (1 - q) G(x)\]</div>
+<p>where <span class="arithmatex">\(G(x) = \int_0^x g(t) dt\)</span>. The cumulative probability <span class="arithmatex">\(H(x)\)</span> is converted to the standard normal random variable <span class="arithmatex">\(Z \sim \mathcal{N}(0, 1)\)</span> via the Abramowitz &amp; Stegun rational approximation:</p>
+<div class="arithmatex">\[\text{SPI} = -\left( t - \frac{c_0 + c_1 t + c_2 t^2}{1 + d_1 t + d_2 t^2 + d_3 t^3} \right), \quad 0 &lt; H(x) \le 0.5\]</div>
+<div class="arithmatex">\[\text{where } t = \sqrt{\ln \left( \frac{1}{(H(x))^2} \right)}\]</div>
+<p>and symmetrically inverted for <span class="arithmatex">\(0.5 &lt; H(x) &lt; 1.0\)</span>.</p>
+<hr />
+<h2 id="5-composite-drought-index-cdi-dynamic-re-weighting">5. Composite Drought Index (CDI) &amp; Dynamic Re-weighting<a class="headerlink" href="#5-composite-drought-index-cdi-dynamic-re-weighting" title="Permanent link">&para;</a></h2>
+<h3 id="51-nominal-weight-formulation">5.1 Nominal Weight Formulation<a class="headerlink" href="#51-nominal-weight-formulation" title="Permanent link">&para;</a></h3>
+<p>CDI integrates meteorological, vegetative, and soil moisture components into a transparent linear composite:</p>
+<div class="arithmatex">\[\text{CDI}_{\text{nominal}} = w_{\text{SPI3}} \cdot S(\text{SPI3}) + w_{\text{VCI}} \cdot S(\text{VCI}) + w_{\text{NSMI}} \cdot S(\text{NSMI}) + w_{\text{TCI}} \cdot S(\text{TCI})\]</div>
+<p>where <span class="arithmatex">\(S(I)\)</span> is the normalized severity score (<span class="arithmatex">\(0.0 \le S \le 1.0\)</span>, where <span class="arithmatex">\(1.0\)</span> is extreme drought) for index <span class="arithmatex">\(I\)</span>.</p>
+<h3 id="52-dynamic-component-re-weighting">5.2 Dynamic Component Re-weighting<a class="headerlink" href="#52-dynamic-component-re-weighting" title="Permanent link">&para;</a></h3>
+<p>During monsoon cloud cover (optical Sentinel-2 obscured) or sensor downtime, unobserved indices are dropped. The remaining valid indices are dynamically re-weighted such that their sum equals <span class="arithmatex">\(1.0\)</span>:</p>
+<div class="arithmatex">\[\text{CDI}_{v, t} = \frac{\sum_{i \in \mathcal{V}_{v, t}} w_i \cdot S(I_{i, v, t})}{\sum_{i \in \mathcal{V}_{v, t}} w_i}\]</div>
+<p>where <span class="arithmatex">\(\mathcal{V}_{v, t}\)</span> is the set of available indicators for polygon <span class="arithmatex">\(v\)</span> at time <span class="arithmatex">\(t\)</span>. If <span class="arithmatex">\(|\mathcal{V}_{v, t}| &lt; \text{min\_inputs}\)</span> (defined in <code>config/composite.yaml</code>), the observation is marked <code>pending / No Data</code>; it is <strong>never synthetic or imputed</strong>.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../indices/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Drought Indices Encyclopedia">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Drought Indices Encyclopedia
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../../data/satellites/" class="md-footer__link md-footer__link--next" aria-label="Next: Sensor Ingestion &amp; Satellites">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Sensor Ingestion & Satellites
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.top", "navigation.footer", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+        <script src="../../javascripts/mathjax.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+        <script src="../../javascripts/lightbox.js"></script>
+      
+    
+  </body>
+</html>

@@ -1,0 +1,244 @@
+:root {
+  --md-primary-fg-color: #1E3A8A;
+  --md-primary-fg-color--light: #3B82F6;
+  --md-primary-fg-color--dark: #1E293B;
+  --md-accent-fg-color: #2563EB;
+}
+
+/* Publication Typography */
+.md-typeset h1, .md-typeset h2, .md-typeset h3 {
+  font-family: 'Times New Roman', 'DejaVu Serif', serif;
+  font-weight: 700;
+  color: #0F172A;
+  letter-spacing: -0.01em;
+}
+
+[data-md-color-scheme="slate"] .md-typeset h1,
+[data-md-color-scheme="slate"] .md-typeset h2,
+[data-md-color-scheme="slate"] .md-typeset h3 {
+  color: #F8FAFC;
+}
+
+.md-typeset table:not([class]) {
+  font-size: 0.82rem;
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1.2em 0;
+}
+
+.md-typeset table:not([class]) th {
+  background-color: #F1F5F9;
+  color: #0F172A;
+  font-weight: 600;
+  border-bottom: 2px solid #CBD5E1;
+  padding: 8px 12px;
+}
+
+[data-md-color-scheme="slate"] .md-typeset table:not([class]) th {
+  background-color: #1E293B;
+  color: #F8FAFC;
+  border-bottom: 2px solid #334155;
+}
+
+.md-typeset table:not([class]) td {
+  padding: 6px 12px;
+  border-bottom: 1px solid #E2E8F0;
+}
+
+[data-md-color-scheme="slate"] .md-typeset table:not([class]) td {
+  border-bottom: 1px solid #334155;
+}
+
+.formula-card {
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-left: 4px solid #2563EB;
+  border-radius: 6px;
+  padding: 16px 20px;
+  margin: 16px 0;
+}
+
+[data-md-color-scheme="slate"] .formula-card {
+  background: #1E293B;
+  border: 1px solid #334155;
+  border-left: 4px solid #3B82F6;
+}
+
+.metric-pill {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  margin-right: 4px;
+}
+
+.pill-green { background: #DCFCE7; color: #166534; }
+.pill-yellow { background: #FEF9C3; color: #854D0E; }
+.pill-orange { background: #FFEDD5; color: #9A3412; }
+.pill-red { background: #FEE2E2; color: #991B1B; }
+.pill-maroon { background: #F3E8FF; color: #581C87; }
+
+
+/* Interactive Scientific Lightbox & Controls */
+.sci-zoomable {
+  cursor: zoom-in;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  border-radius: 6px;
+  border: 1px solid #E2E8F0;
+  display: block;
+  margin: 1.2rem auto;
+  max-width: 100%;
+}
+
+.sci-zoomable:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  border-color: #3B82F6;
+}
+
+#sci-lightbox-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: flex;
+  flex-direction: column;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.25s ease, visibility 0.25s ease;
+}
+
+#sci-lightbox-overlay.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+.sci-lightbox-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.92);
+  backdrop-filter: blur(8px);
+}
+
+.sci-lightbox-toolbar {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 24px;
+  background: rgba(30, 41, 59, 0.85);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  color: #F8FAFC;
+}
+
+.sci-lightbox-title {
+  font-family: 'Times New Roman', serif;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #F8FAFC;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sci-lightbox-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.sci-lightbox-actions button, .sci-lightbox-actions a {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #F8FAFC;
+  border-radius: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease;
+}
+
+.sci-lightbox-actions button:hover, .sci-lightbox-actions a:hover {
+  background: #2563EB;
+  border-color: #3B82F6;
+}
+
+.sci-lightbox-stage {
+  position: relative;
+  z-index: 5;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  cursor: grab;
+}
+
+#sci-lightbox-img {
+  max-width: 90vw;
+  max-height: 82vh;
+  object-fit: contain;
+  transition: transform 0.08s ease-out;
+  user-select: none;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  border-radius: 4px;
+}
+
+/* Figure Caption Container */
+.figure-caption {
+  text-align: center;
+  font-size: 0.85rem;
+  color: #64748B;
+  margin-top: -0.6rem;
+  margin-bottom: 1.5rem;
+  font-style: italic;
+}
+
+[data-md-color-scheme="slate"] .figure-caption {
+  color: #94A3B8;
+}
+
+/* Next / Previous Flow Navigation Card */
+.chapter-nav-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 8px;
+  padding: 18px 24px;
+  margin: 2.5rem 0 1.5rem 0;
+}
+
+[data-md-color-scheme="slate"] .chapter-nav-card {
+  background: #1E293B;
+  border-color: #334155;
+}
+
+.chapter-nav-card .next-link {
+  margin-left: auto;
+  font-weight: 600;
+  color: #2563EB;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.chapter-nav-card .prev-link {
+  font-weight: 600;
+  color: #64748B;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.chapter-nav-card a:hover {
+  color: #1D4ED8;
+  text-decoration: underline;
+}
