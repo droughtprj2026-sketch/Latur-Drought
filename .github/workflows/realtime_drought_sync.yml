@@ -67,9 +67,9 @@ jobs:
           COMPOSITE_CONFIG: ${{ vars.COMPOSITE_CONFIG }}
         run: |
           if [ -n "$PERIOD" ]; then
-            python scripts/realtime_update.py --period "$PERIOD"
+            python scripts/realtime/realtime_update.py --period "$PERIOD"
           else
-            python scripts/realtime_update.py
+            python scripts/realtime/realtime_update.py
           fi
 
       # Publish even when the run failed: latest_status.json then says "degraded" and shows why,
@@ -100,5 +100,5 @@ jobs:
       - name: Fail the job if the pipeline failed
         if: steps.pipeline.outcome == 'failure'
         run: |
-          echo "::error::scripts/realtime_update.py failed - see the 'Run near-real-time update' step and pipeline_run in latest_status.json"
+          echo "::error::scripts/realtime/realtime_update.py failed - see the 'Run near-real-time update' step and pipeline_run in latest_status.json"
           exit 1

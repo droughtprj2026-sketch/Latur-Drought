@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Village-level PCI + composite CDI. Pure pandas/numpy (no rasterio), so it
+Village-level composite CDI. Pure pandas/numpy (no rasterio), so it
 runs both in the batch raster build (build_village_indices.py) and in the
 near-real-time update (realtime_update.py) on a plain GitHub runner.
 
@@ -62,6 +62,11 @@ def _classify(v, thresholds) -> str:
     return "D4"
 
 
+def _quality(score: pd.Series, spi: pd.Series) -> np.ndarray:
+    """pending: no score. degraded: scored but without any rainfall input. success: scored with SPI."""
+    return np.where(score.isna(), "pending", np.where(spi.notna(), "success", "degraded"))
+
+
 def _row_cdi(vals: dict, weights: dict, min_inputs: int):
     num = den = 0.0
     contrib = {}
@@ -82,14 +87,9 @@ def _row_cdi(vals: dict, weights: dict, min_inputs: int):
 
 
 def derive_indices(panel: pd.DataFrame, cfg: dict) -> pd.DataFrame:
+    """Add the calendar month the robust standardisation groups on."""
     panel = panel.copy()
     panel["month"] = panel["period"].str.slice(5, 7).astype(int)
-    g_rain = panel.groupby(["village_idx", "month"])["Rain_mm"]
-    lo = g_rain.transform("min")
-    hi = g_rain.transform("max")
-    rng = hi - lo
-    panel["PCI"] = ((100.0 * (panel["Rain_mm"] - lo) / rng)
-                    .where(rng > 0.1)).clip(0.0, 100.0)
     return panel
 
 
@@ -127,18 +127,17 @@ def fuse_cdi(panel: pd.DataFrame, cfg: dict) -> pd.DataFrame:
         _classify(v, cfg["thresholds"]) for v in panel["composite_drought_score"]]
     panel["formula_version"] = cfg["formula_version"]
     panel["SPI_scaled"] = np.clip((panel["SPI3"] + 2.0) / 4.0 * 100.0, 0, 100)
-    panel["data_quality_status"] = np.where(
-        panel["composite_drought_score"].notna(), "success", "pending")
+    panel["data_quality_status"] = _quality(panel["composite_drought_score"], panel["SPI"])
     return panel
 
 
-DERIVED_COLUMNS = ["PCI", "SPI_scaled", "component_contributions", "composite_drought_score",
+DERIVED_COLUMNS = ["SPI_scaled", "component_contributions", "composite_drought_score",
                    "composite_drought_class", "formula_version", "data_quality_status"]
 
 
 def score_new_period(history: pd.DataFrame, new: pd.DataFrame, cfg: dict,
                      include_self: bool = True) -> pd.DataFrame:
-    """PCI + CDI for freshly ingested rows, against the FROZEN history.
+    """CDI for freshly ingested rows, against the FROZEN history.
 
     The batch `derive_indices` + `fuse_cdi` standardise every month against the whole
     record, so adding a month would nudge every older month of the same calendar month.
@@ -156,16 +155,6 @@ def score_new_period(history: pd.DataFrame, new: pd.DataFrame, cfg: dict,
     hist["month"] = hist["date"].astype(str).str.slice(5, 7).astype(int)
     new = new.copy()
     key = ["village_idx", "month"]
-
-    rain_ref = pd.concat([hist[key + ["Rain_mm"]], new[key + ["Rain_mm"]]]) if include_self else hist[key + ["Rain_mm"]]
-    g = rain_ref.groupby(key)["Rain_mm"]
-    lo, hi = g.min().rename("lo"), g.max().rename("hi")
-    ref = new[key].merge(pd.concat([lo, hi], axis=1).reset_index(), on=key, how="left")
-    rng = ref["hi"] - ref["lo"]
-    with np.errstate(divide="ignore", invalid="ignore"):
-        new["PCI"] = ((100.0 * (new["Rain_mm"].to_numpy() - ref["lo"].to_numpy()) / rng.to_numpy())
-                      .clip(0.0, 100.0))
-    new.loc[~(rng.to_numpy() > 0.1), "PCI"] = np.nan
 
     new["SPI"] = new[spi_col]
     if include_self:
@@ -200,6 +189,6 @@ def score_new_period(history: pd.DataFrame, new: pd.DataFrame, cfg: dict,
     new["composite_drought_class"] = [_classify(v, cfg["thresholds"]) for v in new["composite_drought_score"]]
     new["formula_version"] = cfg["formula_version"]
     new["SPI_scaled"] = np.clip((new["SPI3"] + 2.0) / 4.0 * 100.0, 0, 100)
-    new["data_quality_status"] = np.where(new["composite_drought_score"].notna(), "success", "pending")
+    new["data_quality_status"] = _quality(new["composite_drought_score"], new["SPI"])
     cols = [c for c in history.columns if c != "month" or "month" in new.columns]
     return new.reindex(columns=cols)

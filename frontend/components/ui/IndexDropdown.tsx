@@ -3,7 +3,7 @@
 export type IndexName =
   | "spi1" | "spi3" | "spi6" | "spi12"
   | "ndvi" | "evi"  | "ndmi" | "vci"
-  | "vhi"  | "pci"
+  | "vhi"
   | "cdi"           // composite multi-index drought score (continuous)
   | "cdi_class";    // composite drought class (categorical, D0..D4)
 
@@ -17,7 +17,6 @@ const LABELS: Record<IndexName, string> = {
   ndmi:      "NDMI   — Normalized Difference Moisture",
   vci:       "VCI    — Vegetation Condition",
   vhi:       "VHI    — Vegetation Health",
-  pci:       "PCI    — Precipitation Condition",
   cdi:       "CDI    — Composite Multi-Index Drought Score",
   cdi_class: "CDI    — Composite Drought Class (D0–D4)",
 };
@@ -32,7 +31,7 @@ export function IndexDropdown({ value, onChange, available }: Props) {
   // Only indices that the village data actually carries and the legend can classify.
   const items = (available && available.length
     ? available
-    : (["cdi", "spi1", "spi3", "spi6", "spi12", "ndvi", "vci", "vhi", "pci"] as IndexName[]));
+    : (["cdi", "spi1", "spi3", "spi6", "spi12", "ndvi", "vci", "vhi"] as IndexName[]));
   return (
     <div>
       <label htmlFor="index-select" className="block text-xs font-medium text-slate-500">

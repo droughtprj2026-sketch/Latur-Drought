@@ -57,7 +57,7 @@ def test_missing_lst_leaves_vhi_empty_not_vci():
 
 def test_thermal_formula_weights_and_inputs():
     w = CFG["weights"]
-    assert w == {"SPI": 0.25, "PCI": 0.10, "SMI": 0.20, "VHI": 0.30, "NDVI": 0.15}
+    assert w == {"SPI": 0.35, "SMI": 0.20, "VHI": 0.30, "NDVI": 0.15}
     assert sum(w.values()) == pytest.approx(1.0)
     assert "TCI" not in w and "VCI" not in w and "EVI" not in w   # no double counting, no broken EVI
     assert CFG["thresholds"] == _load_cfg()["thresholds"]          # same class cut-offs as the default formula
@@ -71,7 +71,7 @@ def test_thermal_config_without_panel_is_an_error(monkeypatch, tmp_path):
 
 
 def test_fixture_is_refused_without_explicit_opt_in(monkeypatch, capsys):
-    import realtime_update as ru
+    from realtime import realtime_update as ru
     monkeypatch.delenv("ALLOW_SYNTHETIC_FIXTURE", raising=False)
     monkeypatch.setattr(sys, "argv", ["realtime_update.py", "--fixture", "x.json"])
     assert ru.main() == 3
@@ -94,7 +94,7 @@ def test_thermal_sources_are_field_scale_not_modis_or_smap():
 
 
 def test_output_check_flags_implausible_values():
-    import check_outputs as co
+    from realtime import check_outputs as co
     ok = pd.DataFrame({"LST": [25.0, 41.0], "VV": [-12.0, -8.0], "TCI": [10.0, 90.0]})
     assert co.check_bounds(ok) == []
     bad = pd.DataFrame({"LST": [25.0, 330.0], "VV": [-12.0, 40.0]})   # kelvin left in, dB sign error
@@ -159,7 +159,7 @@ def test_zonal_archive_merges_sources_arriving_separately(tmp_path):
     save_zonal(z, tmp_path / "z.csv")
     assert len(load_zonal(tmp_path / "z.csv")) == 2
     out = write_latest_json(z, tmp_path / "zonal_latest.json")
-    assert out["latest"] == {"ndvi": "2026-11", "evi": "2026-11", "lst": "2026-11", "vv": "2026-11"}
+    assert out["latest"] == {"ndvi": "2026-11", "evi": "2026-11", "nsmi": None, "lst": "2026-11", "vv": "2026-11"}
     assert out["villages"]["1"]["lst"] == 33.0 and "lst" not in out["villages"]["2"]
 
 

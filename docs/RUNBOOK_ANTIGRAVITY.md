@@ -33,7 +33,7 @@ project; report the error text.
 ## 2. Check Supabase access
 
 ```
-python scripts/publish_supabase.py --files-only
+python scripts/realtime/publish_supabase.py --files-only
 ```
 If this reports 404 for the bucket or a missing table, do step 3 first and repeat.
 
@@ -45,8 +45,8 @@ Run `supabase/schema.sql`, then `supabase/migrations/0002_polygon_ids_storage_pu
 ## 4. Update to the latest month with the default formula
 
 ```
-python scripts/realtime_update.py
-python scripts/check_outputs.py
+python scripts/realtime/realtime_update.py
+python scripts/realtime/check_outputs.py
 ```
 Expected: a month is ingested only when its sources fully cover it, so a recent month can legitimately be skipped
 ("not fully published"). That is correct. Report which months were ingested, which were skipped and why, and the
@@ -57,12 +57,12 @@ final status line. Do not force a month that was skipped.
 This calls Earth Engine once per month from 2016 and can take hours; it is resumable.
 
 ```
-python scripts/backfill_thermal.py
-COMPOSITE_CONFIG=config/composite_thermal.yaml python scripts/rescore_panel.py
-python scripts/compare_formulas.py
+python scripts/realtime/backfill_thermal.py
+COMPOSITE_CONFIG=config/composite_thermal.yaml python scripts/analysis/rescore_panel.py
+python scripts/analysis/compare_formulas.py
 ```
 Report the thermal coverage printed by `rescore_panel.py`, the output of `compare_formulas.py`, and any months the
-backfill skipped. Then run `python scripts/check_outputs.py` with `COMPOSITE_CONFIG=config/composite_thermal.yaml`.
+backfill skipped. Then run `python scripts/realtime/check_outputs.py` with `COMPOSITE_CONFIG=config/composite_thermal.yaml`.
 
 **Do not switch the scheduled job to the thermal formula.** Switching changes every published class and needs the
 project team's review of the comparison first. Keep `COMPOSITE_CONFIG` unset until they approve.
@@ -70,7 +70,7 @@ project team's review of the comparison first. Keep `COMPOSITE_CONFIG` unset unt
 ## 6. Publish everything once
 
 ```
-python scripts/publish_supabase.py --full
+python scripts/realtime/publish_supabase.py --full
 ```
 Then check `https://<SUPABASE_URL>/storage/v1/object/public/drought-data/latest_status.json` opens, and that
 `select count(*) from village_monthly;` is about 954 x months.
@@ -82,7 +82,7 @@ The job is incremental and safe to repeat; weekly is enough (all sources are mon
 **Linux / macOS / WSL (cron):**
 ```
 crontab -e
-17 3 * * 1  cd /path/to/repo && ./scripts/run_scheduled.sh >> logs/cron.log 2>&1
+17 3 * * 1  cd /path/to/repo && ./scripts/realtime/run_scheduled.sh >> logs/cron.log 2>&1
 ```
 (Mondays 03:17.) The script reads `.env`, runs the tests, the update and the output checks, writes
 `logs/pipeline_<timestamp>.log`, and exits non-zero on any failure.

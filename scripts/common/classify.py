@@ -141,7 +141,7 @@ def label_for_cdi(value: float | None) -> str:
 # Near-real-time pipelines need to decide drought / non-drought / wet
 # instantly from a CDI score without recomputing thresholds each time.
 # This table is built once from config/composite.yaml and shared by
-# pipeline_gee.py, run_realtime_pipeline_sync.py, and sync_dashboard_data.py.
+# the realtime and analysis scripts.
 # Severity bands:
 #   score < 0.20  -> no_drought   (None)
 #   0.20-0.35     -> drought      (D0 - abnormally dry / mild)

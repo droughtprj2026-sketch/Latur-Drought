@@ -1,5 +1,31 @@
 # Changelog
 
+## November 2026
+
+### Changed
+- Formula `cdi-v2026.12`: PCI removed (it was meant to be a Plant Chlorophyll Index but had been built as a
+  Precipitation Condition Index that duplicated SPI). Weights SPI 0.50, VCI 0.25, NDVI 0.15, NSMI 0.10 (PCI's 0.10 went to
+  SPI); `min_inputs` 3 -> 1. Whole record re-scored with `scripts/analysis/rescore_history.py --rebuild`.
+- Monsoon: a month with CHIRPS rain but no Sentinel-2 is now scored from rainfall (SPI) instead of being left "no data"
+  (18,100 village-months, mostly June-September), and is re-scored when Sentinel-2 arrives. 82 village-months with no
+  rainfall at all stay empty.
+- Scripts reorganised into `scripts/realtime/`, `scripts/historical/`, `scripts/analysis/`; `scripts/common/` unchanged.
+- Freshness check: a month that ended less than `FRESHNESS_GRACE_DAYS` (10) ago no longer turns the weekly job red; the
+  status chip follows CHIRPS and reports what the newest CDI rests on (`composite.basis`).
+- Supabase `village_monthly` gets `nsmi` (run `supabase/migrations/0003_village_monthly_nsmi.sql` once); `pci` is no longer sent.
+
+### Fixed
+- 61,076 village-months with CDI < 0.20 lost their class ("None" was parsed as missing by `pd.read_csv`) and showed as
+  "no data". Every reader now uses `keep_default_na=False`.
+- Village drawer showed a hard-coded formula (PCI 50 %, VCI 25 %, TCI 25 %); it now reads the weights from the status file.
+- `dashboard_master.py` copied district values into tehsil rows with a static area table and invented percentages; it now
+  aggregates the village panel. `latest_status.json` is written only by the weekly job.
+
+### Removed
+- `scheduler.py`, `pipeline_gee.py`, `run_realtime_pipeline_sync.py`, `verify_realtime_pipeline.py`,
+  `sync_dashboard_data.py` (wrote a fabricated "operational" status) and the stale top-level `historical/` and `realtime/`
+  folders (old formula, unused orchestrator).
+
 ## October 2026
 
 ### Fixed

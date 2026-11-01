@@ -35,7 +35,7 @@ export default function AboutPage() {
         <li><strong>Vegetation:</strong> Sentinel-2 L2A (<code>COPERNICUS/S2_SR_HARMONIZED</code>), cloud-masked with
           the scene classification layer, monthly median, village mean: NDVI and VCI.</li>
         <li><strong>Rainfall:</strong> CHIRPS daily totals summed per month (<code>UCSB-CHG/CHIRPS/DAILY</code>): SPI
-          and PCI. CHIRPS is the rainfall reference. SPI is fitted on the 2016 to present record, about ten years per
+          CHIRPS is the rainfall reference. SPI is fitted on the 2016 to present record, about ten years per
           calendar month, so extreme values deserve caution.</li>
         <li><strong>Land-surface temperature:</strong> Sentinel-2 has no thermal band, so LST comes from Landsat 8 and 9
           surface temperature (30 m, clear-sky observations): TCI, and VHI = 0.5 VCI + 0.5 TCI.</li>

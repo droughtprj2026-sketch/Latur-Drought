@@ -1,14 +1,13 @@
 # Composite drought score WITH land-surface temperature and soil moisture.
 #
 # Selected with COMPOSITE_CONFIG=config/composite_thermal.yaml (see docs/THERMAL_AND_SOIL_MOISTURE.md).
-# config/composite.yaml (formula cdi-v2026.10) stays the default until the thermal history has been
+# config/composite.yaml (formula cdi-v2026.12) stays the default until the thermal history has been
 # backfilled and the team has reviewed the new maps; switching changes every published class.
 #
 # Inputs (all normalised to 0..1 drought intensity, 1 = most stressed; a missing input is dropped
 # from numerator AND denominator, never replaced by zero):
 #
 #   SPI   rainfall anomaly         CHIRPS (rainfall ground truth)       meteorological drought
-#   PCI   precipitation condition  CHIRPS min-max per village-month      meteorological drought
 #   SMI   soil moisture index      Sentinel-1 VV backscatter, min-max    agricultural drought (relative)
 #   VHI   vegetation health        0.5 * VCI + 0.5 * TCI (Kogan 1995)    vegetation + thermal stress (Landsat LST)
 #   NDVI  greenness anomaly        Sentinel-2                            vegetation
@@ -22,15 +21,13 @@ formula_version: "cdi-v2026.11-thermal"
 min_inputs: 3
 
 weights:
-  SPI:  0.25
-  PCI:  0.10
+  SPI:  0.35
   SMI:  0.20
   VHI:  0.30
   NDVI: 0.15
 
 normalisation:
   SPI:  { method: neg_clip }
-  PCI:  { method: robust_z }
   SMI:  { method: robust_z }
   VHI:  { method: robust_z }
   NDVI: { method: robust_z }
@@ -47,7 +44,7 @@ spi_accumulation: "SPI-3"
 #                  position of VV for that calendar month (change-detection principle). It is a RELATIVE index,
 #                  not volumetric soil moisture, and is influenced by crop cover and roughness; validate it
 #                  (see docs/THERMAL_AND_SOIL_MOISTURE.md) before relying on a single month.
-# CHIRPS stays the rainfall source (SPI, PCI).
+# CHIRPS stays the rainfall source (SPI). PCI was removed as in config/composite.yaml; its 0.10 went to SPI.
 thermal:
   lst_collections: ["LANDSAT/LC08/C02/T1_L2", "LANDSAT/LC09/C02/T1_L2"]
   lst_band: "ST_B10"

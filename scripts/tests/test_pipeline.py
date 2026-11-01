@@ -15,7 +15,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 from common import classify as py_classify  # noqa: E402
 from common.village_cdi import DERIVED_COLUMNS, _load_cfg, score_new_period  # noqa: E402
-import realtime_update as ru  # noqa: E402
+from realtime import realtime_update as ru  # noqa: E402
 
 PUB = ROOT / "frontend" / "public" / "data"
 TS_SRC = (ROOT / "frontend" / "lib" / "classify.ts").read_text(encoding="utf-8")
@@ -124,3 +124,39 @@ def test_gap_months_are_left_empty_not_filled():
     assert np.isnan(spi3[:, -1]).all()                                     # SPI-3 window touches the gap -> empty
     spi1 = ru.compute_spi(out[ru._periods_of(out)].to_numpy(float), ru._periods_of(out), 1)
     assert np.isfinite(spi1[:, -1]).any()                                  # SPI-1 of the new month still works
+
+
+# ---- monsoon: rainfall decides the class when Sentinel-2 is missing -------------------------------
+def _spi_tables(rain):
+    periods = ru._periods_of(rain)
+    R = rain[periods].to_numpy(float)
+    meta = rain[["vid"]].reset_index(drop=True)
+    return {k: pd.concat([meta, pd.DataFrame(ru.compute_spi(R, periods, k), columns=periods)], axis=1)
+            for k in ru.SCALES}
+
+
+def test_a_month_with_rain_but_no_sentinel_is_scored_from_rainfall(panel):
+    cfg = _load_cfg()
+    rain = ru.load_rain_wide()
+    target = ru.next_period(ru.rain_months(rain)[-1])
+    vals = {str(int(v) + 1): 30.0 + int(v) % 11 for v in rain["vid"]}
+    rain2 = ru.append_rain(rain, target, vals)
+    rows, _ = ru.build_panel_rows(panel[panel["date"] != target], target, None, vals, _spi_tables(rain2), cfg)
+    assert rows["NDVI"].isna().all()
+    assert rows["composite_drought_score"].notna().mean() > 0.9
+    used = rows["component_contributions"].map(json.loads).map(set)
+    assert all(u <= {"SPI"} for u in used)            # rainfall was the only input, and the row says so
+    assert set(rows["composite_drought_class"]) <= {"None", "D0", "D1", "D2", "D3", "D4", "ND"}
+
+
+def test_a_month_that_just_ended_is_not_a_freshness_failure():
+    from datetime import date
+    assert ru.lagging_periods(["2026-10"], set(), date(2026, 11, 5)) == []          # sources not published yet
+    assert ru.lagging_periods(["2026-10"], set(), date(2026, 11, 20)) == ["2026-10"]
+    assert ru.lagging_periods(["2026-10"], {"2026-10"}, date(2026, 11, 20)) == []   # scored from rain: fine
+
+
+def test_pci_is_not_part_of_the_composite():
+    cfg = _load_cfg()
+    assert "PCI" not in cfg["weights"] and "PCI" not in cfg["normalisation"]
+    assert abs(sum(cfg["weights"].values()) - 1.0) < 1e-9

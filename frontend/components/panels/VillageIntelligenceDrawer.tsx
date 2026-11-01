@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { loadTimeseries } from "@/lib/data";
+import { loadStatus, loadTimeseries } from "@/lib/data";
 import { codeForCDI } from "@/lib/classify";
 import {
   ResponsiveContainer,
@@ -37,7 +37,6 @@ export interface VillageProperties {
   VCI?: number | null;
   VHI?: number | null;
   NSMI?: number | null;
-  PCI?: number | null;
   SPI1?: number | null;
   SPI3?: number | null;
   SPI6?: number | null;
@@ -97,7 +96,18 @@ function getAdvisory(cls?: string): string {
   }
 }
 
+const COMPONENT_LABELS: Record<string, { name: string; desc: string }> = {
+  SPI:  { name: "Rainfall deficit (SPI · CHIRPS)", desc: "Standardized Precipitation Index; the only input that is always available, including through monsoon cloud" },
+  VCI:  { name: "Vegetation condition (VCI · Sentinel-2)", desc: "Canopy stress against the village's own range for the calendar month" },
+  NDVI: { name: "Vegetation greenness (NDVI · Sentinel-2)", desc: "Anomaly of green biomass against the village's own record" },
+  NSMI: { name: "Soil moisture (NSMI · Sentinel-1)", desc: "Radar soil-moisture proxy, anomaly against the village's own record" },
+};
+
 export function VillageIntelligenceDrawer({ village, onClose }: Props) {
+  const [composite, setComposite] = useState<{ formula_version?: string; weights?: Record<string, number> } | null>(null);
+  useEffect(() => {
+    loadStatus().then((s) => setComposite(s?.composite ?? null)).catch(() => setComposite(null));
+  }, []);
   const [timeseries, setTimeseries] = useState<TimeseriesPoint[]>([]);
   const [loadingTs, setLoadingTs] = useState(false);
   const [activeTab, setActiveTab] = useState<"overview" | "history" | "breakdown">("overview");
@@ -440,15 +450,15 @@ export function VillageIntelligenceDrawer({ village, onClose }: Props) {
                 Composite Drought Index Weights
               </div>
               <div className="text-[11px] text-slate-500 mb-4">
-                Formula version: {village.composite_formula_version || "cdi-v2026.10"}
+                Formula version: {village.composite_formula_version || composite?.formula_version || "unavailable"}
               </div>
 
               <div className="space-y-3">
-                {[
-                  { name: "Precipitation Condition (PCI · CHIRPS)", weight: 0.50, desc: "Primary moisture departure indicator (GoI Manual 2016 Trigger 1)" },
-                  { name: "Vegetation Condition (VCI · Sentinel-2)", weight: 0.25, desc: "Canopy photosynthetic stress scaled against 10-year extremes" },
-                  { name: "Thermal Condition (TCI · LST)", weight: 0.25, desc: "Evaporative surface thermal deficit" },
-                ].map((item) => (
+                {Object.entries(composite?.weights ?? {}).map(([key, weight]) => ({
+                  name: COMPONENT_LABELS[key]?.name ?? key,
+                  weight,
+                  desc: COMPONENT_LABELS[key]?.desc ?? "",
+                })).map((item) => (
                   <div key={item.name}>
                     <div className="flex justify-between text-xs mb-0.5">
                       <span className="text-slate-800 font-bold">{item.name}</span>
@@ -469,10 +479,10 @@ export function VillageIntelligenceDrawer({ village, onClose }: Props) {
               <div className="mt-4 p-3 bg-amber-50/70 rounded-lg border border-amber-200 text-[11px] text-slate-700">
                 <div className="font-bold text-amber-900 mb-0.5 flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-amber-600" />
-                  Sentinel-2 Image Availability Audit
+                  When satellite data is missing
                 </div>
                 <p className="text-[10px] text-slate-600 leading-relaxed">
-                  Based on <span className="font-mono font-semibold">drought_image_availability.xlsx</span>, 83 optical passes (2016–2026) have high-quality cloud-free Sentinel-2 data. During monsoon cloud peaks, the system activates <span className="font-mono font-semibold text-cyan-800">chirps_only</span> mode to prevent artificial cloud shadow distortion.
+                  In monsoon cloud, Sentinel-2 months are often missing. Missing inputs are dropped, never filled, and the remaining weights are renormalised, so a month with only rainfall is classified from the rainfall deficit (SPI) alone.
                 </p>
               </div>
             </div>

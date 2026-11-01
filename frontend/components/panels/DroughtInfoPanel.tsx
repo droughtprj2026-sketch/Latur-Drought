@@ -16,12 +16,11 @@ const INDEX_DESC: Partial<Record<IndexName, string>> = {
   ndmi: "NDMI uses NIR + SWIR and indicates canopy water content.",
   vci:  "VCI rescales NDVI against its own per-pixel historical range (0 % = worst, 100 % = best).",
   vhi:  "VHI blends vegetation (VCI) and thermal (TCI) stress into one index.",
-  pci:  "PCI rescales monthly rainfall against its historical range per calendar month.",
   spi1:  "SPI-1 compares the last month's rainfall to its long-term distribution.",
   spi3:  "SPI-3 captures short-term agricultural drought (3-month rainfall).",
   spi6:  "SPI-6 catches crop-season / hydrological stress (6-month rainfall).",
   spi12: "SPI-12 reflects long-term hydrological drought (12-month rainfall).",
-  cdi:  "CDI fuses SPI-3, NDVI, VHI and PCI into one standardized value on the SPI class scale.",
+  cdi:  "CDI blends SPI, VCI, NDVI and soil moisture (NSMI) into one 0 to 1 score. When Sentinel data is missing, rainfall (SPI) decides it.",
 };
 
 export function DroughtInfoPanel({ index, year, month }: Props) {

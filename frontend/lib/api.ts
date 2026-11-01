@@ -4,7 +4,7 @@
 export type IndexName =
   | "spi1" | "spi3" | "spi6" | "spi12"
   | "ndvi" | "evi"  | "ndmi" | "nsmi" | "vci"
-  | "vhi"  | "pci"
+  | "vhi"
   | "cdi" | "cdi_class";
 
 export interface Manifest {

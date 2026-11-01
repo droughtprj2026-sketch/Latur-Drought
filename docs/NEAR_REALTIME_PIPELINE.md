@@ -1,7 +1,7 @@
 # Near-Real-Time Pipeline Architecture
 
 > **Status note (October 2026).** This document describes the intended architecture. The job that
-> actually runs is `scripts/realtime_update.py`; what it does, and what was broken before, is in
+> actually runs is `scripts/realtime/realtime_update.py`; what it does, and what was broken before, is in
 > [DATA_ACCURACY_AUDIT.md](DATA_ACCURACY_AUDIT.md). In particular: SPI is calibrated on the 2016-2026
 > record, village polygons are processed directly (not tehsils), and the workflow file is
 > `.github/workflows/realtime_drought_sync.yml`.

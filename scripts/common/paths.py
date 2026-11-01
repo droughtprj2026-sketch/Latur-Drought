@@ -20,7 +20,7 @@ def active_panel(cfg: dict) -> Path:
     if is_thermal(cfg):
         if not PANEL_THERMAL.exists():
             raise FileNotFoundError(
-                f"{PANEL_THERMAL.name} is missing. Run scripts/backfill_thermal.py then "
-                "scripts/rescore_panel.py before selecting config/composite_thermal.yaml.")
+                f"{PANEL_THERMAL.name} is missing. Run scripts/realtime/backfill_thermal.py then "
+                "scripts/analysis/rescore_panel.py before selecting config/composite_thermal.yaml.")
         return PANEL_THERMAL
     return PANEL_V1

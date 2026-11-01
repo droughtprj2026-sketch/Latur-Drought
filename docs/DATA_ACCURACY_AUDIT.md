@@ -16,7 +16,7 @@ The polygons are 954. The dashboard served 951 histories because
 | Nilanga | Kamshetwadi | 642, 643 |
 
 One polygon of each pair was drawn with its namesake's numbers. Fixed by keying everything on the
-polygon `id`: `scripts/build_village_timeseries.py`, `scripts/build_village_registry.py`, the map,
+polygon `id`: `scripts/analysis/build_village_timeseries.py`, `scripts/analysis/build_village_registry.py`, the map,
 sidebar, drawer, timeseries page and `/api/v1/timeseries?id=`. The dropdown selects by id, so two
 "Anandwadi" entries are two selectable villages. `scripts/tests/test_pipeline.py` fails if the
 count ever drifts again.
@@ -115,7 +115,7 @@ Why it never worked on GitHub Actions, in the order it fails:
 8. `latest_status.json` was not in `frontend/public/data`, so the status route always fell back
    to a placeholder.
 
-What replaced it: `scripts/realtime_update.py` (details in its docstring and
+What replaced it: `scripts/realtime/realtime_update.py` (details in its docstring and
 `.github/workflows/realtime_drought_sync.yml`).
 
 * Village-level Sentinel-2 NDVI and CHIRPS rainfall from Earth Engine, month by month, oldest first;
@@ -137,7 +137,7 @@ What replaced it: `scripts/realtime_update.py` (details in its docstring and
 fetch functions (`fetch_s2`, `fetch_chirps`) have not been run against the live service. Everything
 after them was exercised end to end with `--fixture` (rain for 2026-09 and 2026-10 plus a synthetic
 2026-11): 954 villages scored, SPI tables extended, history left identical, status written. Run
-`python scripts/realtime_update.py --period 2026-09` once with the service account to confirm.
+`python scripts/realtime/realtime_update.py --period 2026-09` once with the service account to confirm.
 
 ## 6. Other fixes
 

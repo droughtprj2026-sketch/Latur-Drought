@@ -2,6 +2,7 @@
 
 Developed by the **Department of Geoinformatics, Shivaji University**.
 
+**Main developer and debugger:** Satwik K. Udupi.
 **Project team (developers):** Rajnandini U. Kadam, Aishwarya B. Jagtap, Pavan S. Devkar, Shital B. Gurav,
 Trupti U. Jadhav.
 **Project guide:** Dr. Sachin S. Panhalkar, Head of Department, Department of Geography.
@@ -16,30 +17,42 @@ baselines and an area-of-interest tool.
 | Quantity | Source | Resolution |
 |---|---|---|
 | NDVI, VCI | Copernicus Sentinel-2 L2A (monthly composite) | 10 m |
-| Rainfall, SPI, PCI | UCSB CHIRPS (daily, summed per month) | ~5 km |
+| Rainfall, SPI | UCSB CHIRPS (daily, summed per month) | ~5 km |
 | LST, TCI | Landsat 8 + 9 Collection 2 L2 surface temperature (clear-sky) | 30 m |
 | Soil moisture (relative), SMI | Sentinel-1 VV backscatter | 10 m |
 | VHI | 0.5 VCI + 0.5 TCI (Kogan) | derived |
 | CDI | weighted composite, `config/composite*.yaml` | derived |
 
 Sentinel-2 has no thermal band, which is why LST comes from Landsat. CHIRPS is the rainfall reference.
-Two composite formulas exist: `config/composite.yaml` (`cdi-v2026.10`, default, no thermal inputs) and
-`config/composite_thermal.yaml` (`cdi-v2026.11-thermal`, opt-in). See
+Two composite formulas exist: `config/composite.yaml` (`cdi-v2026.12`, default: SPI 0.50, VCI 0.25, NDVI 0.15,
+NSMI 0.10) and `config/composite_thermal.yaml` (`cdi-v2026.11-thermal`, opt-in). Missing inputs are dropped and the
+rest re-weighted, so in monsoon cloud, when Sentinel-2 is unavailable, a month is classified from rainfall (SPI). See
 [docs/THERMAL_AND_SOIL_MOISTURE.md](docs/THERMAL_AND_SOIL_MOISTURE.md).
 
 ## Architecture
 
 ```
 Earth Engine (S2, S1, Landsat, CHIRPS)
-        |  scripts/realtime_update.py   (weekly GitHub Action, incremental)
+        |  scripts/realtime/realtime_update.py   (weekly GitHub Action, incremental)
         v
 history tables (CSV) --> SPI, VCI/TCI/SMI, CDI --> JSON/GeoJSON artifacts
-        |  scripts/publish_supabase.py
+        |  scripts/realtime/publish_supabase.py
         v
 Supabase: Storage bucket `drought-data` (public) + Postgres `village_monthly`, `pipeline_runs`
         |
         v
 Next.js dashboard (API routes + Leaflet + Recharts) on Vercel
+```
+
+```
+scripts/
+  common/       shared library: CDI scoring, classes, thermal/zonal tables, Earth Engine helpers
+  realtime/     the weekly job: realtime_update.py, publish_supabase.py, check_outputs.py, backfill_thermal.py,
+                diagnose_gee.py, run_scheduled.sh / .ps1
+  historical/   one-off batch builds of the 2016-2026 record (need local rasters or Colab)
+  analysis/     derived products and audits: rescore_history.py, build_baseline_drought.py, build_village_*.py,
+                build_tehsil_analytics.py, dashboard_master.py, compare/validate/visualisation scripts
+  tests/
 ```
 
 Every village is keyed by its polygon `id`. Village names are not unique (three pairs collide).

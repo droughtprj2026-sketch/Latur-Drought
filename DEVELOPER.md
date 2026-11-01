@@ -6,7 +6,7 @@
 
 This document is for developers who will build, run, and extend the Latur
 Drought Monitoring platform. It covers the full stack: data ingestion
-(Sentinel-2 + CHIRPS), index processing (SPI, NDVI, VHI, PCI, EVI → CDI),
+(Sentinel-2 + CHIRPS), index processing (SPI, NDVI, VCI, NSMI → CDI),
 the Node.js backend, the Next.js + Leaflet frontend, and the
 Supabase + SQLite data layer.
 
@@ -25,9 +25,9 @@ Supabase + SQLite data layer.
                                    ▼
    ┌───────────────────────────────────────────────────────────┐
    │  PROCESSING LAYER  (Python, Colab / local)                │
-   │  scripts/latur_chirps_spi.py        → SPI-1/3/6/12        │
-   │  scripts/latur_sentinel_indices.py  → NDVI, EVI, PCI, VHI │
-   │  scripts/latur_cdi.py               → CDI composite        │
+   │  scripts/historical/latur_chirps_spi.py        → SPI-1/3/6/12        │
+   │  scripts/historical/latur_sentinel_indices.py  → NDVI, EVI, VHI │
+   │  scripts/common/village_cdi.py      → CDI composite        │
    │  Outputs: GeoTIFF + GeoJSON + CSV + JSON  → data/processed │
    └───────────────────────────────────────────────────────────┘
                                    │
@@ -89,17 +89,23 @@ drought-monitoring/
 │   └── spi.yaml           # SPI reference climatology + QC rules
 │
 ├── scripts/               # Python pipeline
-│   ├── chirps_gee.py      # real-time: CHIRPS from GEE
-│   ├── pipeline_gee.py    # real-time: Sentinel-2 from GEE
-│   ├── spi_from_chirps_csv.py    # real-time: SPI from GEE CHIRPS CSV
-│   ├── latur_chirps_spi.py       # batch: SPI from local rasters
-│   ├── latur_sentinel_indices.py # batch: indices from local rasters
-│   ├── composite_cdi.py          # CDI composite computation
-│   ├── build_village_indices.py  # village-level zonal stats + CDI
-│   ├── build_baseline_drought.py # baseline anomalies + GeoJSON
-│   ├── dashboard_master.py       # builds outputs/Dashboard/
-│   ├── scheduler.py              # orchestrates pipeline runs
+│   ├── realtime/          # the weekly job (GitHub Action)
+│   │   ├── realtime_update.py        # incremental ingest -> score -> rebuild -> publish
+│   │   ├── publish_supabase.py       # Storage + Postgres publish
+│   │   ├── check_outputs.py          # post-run output checks
+│   │   ├── backfill_thermal.py       # LST / Sentinel-1 table helpers
+│   │   └── run_scheduled.sh / .ps1   # local cron / Task Scheduler wrappers
+│   ├── historical/        # one-off batch builds of the 2016-2026 record
+│   │   ├── chirps_gee.py, spi_from_chirps_csv.py, latur_chirps_spi.py
+│   │   ├── latur_sentinel_indices.py, build_village_indices.py
+│   │   └── composite_cdi.py          # district-level composite
+│   ├── analysis/          # derived products and audits
+│   │   ├── rescore_history.py        # re-score the record after a formula change (--rebuild: all outputs)
+│   │   ├── build_baseline_drought.py, build_village_registry.py, build_village_timeseries.py
+│   │   ├── build_tehsil_analytics.py, dashboard_master.py
+│   │   └── compare_formulas.py, rescore_panel.py, validate_historical_analysis.py, generate_scientific_visualizations.py
 │   ├── common/
+│   │   ├── village_cdi.py # CDI scoring (weights/thresholds from config/composite.yaml)
 │   │   ├── raster.py      # file scanning, dedupe, read_stack
 │   │   ├── classify.py    # SPI/CDI class thresholds
 │   │   └── manifest.py    # incremental processing manifest
@@ -177,7 +183,7 @@ the server (Node) side.
 | Shapefile    | Latur district + tehsils | vector  | static       | `data/vector/`              |
 
 CHIRPS GeoTIFFs follow one of two naming conventions
-(both are handled by `scripts/latur_chirps_spi.py`):
+(both are handled by `scripts/historical/latur_chirps_spi.py`):
 
 ```
 CHIRPS_Latur_YYYY_MM_mm.tif
@@ -191,24 +197,22 @@ Latur_precip_YYYY_MM.tif
 | SPI-k  | `latur_chirps_spi.py` (batch), `spi_from_chirps_csv.py` (real-time) | Gamma CDF fit per calendar month (McKee 1993). Zero-rain correction `H = q + (1 − q) · G`, with `H(0) = q/2` (Stagge 2015). SPI = Phi-inv(H). Computed for k = 1, 3, 6, 12. Batch: per-pixel from rasters. Real-time: district-mean from GEE CHIRPS CSV. |
 | NDVI   | `latur_sentinel_indices.py`                 | `(NIR − RED) / (NIR + RED)` on Sentinel-2 B8, B4            |
 | EVI    | `latur_sentinel_indices.py`                 | `2.5 · (NIR − RED) / (NIR + 6·RED − 7.5·BLUE + 1)`          |
-| PCI    | `latur_sentinel_indices.py`                 | `(P − P_min) / (P_max − P_min)` using CHIRPS monthly        |
 | VHI    | `latur_sentinel_indices.py`                 | `α·VCI + (1 − α)·TCI`, α = 0.5                              |
 | NSMI   | `export_ndmi_nsmi_rasters.py`               | `(SWIR1 − SWIR2) / (SWIR1 + SWIR2)` — Normalised Soil Moisture Index (Boles 2020) |
 | NDMI   | `export_ndmi_nsmi_rasters.py`               | `(NIR − SWIR1) / (NIR + SWIR1)` — Normalised Difference Moisture Index (Gao 1996)  |
-| **CDI** | `build_village_indices.py`                 | Transparent weighted multi-index composite (cdi-v2026.11). Weights from `config/composite.yaml`: `0.40·SPI + 0.25·VCI + 0.15·NDVI + 0.10·PCI + 0.10·NSMI`. Aligned with Marathwada PCA-CDI evidence (Pawar 2022) and NDMA 2016 framework. Missing inputs excluded; fewer than `min_inputs` → `pending`. References: WMO (2012), McKee (1993), Kogan (1995), NDMA (2016), Pawar (2022). **Replaces the retired Random Forest classifier.** |
+| **CDI** | `build_village_indices.py`                 | Transparent weighted multi-index composite (cdi-v2026.12). Weights from `config/composite.yaml`: `0.50·SPI + 0.25·VCI + 0.15·NDVI + 0.10·NSMI` (PCI was removed in cdi-v2026.12; its weight went to SPI). With `min_inputs: 1`, a month with only rainfall (monsoon cloud) is classified from SPI alone. Aligned with Marathwada PCA-CDI evidence (Pawar 2022) and NDMA 2016 framework. Missing inputs excluded; fewer than `min_inputs` → `pending`. References: WMO (2012), McKee (1993), Kogan (1995), NDMA (2016), Pawar (2022). **Replaces the retired Random Forest classifier.** |
 
 ### 5.3 Running the historical pipeline (local batch)
 
 ```bash
-cd scripts
 python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
+pip install -r scripts/requirements.txt
 
-python latur_chirps_spi.py          # writes SPI GeoTIFFs + GeoJSON + CSV
-python latur_sentinel_indices.py    # writes NDVI/EVI/PCI/VHI GeoJSON
-python build_village_indices.py     # village-level zonal stats + CDI composite
-python build_baseline_drought.py    # baseline anomalies + GeoJSON export
-python dashboard_master.py          # builds outputs/Dashboard/ files for Node API
+python scripts/historical/latur_chirps_spi.py          # writes SPI GeoTIFFs + GeoJSON + CSV
+python scripts/historical/latur_sentinel_indices.py    # writes NDVI/EVI/VHI GeoJSON
+python scripts/historical/build_village_indices.py     # village-level zonal stats + CDI composite
+python scripts/analysis/build_baseline_drought.py      # baseline anomalies + GeoJSON export
+python scripts/analysis/dashboard_master.py            # master table + availability / manifest files
 ```
 
 ### 5.4 Running the near-real-time pipeline (GEE)
@@ -226,27 +230,22 @@ Run each step independently or use the scheduler:
 
 ```bash
 # 1. Pull CHIRPS monthly (incremental — only missing months)
-python scripts/chirps_gee.py --from 2016-01 --to latest
+python scripts/historical/chirps_gee.py --from 2016-01 --to latest
 
 # 2. Compute SPI from the GEE CHIRPS CSV (district-level, gamma CDF)
-python scripts/spi_from_chirps_csv.py
+python scripts/historical/spi_from_chirps_csv.py
 
-# 3. Pull Sentinel-2 for the AOI (independent cadence)
-python scripts/pipeline_gee.py \
-    --aoi data/vector/latur_tehsils.geojson \
-    --from 2016-01 --to 2026-10
+# 3. Village-level zonal stats (builds the CSV composite_cdi reads)
+python scripts/historical/build_village_indices.py --stage zonal
 
-# 4. Village-level zonal stats (builds the CSV composite_cdi reads)
-python scripts/build_village_indices.py --stage zonal
+# 4. Compute the transparent multi-index composite
+python scripts/historical/composite_cdi.py
 
-# 5. Compute the transparent multi-index composite
-python scripts/composite_cdi.py
+# 5. Build dashboard master + availability / manifest files
+python scripts/analysis/dashboard_master.py
 
-# 6. Build dashboard master + status files
-python scripts/dashboard_master.py
-
-# Or do steps 1-5 in one tick:
-python scripts/scheduler.py
+# The weekly job (Sentinel-2 + CHIRPS + thermal, incremental) is scripts/realtime/realtime_update.py.
+# After changing config/composite.yaml: python scripts/analysis/rescore_history.py --rebuild
 ```
 
 ### 5.5 Changing composite weights without touching code
@@ -254,7 +253,7 @@ python scripts/scheduler.py
 Edit `config/composite.yaml`, then re-run:
 
 ```bash
-python scripts/composite_cdi.py && python scripts/dashboard_master.py
+python scripts/analysis/rescore_history.py --rebuild
 ```
 
 `composite_formula_version` is stamped on every row so classifications
@@ -329,7 +328,7 @@ create index on tehsils using gist (geom);
 -- District-mean monthly index time series (feeds charts).
 create table monthly_index (
   id          bigserial primary key,
-  index_name  text not null,            -- 'SPI1','SPI3','NDVI','EVI','VCI','VHI','NSMI','PCI','CDI'
+  index_name  text not null,            -- 'SPI1','SPI3','NDVI','EVI','VCI','VHI','NSMI','CDI'
   year        int  not null,
   month       int  not null check (month between 1 and 12),
   value       double precision,
@@ -339,7 +338,7 @@ create table monthly_index (
 );
 
 -- Village-level monthly index values (real-time GEE zonal stats).
--- 954 villages x indices x months. Pushed by pipeline_gee.py and chirps_gee.py.
+-- 954 villages x indices x months. Pushed by scripts/realtime/publish_supabase.py.
 create table village_monthly_index (
   id          bigserial primary key,
   index_name  text not null,            -- 'ndvi','evi','ndmi','nsmi','rain_mm'
@@ -445,7 +444,7 @@ outputs/Dashboard/
 
 The per-source authoritative manifests live under
 `data/processed/manifests/{sentinel.json, chirps.json}`. Everything in
-`outputs/Dashboard/` is regenerated by `scripts/dashboard_master.py`.
+`outputs/Dashboard/` is regenerated by `scripts/analysis/dashboard_master.py`.
 
 ### 7.3 Example response — `/api/v1/timeseries/spi3?from=2024-01&to=2026-10`
 
@@ -485,7 +484,7 @@ pnpm dev     # → http://localhost:3000
 ### 8.1 Pages
 
 - `/` — **dashboard**. Title bar at the top; controls strip with an
-  **index dropdown** (NDVI / SPI / VCI / VHI / EVI / PCI / CDI) + **year
+  **index dropdown** (NDVI / SPI / VCI / VHI / EVI / NSMI / CDI) + **year
   slider** + month selector; map on the left, drought-condition info
   panel on the right; time-series chart below.
 - `/map` — full-screen Leaflet view with the same controls and the
@@ -632,7 +631,7 @@ Secrets live in each host's env panel. Never commit `.env`.
   Months with only vegetation inputs are marked `degraded`.
 - **VHI = VCI placeholder** — no real LST (Land Surface Temperature) data yet.
   Replace with Landsat/MODIS LST when available.
-- **PCI edge values** — ~11% at both 0 and 100 due to the short 10-year record
+- **PCI removed** — it duplicated SPI and was built as a Precipitation Condition Index instead of the intended Plant Chlorophyll Index; a real chlorophyll index needs Sentinel-2 red-edge ingest and a backfill
   for min-max normalization. Will improve as years accumulate.
 - **Map uses centroid points**, not full village polygons, for performance.
   Polygon boundaries exist in `frontend/public/data/latur_villages.geojson`.
@@ -644,7 +643,7 @@ Secrets live in each host's env panel. Never commit `.env`.
 ## 13. Roadmap (short)
 
 - [ ] Replace static GeoJSON fetch with Mapbox Vector Tiles for pixel layer
-- [ ] Nightly scheduled ingest (GitHub Actions → `scheduler.py`)
+- [x] Scheduled ingest (GitHub Actions → `scripts/realtime/realtime_update.py`, Mon and Thu)
 - [ ] User alerts: email when CDI < −1.5 for any tehsil
 - [ ] Switch SPI calibration to 1981 – 2010 once older CHIRPS is loaded
 - [ ] Mobile layout for the map + chart dashboard

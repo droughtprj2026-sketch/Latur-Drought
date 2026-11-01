@@ -1,6 +1,6 @@
 # Pipeline
 
-One scheduled job (`scripts/realtime_update.py`, weekly) keeps the dashboard current. Every input is a monthly
+One scheduled job (`scripts/realtime/realtime_update.py`, weekly) keeps the dashboard current. Every input is a monthly
 product, so the dashboard changes when a new month becomes available, not weekly; the weekly schedule only checks.
 
 ```
@@ -9,7 +9,7 @@ fetch (Earth Engine)         Sentinel-2 NDVI/EVI   CHIRPS rain   [Landsat LST + 
 history tables               rain wide CSV, thermal CSV, village panel
         |
 SPI 1/3/6/12                 recomputed for the whole record, self-checked first
-VCI, PCI, [TCI, SMI, VHI]    against each village's own envelope for the calendar month
+VCI, [TCI, SMI, VHI]         against each village's own envelope for the calendar month
         |
 CDI                          weights/thresholds from the active config; missing inputs dropped
         |
@@ -30,7 +30,7 @@ publish                      Supabase Storage + Postgres, run row in pipeline_ru
 | Landsat 8/9 LST, Sentinel-1 VV (thermal formula) | `common/gee.fetch_lst_sm` | `output/thermal/village_monthly_lst_sm.csv` |
 | SPI | `realtime_update.compute_spi` | `output/spi/csv/SPI*_village_monthly.csv` |
 | TCI, SMI, VHI | `common/thermal.add_thermal_indices` | panel columns |
-| PCI, CDI | `common/village_cdi.score_new_period` | panel columns |
+| CDI | `common/village_cdi.score_new_period` | panel columns |
 | Derived dashboard files | `build_*.py` | `frontend/public/data/*` |
 | Status | `realtime_update.write_status` | `outputs/Dashboard/latest_status.json`, `frontend/public/data/latest_status.json` |
 | Publish | `publish_supabase.py` | bucket `drought-data`, tables |
@@ -45,13 +45,15 @@ publish                      Supabase Storage + Postgres, run row in pipeline_ru
   months) because adding a year changes each calendar month's gamma fit slightly.
 * **Failure is loud.** A failed step, a due month with no data, or a failed publish makes the run exit non-zero and
   the status "degraded". The workflow commits the status anyway, then fails.
-* **Two formulas.** Default `cdi-v2026.10` (no thermal inputs) and opt-in `cdi-v2026.11-thermal`. The thermal formula
-  also scores months without a Sentinel-2 image from SPI + PCI + SMI.
+* **Two formulas.** Default `cdi-v2026.12` (SPI, VCI, NDVI, NSMI) and opt-in `cdi-v2026.11-thermal`.
+* **Monsoon cloud.** A month with CHIRPS rain but no usable Sentinel-2 is still scored (SPI plus any other input
+  present; `min_inputs: 1`) and re-scored when Sentinel-2 arrives. A month that ended less than
+  `FRESHNESS_GRACE_DAYS` (default 10) ago is not a freshness failure: its sources are not published yet.
 
 ## History (how the record was produced)
 
-The 2016-2026 record came from raster batches: `latur_chirps_spi.py` (SPI), `build_village_indices.py` (NDVI, EVI,
-VCI, PCI, CDI from Sentinel-2 composites and CHIRPS rasters) and `build_baseline_drought.py`. The rasters are not
+The 2016-2026 record came from raster batches: `scripts/historical/latur_chirps_spi.py` (SPI), `scripts/historical/build_village_indices.py` (NDVI, EVI,
+VCI, CDI from Sentinel-2 composites and CHIRPS rasters) and `build_baseline_drought.py`. The rasters are not
 in the repository. The weekly job extends that record; it does not rebuild it. Known weaknesses of the
 record (EVI, rainfall sampling, short calibration window) are listed in `docs/DATA_ACCURACY_AUDIT.md`.
 

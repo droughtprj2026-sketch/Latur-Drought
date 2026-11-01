@@ -73,5 +73,8 @@ output/spi/geotiff_*/
 # Agent tool caches & configurations
 .opencode/
 .antigravity/
+scratch/
+*.bundle
+data/dashboard/
 
 

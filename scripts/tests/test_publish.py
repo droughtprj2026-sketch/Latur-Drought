@@ -13,7 +13,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts"))
 
-import publish_supabase as ps  # noqa: E402
+from realtime import publish_supabase as ps  # noqa: E402
 
 
 class Fake(BaseHTTPRequestHandler):
@@ -39,13 +39,27 @@ class Fake(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(b"{}")
 
+    missing_columns: set = set()
+
+    def do_GET(self):
+        Fake.log.append({"path": self.path, "headers": {k.lower(): v for k, v in self.headers.items()}, "body": b""})
+        col = re.search(r"select=(\w+)", self.path)
+        if col and col.group(1) in Fake.missing_columns:
+            self.send_response(400)
+            self.end_headers()
+            self.wfile.write(b'{"code":"42703","message":"column does not exist"}')
+            return
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"[]")
+
     def log_message(self, *a):
         pass
 
 
 @pytest.fixture()
 def server():
-    Fake.log, Fake.fail_first = [], {}
+    Fake.log, Fake.fail_first, Fake.missing_columns = [], {}, set()
     srv = HTTPServer(("127.0.0.1", 0), Fake)
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     yield f"http://127.0.0.1:{srv.server_port}"
@@ -143,3 +157,37 @@ def test_migration_runs_in_one_transaction_and_schema_policies_are_rerunnable():
     assert "BEGIN;" in SQL
     schema = (ROOT / "supabase" / "schema.sql").read_text()
     assert len(re.findall(r"CREATE POLICY", schema)) == len(re.findall(r"DROP POLICY IF EXISTS", schema))
+
+
+# ---- NSMI is published when the column exists, and never PCI --------------------------------------
+def test_monthly_rows_carry_nsmi_and_never_pci():
+    rows = ps.monthly_rows(["2026-08"])
+    assert all("nsmi" in r and "pci" not in r for r in rows)
+    assert any(r["nsmi"] is not None for r in ps.monthly_rows(["2026-05"]))
+    assert all("nsmi" not in r for r in ps.monthly_rows(["2026-08"], with_nsmi=False))
+
+
+def test_has_column_distinguishes_missing_from_other_errors(server):
+    c = client(server)
+    assert c.has_column("village_monthly", "nsmi") is True
+    Fake.missing_columns = {"nsmi"}
+    assert c.has_column("village_monthly", "nsmi") is False
+
+
+def test_publish_without_the_nsmi_column_still_publishes_the_rest(server, tmp_path):
+    Fake.missing_columns = {"nsmi"}
+    import shutil
+    for name in ("latur_villages_latest.geojson", "village_timeseries.json"):
+        shutil.copy(ROOT / "frontend" / "public" / "data" / name, tmp_path / name)
+    messages = []
+    done = ps.publish(client(server), ["2026-08"], files=False, pub=tmp_path, log=messages.append)
+    assert done["monthly"] == 954 and done["villages"] == 954
+    assert any("0003_village_monthly_nsmi.sql" in m for m in messages)
+    posted = [r for r in Fake.log if r["path"].startswith("/rest/v1/village_monthly") and r["body"]]
+    assert posted and all("nsmi" not in json.loads(r["body"])[0] for r in posted)
+
+
+def test_migration_0003_adds_nsmi_inside_a_transaction():
+    sql = (ROOT / "supabase" / "migrations" / "0003_village_monthly_nsmi.sql").read_text()
+    assert "ADD COLUMN IF NOT EXISTS nsmi" in sql and sql.rstrip().endswith("COMMIT;") and "BEGIN;" in sql
+    assert "DROP COLUMN" not in sql.replace("--", "").split("COMMIT;")[0].split("BEGIN;")[1]

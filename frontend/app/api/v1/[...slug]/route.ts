@@ -63,7 +63,7 @@ export async function GET(
     for (const pts of Object.values(cache)) {
       for (const x of pts as any[]) {
         periods.add(x.p);
-        for (const k of ["cdi", "ndvi", "vci", "vhi", "pci", "nsmi", "rain", "spi1", "spi3", "spi6", "spi12"]) {
+        for (const k of ["cdi", "ndvi", "vci", "vhi", "nsmi", "rain", "spi1", "spi3", "spi6", "spi12"]) {
           if (x[k] != null) (have[k] ||= new Set()).add(Number(String(x.p).slice(0, 4)));
         }
       }
@@ -72,7 +72,7 @@ export async function GET(
     const indices: Record<string, any> = {};
     for (const [k, ys] of Object.entries(have)) {
       indices[k] = {
-        source: k.startsWith("spi") || k === "rain" || k === "pci" ? "CHIRPS" : k === "cdi" ? "Composite" : k === "nsmi" ? "Sentinel-1" : "Sentinel-2",
+        source: k.startsWith("spi") || k === "rain" ? "CHIRPS" : k === "cdi" ? "Composite" : k === "nsmi" ? "Sentinel-1" : "Sentinel-2",
         years: [...ys].sort(),
       };
     }
@@ -130,7 +130,6 @@ export async function GET(
       else if (indexName === "evi") val = d.EVI;
       else if (indexName === "vci") val = d.VCI;
       else if (indexName === "vhi") val = d.VHI;
-      else if (indexName === "pci") val = d.PCI;
       else if (indexName === "nsmi") val = d.NSMI;
       else if (indexName === "rain") val = d.Rain_mm;
       else val = d.composite_drought_score;
@@ -176,7 +175,7 @@ export async function GET(
           class: m?.cdi != null ? m.cls : "ND",
           cdi: m?.cdi ?? null, spi1: m?.spi1 ?? null, spi3: m?.spi3 ?? null,
           spi6: m?.spi6 ?? null, spi12: m?.spi12 ?? null, ndvi: m?.ndvi ?? null,
-          vhi: m?.vhi ?? null, vci: m?.vci ?? null, pci: m?.pci ?? null, nsmi: m?.nsmi ?? null, rain: m?.rain ?? null,
+          vhi: m?.vhi ?? null, vci: m?.vci ?? null, nsmi: m?.nsmi ?? null, rain: m?.rain ?? null,
           period,
         },
       };

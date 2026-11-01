@@ -3,7 +3,7 @@
 Raw village zonal statistics from Earth Engine, kept for every month the pipeline ingests, whichever composite
 formula is active:
 
-    NDVI, EVI      Sentinel-2 monthly median, village mean
+    NDVI, EVI, NSMI  Sentinel-2 monthly median, village mean (NSMI = SWIR1-SWIR2 normalised difference)
     LST            Landsat 8/9 surface temperature, village mean (deg C)
     VV             Sentinel-1 VV backscatter, village mean (dB)   (the input of the soil moisture index)
 
@@ -21,8 +21,8 @@ import pandas as pd
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 ZONAL_CSV = ROOT / "output" / "zonal" / "village_monthly_zonal.csv"
-COLUMNS = ["village_idx", "date", "NDVI", "EVI", "LST", "VV", "s2_scenes", "lst_images", "vv_images", "fetched_at"]
-VARS = ("NDVI", "EVI", "LST", "VV")
+COLUMNS = ["village_idx", "date", "NDVI", "EVI", "NSMI", "LST", "VV", "s2_scenes", "lst_images", "vv_images", "fetched_at"]
+VARS = ("NDVI", "EVI", "NSMI", "LST", "VV")
 
 
 def load_zonal(path: Path = ZONAL_CSV) -> pd.DataFrame:
@@ -51,7 +51,7 @@ def upsert_period(z: pd.DataFrame, period: str, s2: dict | None = None, thermal:
     if s2 and s2.get("values"):
         for pid, v in s2["values"].items():
             r = row(int(pid))
-            r["NDVI"], r["EVI"], r["s2_scenes"] = v.get("ndvi"), v.get("evi"), s2.get("scenes")
+            r["NDVI"], r["EVI"], r["NSMI"], r["s2_scenes"] = v.get("ndvi"), v.get("evi"), v.get("nsmi"), s2.get("scenes")
             r["fetched_at"] = now
     if thermal and thermal.get("values"):
         for pid, v in thermal["values"].items():

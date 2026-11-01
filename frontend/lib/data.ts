@@ -9,7 +9,7 @@ import { fetchData } from "./dataSource";
 export interface TsPoint {
   p: string;
   cdi: number | null; cls: string;
-  ndvi: number | null; evi: number | null; vci: number | null; vhi: number | null; nsmi?: number | null; pci: number | null;
+  ndvi: number | null; evi: number | null; vci: number | null; vhi: number | null; nsmi?: number | null;
   tci?: number | null; smi?: number | null; lst?: number | null; vv?: number | null;
   rain: number | null;
   spi1: number | null; spi3: number | null; spi6: number | null; spi12: number | null;
@@ -75,7 +75,7 @@ export function activeVillage(
     period,
     area_sqkm: props.AREA_SQKM,
     cdi: pt?.cdi, cls: pt?.cls,
-    ndvi: pt?.ndvi, evi: pt?.evi, vci: pt?.vci, vhi: pt?.vhi, pci: pt?.pci,
+    ndvi: pt?.ndvi, evi: pt?.evi, vci: pt?.vci, vhi: pt?.vhi, nsmi: pt?.nsmi,
     tci: pt?.tci, smi: pt?.smi, lst: pt?.lst, vv: pt?.vv,
     rain: pt?.rain,
     spi1: pt?.spi1, spi3: pt?.spi3, spi6: pt?.spi6, spi12: pt?.spi12,
@@ -99,7 +99,7 @@ export function toVillageProperties(a: ActiveVillage): any {
     period: a.period, date: a.period,
     CDI: a.cdi ?? null, CDI_class: a.cls ?? "ND", class: a.cls ?? "ND",
     TCI: a.tci ?? null, SMI: a.smi ?? null, LST: a.lst ?? null,
-    NDVI: a.ndvi ?? null, EVI: a.evi ?? null, VCI: a.vci ?? null, VHI: a.vhi ?? null, PCI: a.pci ?? null,
+    NDVI: a.ndvi ?? null, EVI: a.evi ?? null, VCI: a.vci ?? null, VHI: a.vhi ?? null, NSMI: a.nsmi ?? null,
     Rain_mm: a.rain ?? null,
     SPI1: a.spi1 ?? null, SPI3: a.spi3 ?? null, SPI6: a.spi6 ?? null, SPI12: a.spi12 ?? null,
     baseline_ndvi: a.base?.ndvi_mean ?? null,

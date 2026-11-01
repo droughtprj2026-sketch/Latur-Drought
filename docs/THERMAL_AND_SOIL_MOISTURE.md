@@ -20,7 +20,7 @@ keep the analysis at field scale are:
 |---|---|---|---|
 | LST | Landsat 8 + 9 Collection 2 Level 2, `ST_B10` (DN x 0.00341802 + 149.0 K -> deg C) | 30 m (100 m thermal) | daytime ~10:30, clear pixels only (QA_PIXEL), monthly mean of the clear observations |
 | Soil moisture (relative) | Sentinel-1 IW GRD, VV backscatter | 10 m | incidence-angle normalised to 40 deg, averaged in linear power, back to dB |
-| Rainfall | CHIRPS (daily, summed per month) | ~5 km | the rainfall reference for SPI and PCI |
+| Rainfall | CHIRPS (daily, summed per month) | ~5 km | the rainfall reference for SPI |
 
 A month is used only when it is over (plus `publish_lag_days`) and has enough observations (Landsat >= 1 clear
 image over the district, Sentinel-1 >= 2). A village that is cloud-covered in every Landsat image of the month
@@ -43,15 +43,15 @@ composite drops the input (nothing is filled).
 
 ## The composite (config/composite_thermal.yaml, formula `cdi-v2026.11-thermal`)
 
-    SPI 0.25 | PCI 0.10 | SMI 0.20 | VHI 0.30 | NDVI 0.15
+    SPI 0.35 | SMI 0.20 | VHI 0.30 | NDVI 0.15
 
 VCI and TCI are not weighted separately (they are the two halves of VHI; weighting them again would count the
 same pixels three times). EVI is excluded because the stored series is saturated. Thresholds are the same as
-`config/composite.yaml`. Months with no Sentinel-2 composite are now scored from SPI + PCI + SMI (Sentinel-1 sees through cloud), which closes
+`config/composite.yaml`. Months with no Sentinel-2 composite are now scored from SPI + SMI (Sentinel-1 sees through cloud), which closes
 most of the June-September gap.
 
 This formula is selected with `COMPOSITE_CONFIG=config/composite_thermal.yaml`. The default
-(`config/composite.yaml`, `cdi-v2026.10`) is unchanged, because switching rewrites every published class.
+(`config/composite.yaml`, `cdi-v2026.12`) also scores cloudy months, from rainfall (SPI) and soil moisture (NSMI) without any thermal input.
 `config/composite_thermal.yaml` weights are a proposal for the project team to review and calibrate against
 reference drought declarations.
 
@@ -59,12 +59,12 @@ reference drought declarations.
 
 1. Backfill 2016 to the last complete month (resumable, one Earth Engine call set per month):
 
-       python scripts/backfill_thermal.py
+       python scripts/realtime/backfill_thermal.py
 
 2. Rebuild the panel offline (no Earth Engine):
 
-       COMPOSITE_CONFIG=config/composite_thermal.yaml python scripts/rescore_panel.py
-       COMPOSITE_CONFIG=config/composite_thermal.yaml python scripts/realtime_update.py --skip-self-check --period <latest>
+       COMPOSITE_CONFIG=config/composite_thermal.yaml python scripts/analysis/rescore_panel.py
+       COMPOSITE_CONFIG=config/composite_thermal.yaml python scripts/realtime/realtime_update.py --skip-self-check --period <latest>
 
    `rescore_panel.py` writes `village_monthly_indices_thermal.csv` next to the original panel; the original is
    left as it was. If the thermal config is selected before this file exists the pipeline stops with an error
@@ -103,6 +103,6 @@ with a service account of that project, not with a person's login:
 
 Run `supabase/migrations/0002_polygon_ids_storage_publishing.sql` once (SQL editor, or the "Supabase migrations"
 workflow with the `DATABASE_URL` secret). Add the secrets `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`, then
-`python scripts/publish_supabase.py --full` loads the whole history. After that every pipeline run publishes the
+`python scripts/realtime/publish_supabase.py --full` loads the whole history. After that every pipeline run publishes the
 data files to the public `drought-data` bucket and the monthly rows to `public.village_monthly`; the site reads
 the bucket and shows "Bundled snapshot" if it ever has to fall back to the copy shipped in the repository.

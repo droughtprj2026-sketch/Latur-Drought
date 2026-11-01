@@ -10,7 +10,7 @@ Pieces: Supabase (database + file storage), Google Earth Engine (data), GitHub A
    idempotent. It adds polygon-id keys, `village_monthly`, `pipeline_runs`, the public `drought-data` bucket and the
    security rules (anon read only; writes need the service role).
 3. Copy the project URL, anon key and service-role key.
-4. Load the data once: `python scripts/publish_supabase.py --full` with `SUPABASE_URL` and
+4. Load the data once: `python scripts/realtime/publish_supabase.py --full` with `SUPABASE_URL` and
    `SUPABASE_SERVICE_ROLE_KEY` set.
 
 `supabase/seed_data.sql` is an old name-keyed export (it drops 3 of 954 villages); use the publisher instead.

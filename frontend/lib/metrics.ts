@@ -10,7 +10,7 @@ import { D_COLORS, D_LABELS } from "./classify";
 export type MetricName =
   | "cdi"
   | "spi1" | "spi3" | "spi6" | "spi12"
-  | "ndvi" | "vci" | "vhi" | "nsmi" | "pci" | "rain"
+  | "ndvi" | "vci" | "vhi" | "nsmi" | "rain"
   | "tci" | "smi" | "lst"
   | "base_ndvi" | "base_rain" | "z_ndvi" | "z_rain";
 
@@ -52,7 +52,6 @@ export interface ActiveVillage {
   vci?: number | null;
   vhi?: number | null;
   nsmi?: number | null;
-  pci?: number | null;
   tci?: number | null;
   smi?: number | null;
   lst?: number | null;
@@ -102,7 +101,7 @@ const SPI_BINS: Bin[] = [
   bin( 2.0,  INF, WET[2],"Very wet",          "≥ +2.0"),
 ];
 
-// ---- Kogan thresholds for VCI / VHI / PCI (0..100, low = stressed) -------
+// ---- Kogan thresholds for VCI / VHI (0..100, low = stressed) -------
 const KOGAN_BINS: Bin[] = [
   bin(-INF, 10, C_D4,  "Extreme stress", "< 10"),
   bin(10, 20,  C_D3,   "Severe stress",  "10 – 20"),
@@ -173,7 +172,7 @@ export const METRICS: Record<MetricName, MetricSpec> = {
   cdi: {
     id: "cdi", label: "Composite drought (CDI)", group: "Drought", cadence: "monthly", unit: "0–1", decimals: 3,
     title: "Composite Drought Index",
-    definition: "Weighted blend of SPI, VCI, NDVI, PCI and NSMI (config/composite.yaml). Higher = drier.",
+    definition: "Weighted blend of SPI, VCI, NDVI and NSMI (config/composite.yaml). When Sentinel data is missing it rests on rainfall (SPI). Higher = drier.",
     bins: CDI_BINS, value: (p) => p.cdi,
   },
   spi1:  { id: "spi1", label: "SPI-1 · last month", group: "Rainfall", cadence: "monthly", unit: "σ", decimals: 2,
@@ -203,9 +202,6 @@ export const METRICS: Record<MetricName, MetricSpec> = {
   nsmi: { id: "nsmi", label: "Soil moisture (NSMI)", group: "Thermal & soil", cadence: "monthly", unit: "0–1", decimals: 3,
     title: "Normalized Soil Moisture Index (Sentinel-1)", definition: "Radar backscatter soil moisture proxy (VV). Higher = wetter soil.",
     bins: NSMI_BINS, value: (p) => p.nsmi },
-  pci: { id: "pci", label: "PCI · precipitation condition", group: "Rainfall", cadence: "monthly", unit: "0–100", decimals: 1,
-    title: "Precipitation Condition Index", definition: "Month's rainfall position between its historical min and max. Below 40 means deficit.",
-    bins: KOGAN_BINS, value: (p) => p.pci },
   tci: { id: "tci", label: "TCI · temperature condition", group: "Thermal & soil", cadence: "monthly", unit: "0–100", decimals: 1,
     title: "Temperature Condition Index", definition: "Where this month's Landsat land-surface temperature sits between the village's coolest and hottest value for the calendar month. Low = hotter than usual = thermal stress.",
     bins: KOGAN_BINS, value: (p) => p.tci },

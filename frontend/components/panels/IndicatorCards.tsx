@@ -13,7 +13,7 @@ const FIELDS: Array<[string, string]> = [
   ["EVI",    "EVI"],
   ["VCI",    "VCI"],
   ["VHI",    "VHI"],
-  ["PCI",    "PCI"],
+  ["NSMI",   "NSMI"],
   ["composite_drought_score", "CDI"],
   ["drought_area_km2",   "Drought area km²"],
   ["drought_percentage", "Drought %"],

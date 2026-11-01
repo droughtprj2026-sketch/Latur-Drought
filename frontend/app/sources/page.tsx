@@ -39,7 +39,7 @@ export default function SourcesPage() {
             <tr>
               <td className="py-3 font-bold text-slate-900">ESA Copernicus Sentinel-2 L2A</td>
               <td className="py-3 font-mono text-[11px] text-amber-800">COPERNICUS/S2_SR_HARMONIZED</td>
-              <td className="py-3">NDVI, EVI, VCI, VHI, PCI</td>
+              <td className="py-3">NDVI, EVI, VCI, VHI</td>
               <td className="py-3">5-Day Revisit</td>
               <td className="py-3 text-slate-500">Copernicus Free & Open</td>
             </tr>

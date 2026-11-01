@@ -35,17 +35,18 @@ Agents MUST follow these without being reminded:
    are documented in `scripts/common/classify.py`. If you change them,
    update `DEVELOPER.md` in the same commit.
 3. **The Python → dashboard bridge is `outputs/Dashboard/` and the
-   Supabase publish step** (`scripts/publish_supabase.py`). Any Go service
+   Supabase publish step** (`scripts/realtime/publish_supabase.py`). Any Go service
    would read `drought_monitoring_master.csv`, `latest_status.json`,
    `data_availability.json`, and `processing_manifest.json`. If you add
-   a new column, add it to `scripts/dashboard_master.MASTER_COLUMNS` AND
+   a new column, add it to `scripts/analysis/dashboard_master.MASTER_COLUMNS` AND
    to the SQL migration.
 4. **No learned classifier.** The Random Forest classifier has been
    retired. The final drought class is produced by
-   `scripts/composite_cdi.py` from a transparent weighted multi-index
+   `scripts/historical/composite_cdi.py` from a transparent weighted multi-index
    composite. Weights, thresholds, and the formula version live in
    `config/composite.yaml` — edit the YAML, not the code.
-   If fewer than `min_inputs` components are available for a
+   Missing inputs are dropped and the rest re-weighted; with `min_inputs: 1` a month with only
+   rainfall (monsoon cloud) is classified from SPI alone. If fewer than `min_inputs` components are available for a
    polygon-period, mark it `pending`; never fill missing inputs.
 5. **Incremental processing only.** Every pipeline run reads the
    per-source manifest (`manifests/sentinel.json`, `manifests/chirps.json`)
@@ -65,7 +66,8 @@ Agents MUST follow these without being reminded:
 
 ## 3. Repository map
 
-See `DEVELOPER.md` section 1 for the annotated layout. In short: `scripts/` (pipeline, `common/`, `tests/`),
+See `DEVELOPER.md` section 1 for the annotated layout. In short: `scripts/` (`realtime/` weekly job, `historical/`
+batch builds, `analysis/` derived products, `common/` shared code, `tests/`),
 `config/` (composite formulas), `supabase/` (schema + migrations), `frontend/` (Next.js app), `output/` `data/`
 `outputs/` (history tables and processed files), `docs/`.
 

@@ -21,8 +21,8 @@ Locally, `GEE_PROJECT` plus a prior `earthengine authenticate` is enough.
 ## Monthly update (what the weekly Action runs)
 
 ```bash
-python scripts/realtime_update.py                 # every month that is due
-python scripts/realtime_update.py --period 2026-09   # force one month
+python scripts/realtime/realtime_update.py                 # every month that is due
+python scripts/realtime/realtime_update.py --period 2026-09   # force one month
 ```
 
 Per month it fetches Sentinel-2 and CHIRPS (and Landsat + Sentinel-1 when the thermal formula is active),
@@ -38,8 +38,8 @@ A month is used only when its sources fully cover it; otherwise it is skipped an
 ## Switching on the thermal / soil-moisture formula
 
 ```bash
-python scripts/backfill_thermal.py                                   # Earth Engine, resumable
-COMPOSITE_CONFIG=config/composite_thermal.yaml python scripts/rescore_panel.py   # offline
+python scripts/realtime/backfill_thermal.py                                   # Earth Engine, resumable
+COMPOSITE_CONFIG=config/composite_thermal.yaml python scripts/analysis/rescore_panel.py   # offline
 ```
 
 then set `COMPOSITE_CONFIG` for the scheduled job. Details: `docs/THERMAL_AND_SOIL_MOISTURE.md`.
@@ -47,22 +47,22 @@ then set `COMPOSITE_CONFIG` for the scheduled job. Details: `docs/THERMAL_AND_SO
 ## Publishing to Supabase
 
 ```bash
-python scripts/publish_supabase.py --full      # first load / repair: all files + all rows
-python scripts/publish_supabase.py             # files only
-python scripts/publish_supabase.py --period 2026-09 --period 2026-10
+python scripts/realtime/publish_supabase.py --full      # first load / repair: all files + all rows
+python scripts/realtime/publish_supabase.py             # files only
+python scripts/realtime/publish_supabase.py --period 2026-09 --period 2026-10
 ```
 
 ## Rebuilding derived files offline
 
 ```bash
-python scripts/build_baseline_drought.py       # village_with_baseline.csv
-python scripts/build_village_timeseries.py     # frontend/public/data/village_timeseries.json
-python scripts/build_village_registry.py       # villages_by_tehsil.json, village_baselines.json
+python scripts/analysis/build_baseline_drought.py       # village_with_baseline.csv
+python scripts/analysis/build_village_timeseries.py     # frontend/public/data/village_timeseries.json
+python scripts/analysis/build_village_registry.py       # villages_by_tehsil.json, village_baselines.json
 ```
 
 ## Scheduling and runbook
 
-`scripts/run_scheduled.sh` / `run_scheduled.ps1` run the tests, the update and `scripts/check_outputs.py` for cron or
+`scripts/realtime/run_scheduled.sh` / `run_scheduled.ps1` run the tests, the update and `scripts/realtime/check_outputs.py` for cron or
 Task Scheduler. Step-by-step for a local agent: `docs/RUNBOOK_ANTIGRAVITY.md`.
 
 ## Frontend
@@ -86,6 +86,6 @@ used on a scratch copy of the repository: the run rewrites data files and marks 
 
 ## Raw-raster batch scripts (local, need rasters under `output/`)
 
-`scripts/build_village_indices.py` builds the village panel from Sentinel-2 composites and CHIRPS rasters;
-`scripts/latur_chirps_spi.py` computes SPI from rasters. These produced the historical record and are not part of
+`scripts/historical/build_village_indices.py` builds the village panel from Sentinel-2 composites and CHIRPS rasters;
+`scripts/historical/latur_chirps_spi.py` computes SPI from rasters. These produced the historical record and are not part of
 the weekly job.
