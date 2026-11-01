@@ -14,22 +14,25 @@ from . import style as ST
 
 
 def _scatter_with_fit(ax, df: pd.DataFrame, xcol: str, ycol: str, color: str,
-                      sample: int = 26000, seed: int = 7) -> dict:
+                      panel_tag: str | None = None) -> dict:
     sub = df[[xcol, ycol]].dropna()
     res = S.ols(sub[xcol], sub[ycol])
-    plot = sub.sample(n=min(sample, len(sub)), random_state=seed) if len(sub) > sample else sub
+    spearman_res = S.spearman(sub[xcol], sub[ycol])
 
-    spec_x, spec_y = C.COL[xcol], C.COL[ycol]
-    is_spi_x = spec_x.kind == "spi"
-    cmap = ST.CDI_CMAP if not is_spi_x else ST.cmap_for(xcol)
-    vals = plot[xcol]
-    ax.scatter(plot[xcol], plot[ycol], s=5, c=vals, cmap=cmap, alpha=0.35,
-               linewidths=0, rasterized=True)
+    # Hexagonal 2D density binning with logarithmic scale for high-density remote sensing clouds
+    hb = ax.hexbin(
+        sub[xcol], sub[ycol],
+        gridsize=55, bins="log", mincnt=1,
+        cmap="cividis" if "SPI" in xcol else "viridis",
+        linewidths=0.15, edgecolors="none", rasterized=True, zorder=2
+    )
 
+    x_lo = float(sub[xcol].quantile(0.005))
+    x_hi = float(sub[xcol].quantile(0.995))
     if np.isfinite(res["slope"]):
-        xs = np.linspace(plot[xcol].min(), plot[xcol].max(), 100)
-        ax.plot(xs, res["intercept"] + res["slope"] * xs, color=color, lw=2.0, ls="--")
-        # 95% band for the mean response
+        xs = np.linspace(x_lo, x_hi, 150)
+        ax.plot(xs, res["intercept"] + res["slope"] * xs, color="#DC2626", lw=2.2, ls="-", zorder=5, label="OLS Regression")
+        # 95% confidence band for the mean response
         n = res["n"]
         if n > 3 and np.isfinite(res["stderr"]):
             xbar = sub[xcol].mean()
@@ -40,41 +43,49 @@ def _scatter_with_fit(ax, df: pd.DataFrame, xcol: str, ycol: str, color: str,
                 se_mean = s_err * np.sqrt(1.0 / n + (xs - xbar) ** 2 / ssx)
                 ax.fill_between(xs, res["intercept"] + res["slope"] * xs - 1.96 * se_mean,
                                 res["intercept"] + res["slope"] * xs + 1.96 * se_mean,
-                                color=color, alpha=0.16, linewidth=0)
+                                color="#DC2626", alpha=0.25, linewidth=0, zorder=4, label="95% CI")
 
-    ax.set_xlabel(f"{spec_x.label} [{spec_x.unit}]" if spec_x.unit != "-" else spec_x.label)
-    ax.set_ylabel(f"{spec_y.label} [{spec_y.unit}]" if spec_y.unit != "-" else spec_y.label)
-    ax.grid(alpha=0.35)
+    ax.set_xlabel(ST.label_of(xcol), fontsize=11, weight="bold")
+    ax.set_ylabel(ST.label_of(ycol), fontsize=11, weight="bold")
+    ax.grid(True, linestyle=":", color="#94A3B8", alpha=0.5)
+
+    if panel_tag:
+        ST.add_panel_label(ax, label=panel_tag, x=-0.08, y=1.04)
+
+    # Fisher 95% CI for Pearson r
+    ci_lo, ci_hi = S.fisher_ci(res["r"], res["n"])
 
     ST.stats_box(
         ax,
         [
-            f"n     = {res['n']:,}",
-            f"r     = {res['r']:+.3f}",
-            f"R2    = {res['r2']:.3f}",
-            f"slope = {res['slope']:+.4f}",
+            f"N          = {res['n']:,}",
+            f"Pearson r  = {res['r']:+.3f} [{ci_lo:+.3f}, {ci_hi:+.3f}]",
+            f"Spearman ρ = {spearman_res[0]:+.3f}",
+            f"R²         = {res['r2']:.3f}",
+            f"Fit: y     = {res['intercept']:+.3f} + {res['slope']:+.3f}x",
             ST.p_text(res["p"]),
         ],
-        loc="upper left",
+        loc="upper left" if res["slope"] < 0 else "lower right",
+        fontsize=8.2,
     )
     return res
 
 
 def fig_core_scatter(panel: pd.DataFrame) -> pd.DataFrame:
     layout = [
-        ("SPI3", "NDVI", "#1B5E20", "Meteorological driver to vegetation state"),
-        ("SPI3", "NSMI", "#4E342E", "Meteorological driver to soil moisture"),
-        ("NSMI", "VCI", "#00695C", "Soil moisture to vegetation condition"),
-        ("SPI3", C.CDI_COLUMN, "#6E1423", "Rainfall anomaly to composite drought score"),
+        ("SPI3", "NDVI", "#1B5E20", "Meteorological driver vs Vegetation state", "(a)"),
+        ("SPI3", "NSMI", "#4E342E", "Meteorological driver vs Soil moisture", "(b)"),
+        ("NSMI", "VCI", "#00695C", "Soil moisture vs Vegetation condition", "(c)"),
+        ("SPI3", C.CDI_COLUMN, "#6E1423", "Rainfall anomaly vs Composite drought score", "(d)"),
     ]
-    fig, axes = plt.subplots(2, 2, figsize=(14.6, 12.0))
+    fig, axes = plt.subplots(2, 2, figsize=(15.2, 12.6))
     results = []
-    for ax, (xcol, ycol, color, title) in zip(axes.ravel(), layout):
+    for ax, (xcol, ycol, color, title, tag) in zip(axes.ravel(), layout):
         if xcol not in panel.columns or ycol not in panel.columns:
             ax.axis("off")
             continue
-        res = _scatter_with_fit(ax, panel, xcol, ycol, color)
-        ax.set_title(f"{title}\n{C.COL[xcol].short} vs {C.COL[ycol].short}", fontsize=10.5)
+        res = _scatter_with_fit(ax, panel, xcol, ycol, color, panel_tag=tag)
+        ax.set_title(f"{title}\n{ST.label_of(xcol)} vs {ST.label_of(ycol)}", fontsize=11.5, weight="bold", pad=10)
         results.append({"predictor": xcol, "response": ycol, **res})
 
         if ycol == C.CDI_COLUMN:
@@ -105,30 +116,49 @@ def fig_pairplot(panel: pd.DataFrame) -> None:
     if sub.empty:
         return
     sub = sub.sample(n=min(4500, len(sub)), random_state=11)
-    sub = sub.assign(**{c: sub[c] for c in columns})
 
+    present = [c for c in C.CLASS_ORDER if c in set(sub["dclass"])]
     grid = sns.pairplot(
         sub,
         vars=columns,
         hue="dclass",
-        hue_order=[c for c in C.CLASS_ORDER if c in sub["dclass"].unique()],
+        hue_order=present,
         palette={k: v for k, v in C.DROUGHT_COLORS.items()},
         corner=True,
         diag_kind="kde",
         plot_kws={"s": 9, "alpha": 0.45, "linewidth": 0},
         diag_kws={"linewidth": 1.2, "common_norm": False},
     )
-    grid.fig.set_size_inches(13.5, 12.0)
+    grid.fig.set_size_inches(12.6, 11.4)
+
+    # Readable axis labels instead of the raw column names.
+    for ax in grid.axes.flatten():
+        if ax is None:
+            continue
+        xlabel, ylabel = ax.get_xlabel(), ax.get_ylabel()
+        if xlabel:
+            ax.set_xlabel(C.COL[xlabel].short if xlabel in C.COL else xlabel, fontsize=9)
+        if ylabel:
+            ax.set_ylabel(C.COL[ylabel].short if ylabel in C.COL else ylabel, fontsize=9)
+
+    # Replace the auto legend with a labelled one, placed in the empty corner half.
+    if grid._legend is not None:
+        grid._legend.remove()
+
+    from matplotlib.patches import Patch
+
+    handles = [Patch(facecolor=C.DROUGHT_COLORS[c], label=C.D_CLASS_LABELS[c]) for c in present]
+    grid.fig.legend(
+        handles=handles, title="Drought class", loc="upper right",
+        bbox_to_anchor=(0.99, 0.97), frameon=True, fontsize=8.5, title_fontsize=9,
+    )
+
     grid.fig.suptitle(
         "Pairwise scatter matrix of the five CDI inputs and the composite, coloured by drought class\n"
         f"Random sample of {len(sub):,} village-months for legibility",
-        fontsize=13, y=1.01,
+        fontsize=13, y=0.985,
     )
-    grid.add_legend(title="Drought class", bbox_to_anchor=(0.82, 0.62))
-    if grid.legend is not None:
-        for text in grid.legend.get_texts():
-            text.set_text(C.D_CLASS_LABELS.get(text.get_text(), text.get_text()))
-    grid.fig.tight_layout()
+    grid.fig.subplots_adjust(top=0.90, right=0.84, wspace=0.10, hspace=0.10)
     ST.save(
         grid.fig, "relationships", "r2_pairplot_matrix.png",
         "Seaborn pairplot of the five core indices coloured by drought class, with KDE margins.",
@@ -221,24 +251,25 @@ def fig_lag_response(panel: pd.DataFrame) -> pd.DataFrame:
     max_lag = 6
 
     tables = []
-    fig, axes = plt.subplots(1, len(responses), figsize=(5.2 * len(responses), 5.0))
+    fig, axes = plt.subplots(1, len(responses), figsize=(5.6 * len(responses), 5.4),
+                             layout="constrained", sharey=False)
     axes = np.atleast_1d(axes)
-    colors = {"SPI1": "#7FB3D5", "SPI3": "#1F6FB2", "SPI6": "#0B3C5D"}
+    colors = {"SPI1": "#9ECAE1", "SPI3": "#1F6FB2", "SPI6": "#0B3C5D"}
+    markers = {"SPI1": "o", "SPI3": "s", "SPI6": "^"}
 
     for ax, response in zip(axes, responses):
+        peak_lines = []
         for driver in drivers:
             table = S.lag_correlation(panel, driver, response, max_lag=max_lag)
             table["response"] = response
             tables.append(table)
-            ax.plot(table["lag_months"], table["r"], marker="o", ms=4.5, lw=1.9,
-                    color=colors.get(driver, "#555555"), label=driver)
+            ax.plot(table["lag_months"], table["r"], marker=markers.get(driver, "o"), ms=5,
+                    lw=1.9, color=colors.get(driver, "#555555"), label=driver)
             sig = table[table["p"] < 0.05]
-            ax.scatter(sig["lag_months"], sig["r"], s=52, facecolor="none",
-                       edgecolor=colors.get(driver, "#555555"), linewidth=1.6)
+            ax.scatter(sig["lag_months"], sig["r"], s=64, facecolor="none",
+                       edgecolor=colors.get(driver, "#555555"), linewidth=1.7, zorder=4)
             peak = table.loc[table["r"].abs().idxmax()]
-            ST.annotate_max(ax, peak["lag_months"], peak["r"],
-                            f"{driver} peak lag {int(peak['lag_months'])} mo",
-                            color=colors.get(driver, "#555555"))
+            peak_lines.append(f"{driver}: lag {int(peak['lag_months'])} mo, r={peak['r']:+.3f}")
 
         ax.axhline(0, color="#555555", lw=0.8)
         ax.set_xlabel("Lag (months) from driver to response")
@@ -247,11 +278,12 @@ def fig_lag_response(panel: pd.DataFrame) -> pd.DataFrame:
         ax.set_xticks(range(0, max_lag + 1))
         ax.grid(alpha=0.4)
         ax.legend(title="Driver", loc="lower left")
+        ST.stats_box(ax, ["peak |r| by driver"] + peak_lines, loc="upper right", fontsize=7.2)
 
     fig.suptitle(
         "Response lag: how many months vegetation and soil moisture trail rainfall\n"
-        "Hollow markers are significant at p < 0.05; the annotated point is each driver's peak",
-        fontsize=13,
+        "Hollow markers are significant at p < 0.05; the box lists each driver's peak lag",
+        fontsize=12.5,
     )
     ST.save(
         fig, "relationships", "r5_response_lag.png",

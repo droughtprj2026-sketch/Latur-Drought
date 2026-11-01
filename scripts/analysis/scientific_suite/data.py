@@ -17,10 +17,44 @@ from . import config as C
 
 
 # --------------------------------------------------------------------------
+# Authoritative continuous SPI & Rainfall loader
+# --------------------------------------------------------------------------
+def load_authoritative_spi() -> pd.DataFrame:
+    """Load the full 129-month continuous CHIRPS rainfall & SPI tables from output/spi/csv/."""
+    if not C.SPI_DIR.exists():
+        return pd.DataFrame()
+
+    spi_dfs = {}
+    for k in (1, 3, 6, 12):
+        p = C.SPI_DIR / f"SPI{k}_village_monthly.csv"
+        if p.exists():
+            df = pd.read_csv(p, encoding="utf-8-sig")
+            date_cols = [c for c in df.columns if len(c) == 7 and c[4] == "-"]
+            long = df.melt(id_vars=["vid"], value_vars=date_cols, var_name="date", value_name=f"SPI{k}")
+            long["village_idx"] = long["vid"].astype(int) + 1
+            spi_dfs[k] = long[["village_idx", "date", f"SPI{k}"]]
+
+    if C.RAIN_CSV.exists():
+        rain_df = pd.read_csv(C.RAIN_CSV, encoding="utf-8-sig")
+        rain_dates = [c for c in rain_df.columns if len(c) == 7 and c[4] == "-"]
+        rain_long = rain_df.melt(id_vars=["vid"], value_vars=rain_dates, var_name="date", value_name="Rain_mm")
+        rain_long["village_idx"] = rain_long["vid"].astype(int) + 1
+        spi_merged = rain_long[["village_idx", "date", "Rain_mm"]]
+    else:
+        spi_merged = pd.DataFrame(columns=["village_idx", "date", "Rain_mm"])
+
+    for k in (1, 3, 6, 12):
+        if k in spi_dfs:
+            spi_merged = spi_merged.merge(spi_dfs[k], on=["village_idx", "date"], how="outer")
+
+    return spi_merged
+
+
+# --------------------------------------------------------------------------
 # Panel
 # --------------------------------------------------------------------------
 def load_panel() -> pd.DataFrame:
-    """Village x month panel with a real ``period`` index and a drought-class code."""
+    """Village x month panel with continuous SPI from output/spi/csv/ and valid period index."""
     if not C.PANEL_CSV.exists():
         raise SystemExit(
             f"Missing panel: {C.PANEL_CSV}\n"
@@ -30,6 +64,28 @@ def load_panel() -> pd.DataFrame:
     numeric = [spec.column for spec in C.INDEXES]
     df = pd.read_csv(C.PANEL_CSV, low_memory=False)
 
+    # Reconcile with authoritative continuous SPI & Rainfall from output/spi/csv
+    spi_auth = load_authoritative_spi()
+    if not spi_auth.empty:
+        vmap = df[["village_idx", "village", "tehsil"]].dropna().drop_duplicates("village_idx").set_index("village_idx")
+        spi_cols = [c for c in ("Rain_mm", "SPI1", "SPI3", "SPI6", "SPI12") if c in df.columns]
+        df_base = df.drop(columns=spi_cols)
+        df = pd.merge(df_base, spi_auth, on=["village_idx", "date"], how="outer")
+
+        missing_v = df["village"].isna()
+        if missing_v.any():
+            df.loc[missing_v, "village"] = df.loc[missing_v, "village_idx"].map(vmap["village"])
+            df.loc[missing_v, "tehsil"] = df.loc[missing_v, "village_idx"].map(vmap["tehsil"])
+            df.loc[missing_v, "name"] = df.loc[missing_v, "village"]
+            dt = pd.to_datetime(df.loc[missing_v, "date"], format="%Y-%m")
+            df.loc[missing_v, "year"] = dt.dt.year
+            df.loc[missing_v, "month"] = dt.dt.month
+
+        # Monsoon cloud periods: when optical is missing but SPI3 is published, score via SPI alone
+        needs_cdi = df[C.CDI_COLUMN].isna() & df["SPI3"].notna()
+        if needs_cdi.any():
+            df.loc[needs_cdi, C.CDI_COLUMN] = np.clip(-df.loc[needs_cdi, "SPI3"] / 3.0, 0.0, 1.0)
+
     df["date"] = df["date"].astype(str)
     df["period"] = pd.PeriodIndex(df["date"], freq="M")
     for col in numeric:
@@ -38,9 +94,9 @@ def load_panel() -> pd.DataFrame:
     df["year"] = df["year"].astype(int)
     df["month"] = df["month"].astype(int)
 
-    # Villages without a score carry an empty class cell -> "ND" for plotting.
-    if C.CLASS_COLUMN in df.columns:
-        df["dclass"] = df[C.CLASS_COLUMN].fillna("ND").replace("", "ND")
+    # Drought class: derived from the score with the thresholds in config/composite.yaml
+    if C.CDI_COLUMN in df.columns:
+        df["dclass"] = classify_scores(df[C.CDI_COLUMN].to_numpy(dtype=float))
 
     df["tehsil"] = df["tehsil"].astype(str)
     return df
@@ -56,6 +112,17 @@ def period_frame(df: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(
         {"period": periods, "year": periods.year.to_numpy(), "month": periods.month.to_numpy()}
     )
+
+
+def classify_scores(values: np.ndarray) -> np.ndarray:
+    """Map CDI scores to D-codes using config/composite.yaml, vectorised."""
+    bands = C.classify.composite_thresholds()
+    edges = [-np.inf] + [float(b["max"]) for b in bands]
+    labels = [b["code"] for b in bands]
+    codes = pd.cut(values, bins=edges, labels=labels, right=False)
+    out = pd.Series(codes, index=None).astype(object)
+    out[~np.isfinite(values)] = "ND"
+    return out.to_numpy()
 
 
 def n_villages(df: pd.DataFrame) -> int:

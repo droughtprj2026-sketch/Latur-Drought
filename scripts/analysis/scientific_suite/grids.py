@@ -97,6 +97,12 @@ def draw_month_year(ax, grid: pd.DataFrame, cmap=None, norm=None, annot: bool = 
 
     values = grid.to_numpy(dtype=float)
     mask = ~np.isfinite(values)
+    index = list(grid.index)
+    if all(isinstance(i, (int, np.integer)) and 1 <= int(i) <= 12 for i in index):
+        ylabels = [C.MONTHS[int(m) - 1] for m in index]
+    else:
+        ylabels = [str(i) for i in index]
+
     ax.set_facecolor(MISSING_FACE)
     sns.heatmap(
         grid,
@@ -106,15 +112,15 @@ def draw_month_year(ax, grid: pd.DataFrame, cmap=None, norm=None, annot: bool = 
         mask=mask,
         annot=annot,
         fmt=norm_fmt(fmt),
-        annot_kws={"size": annot_size},
+        annot_kws={"size": max(annot_size, 7.5), "weight": "bold"},
         linewidths=linewidths,
         linecolor="white",
         cbar=cbar,
         cbar_kws=cbar_kws or {},
         xticklabels=[str(y) for y in grid.columns],
-        yticklabels=[C.MONTHS[m - 1] for m in grid.index],
+        yticklabels=ylabels,
     )
-    ax.tick_params(axis="x", rotation=90, labelsize=7.5)
+    ax.tick_params(axis="x", rotation=40, labelsize=9.0)
     ax.tick_params(axis="y", rotation=0, labelsize=7.5)
     ax.set_xlabel("")
     ax.set_ylabel("")
@@ -122,7 +128,7 @@ def draw_month_year(ax, grid: pd.DataFrame, cmap=None, norm=None, annot: bool = 
 
 def draw_corr(ax, corr: pd.DataFrame, annot: bool = True, fmt: str = "{:.2f}",
               cmap: str = "RdBu_r", mask_upper: bool = True, cbar: bool = True,
-              annot_size: float = 7.0, cbar_kws: dict | None = None,
+              annot_size: float = 8.5, cbar_kws: dict | None = None,
               vmin: float = -1.0, vmax: float = 1.0) -> None:
     mask = np.triu(np.ones_like(corr.to_numpy(dtype=float), dtype=bool)) if mask_upper else None
     sns.heatmap(
@@ -166,7 +172,7 @@ def draw_signed_heatmap(ax, matrix: pd.DataFrame, cbar_label: str, annot: bool =
         mask=~np.isfinite(values),
         annot=annot,
         fmt=norm_fmt(fmt),
-        annot_kws={"size": annot_size},
+        annot_kws={"size": max(annot_size, 7.5), "weight": "bold"},
         linewidths=0.4,
         linecolor="white",
         cbar=cbar,

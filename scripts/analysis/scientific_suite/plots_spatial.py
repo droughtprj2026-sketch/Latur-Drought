@@ -14,9 +14,20 @@ from . import stats as S
 from . import style as ST
 
 
+import matplotlib.ticker as ticker
+
+
+def lon_formatter(x, pos):
+    return f"{x:.1f}°E"
+
+
+def lat_formatter(y, pos):
+    return f"{y:.1f}°N"
+
+
 def _draw_villages(ax, gdf, column: str, cmap, norm=None, vmin=None, vmax=None,
-                   cbar_label: str = "", title: str = "", edge: str = "#8A8A8A",
-                   linewidth: float = 0.12) -> None:
+                   cbar_label: str = "", title: str = "", edge: str = "#94A3B8",
+                   linewidth: float = 0.15, panel_tag: str | None = None) -> None:
     district = D.load_district()
     tehsils = D.load_tehsils()
 
@@ -24,30 +35,45 @@ def _draw_villages(ax, gdf, column: str, cmap, norm=None, vmin=None, vmax=None,
         column=column, ax=ax, cmap=cmap,
         norm=norm, vmin=vmin if norm is None else None, vmax=vmax if norm is None else None,
         edgecolor=edge, linewidth=linewidth,
-        missing_kwds={"color": "#E4E4E4", "edgecolor": "#CACACA", "linewidth": 0.1,
+        missing_kwds={"color": "#F1F5F9", "edgecolor": "#CBD5E1", "linewidth": 0.1,
                       "label": "No data"},
         legend=True,
-        legend_kwds={"label": cbar_label, "orientation": "horizontal", "shrink": 0.62,
-                     "pad": 0.02, "aspect": 38},
+        legend_kwds={"label": cbar_label, "orientation": "horizontal", "shrink": 0.55,
+                     "pad": 0.02, "aspect": 34},
     )
 
     if tehsils is not None:
-        tehsils.boundary.plot(ax=ax, color="#263238", linewidth=0.85)
+        tehsils.boundary.plot(ax=ax, color="#0F172A", linewidth=0.95, zorder=5)
         for _, row in tehsils.iterrows():
             if row.geometry is None or row.geometry.is_empty:
                 continue
             point = row.geometry.representative_point()
             name = str(row.get("TEHSIL", ""))
             ax.text(
-                point.x, point.y, name.upper(), fontsize=6.4, weight="bold", color="#1A1A1A",
-                ha="center", va="center",
-                path_effects=[pe.withStroke(linewidth=2.0, foreground="white")],
+                point.x, point.y, name.upper(), fontsize=7.2, weight="bold", color="#0F172A",
+                ha="center", va="center", zorder=6,
+                path_effects=[pe.withStroke(linewidth=2.5, foreground="white")],
             )
     if district is not None:
-        district.boundary.plot(ax=ax, color="#000000", linewidth=1.5)
+        district.boundary.plot(ax=ax, color="#000000", linewidth=1.6, zorder=7)
 
-    ax.set_title(title, fontsize=11)
-    ax.set_axis_off()
+    # Cartographic coordinate frame (Latitude / Longitude)
+    ax.xaxis.set_major_formatter(ticker.FuncFormatter(lon_formatter))
+    ax.yaxis.set_major_formatter(ticker.FuncFormatter(lat_formatter))
+    ax.tick_params(labelsize=8.5, colors="#334155")
+    ax.grid(True, linestyle=":", color="#94A3B8", alpha=0.55, linewidth=0.7)
+    for spine in ax.spines.values():
+        spine.set_visible(True)
+        spine.set_color("#334155")
+        spine.set_linewidth(1.0)
+
+    # Cartographic scale bar and North arrow
+    ST.add_scale_bar(ax, length_km=20.0, x=0.06, y=0.06)
+    ST.add_north_arrow(ax, x=0.92, y=0.88, length=0.07)
+    if panel_tag:
+        ST.add_panel_label(ax, label=panel_tag, x=-0.06, y=1.03)
+
+    ax.set_title(title, fontsize=12, weight="bold", pad=12, color="#0F172A")
 
 
 def _merge(gdf, frame: pd.DataFrame, value: str) -> "pd.DataFrame":
@@ -73,30 +99,34 @@ def fig_village_mean_cdi(panel: pd.DataFrame) -> pd.DataFrame:
         return stats_v
     merged = _merge(gdf, stats_v, "mean")
 
-    fig, ax = plt.subplots(figsize=(12.2, 10.2))
+    fig, ax = plt.subplots(figsize=(11.6, 10.4), layout="constrained")
     _draw_villages(
         ax, merged, "mean", ST.CDI_CMAP,
         vmin=0.0, vmax=float(min(0.75, np.nanpercentile(stats_v["mean"], 98))),
         cbar_label="Ten-year mean CDI",
         title="Ten-year mean Composite Drought Index by village",
     )
-    annotated = merged.dropna(subset=["mean"]).nlargest(5, "mean")
-    for _, row in annotated.iterrows():
+    annotated = merged.dropna(subset=["mean"]).nlargest(5, "mean").reset_index(drop=True)
+    offsets = [(10, 8), (-10, 8), (10, -10), (-10, -10), (0, 14)]
+    aligns = [("left", "bottom"), ("right", "bottom"), ("left", "top"),
+              ("right", "top"), ("center", "bottom")]
+    for i, row in annotated.iterrows():
         point = row.geometry.representative_point()
+        ha, va = aligns[i % len(aligns)]
         ax.annotate(
-            f"{row.get('village_name', row.get('village', ''))}\n{row['mean']:.2f}",
-            xy=(point.x, point.y), xytext=(8, 6), textcoords="offset points",
-            fontsize=6.6, color="#4A0E14",
+            f"{row.get('village_name', row.get('village', ''))}  {row['mean']:.2f}",
+            xy=(point.x, point.y), xytext=offsets[i % len(offsets)], textcoords="offset points",
+            ha=ha, va=va, fontsize=6.8, color="#4A0E14",
             arrowprops=dict(arrowstyle="-", color="#4A0E14", lw=0.7),
-            bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="#4A0E14", lw=0.5, alpha=0.9),
+            bbox=dict(boxstyle="round,pad=0.22", fc="white", ec="#4A0E14", lw=0.5, alpha=0.92),
+            zorder=11,
         )
 
     fig.suptitle(
-        "Spatial distribution of drought exposure, 954 villages\n"
-        "The five most exposed villages are labelled; grey polygons have too few observations",
+        "Spatial distribution of drought exposure across 954 villages\n"
+        "The five most exposed villages are labelled; pale grey polygons have too few observations",
         fontsize=13,
     )
-    ST.figure_note(fig, "Villages with fewer than 12 scored months are treated as no data, not as zero.", y=0.06)
     ST.save(
         fig, "spatial", "s1_village_mean_cdi.png",
         "Choropleth of ten-year mean CDI per village with the most exposed villages labelled.",
@@ -284,8 +314,11 @@ def fig_tehsil_vulnerability(panel: pd.DataFrame) -> pd.DataFrame:
         return (series - series.mean()) / sd if sd and np.isfinite(sd) else series * 0.0
 
     # Transparent composite: mean CDI, drought frequency and drying trend, equally weighted z-scores.
+    tehsil_stats["z_mean_cdi"] = _z(tehsil_stats["mean_cdi"])
+    tehsil_stats["z_frequency"] = _z(tehsil_stats["drought_frequency"])
+    tehsil_stats["z_trend"] = _z(tehsil_stats["cdi_trend"])
     tehsil_stats["vulnerability"] = (
-        _z(tehsil_stats["mean_cdi"]) + _z(tehsil_stats["drought_frequency"]) + _z(tehsil_stats["cdi_trend"])
+        tehsil_stats["z_mean_cdi"] + tehsil_stats["z_frequency"] + tehsil_stats["z_trend"]
     ) / 3.0
     tehsil_stats = tehsil_stats.sort_values("vulnerability", ascending=False).reset_index()
 
@@ -294,33 +327,40 @@ def fig_tehsil_vulnerability(panel: pd.DataFrame) -> pd.DataFrame:
     )
 
     fig, (ax, ax2) = plt.subplots(
-        1, 2, figsize=(16.4, 7.8), gridspec_kw={"width_ratios": [1, 1.15]}
+        1, 2, figsize=(16.8, 8.0), gridspec_kw={"width_ratios": [1.15, 1]}, layout="constrained"
     )
 
+    # Dot plot: what drives each tehsil's rank, instead of a single opaque score.
     y = np.arange(len(tehsil_stats))[::-1]
-    colors = ST.CDI_CMAP(
-        (tehsil_stats["vulnerability"] - tehsil_stats["vulnerability"].min())
-        / max(np.ptp(tehsil_stats["vulnerability"].to_numpy()), 1e-9)
-    )
-    ax.barh(y, tehsil_stats["vulnerability"], color=colors, edgecolor="#333333", linewidth=0.6)
-    ax.set_yticks(y)
-    ax.set_yticklabels(tehsil_stats["tehsil"])
+    components = [
+        ("z_mean_cdi", "mean CDI", "#6E1423", "o"),
+        ("z_frequency", "drought frequency", "#E9822F", "s"),
+        ("z_trend", "drying trend", "#1F6FB2", "^"),
+    ]
+    for column, label, color, marker in components:
+        ax.scatter(tehsil_stats[column], y, s=54, color=color, marker=marker,
+                   label=label, zorder=3, edgecolor="white", linewidth=0.6)
+    ax.scatter(tehsil_stats["vulnerability"], y, s=150, marker="D", facecolor="none",
+               edgecolor="#111111", linewidth=1.4, zorder=4, label="composite score")
     ax.axvline(0, color="#333333", lw=0.9)
-    ax.set_xlabel("Vulnerability score (mean of three z-scores)")
-    ax.set_title("Tehsil drought vulnerability ranking", fontsize=10.5)
+    ax.set_yticks(y)
+    ax.set_yticklabels(
+        [f"{t}   CDI {c:.2f}  {f:.0f}%" for t, c, f in zip(
+            tehsil_stats["tehsil"], tehsil_stats["mean_cdi"], tehsil_stats["drought_frequency"])],
+        fontsize=8.5,
+    )
+    ax.set_xlabel("Standardised score (z), one point per component")
+    ax.set_title("What drives each tehsil's rank", fontsize=10.5, loc="left")
     ax.grid(axis="x", alpha=0.35)
-    for yi, (_, row) in zip(y, tehsil_stats.iterrows()):
-        offset = 0.03 if row["vulnerability"] >= 0 else -0.03
-        ax.text(row["vulnerability"] + offset, yi,
-                f"CDI {row['mean_cdi']:.2f}  |  {row['drought_frequency']:.0f}%",
-                va="center", ha="left" if offset > 0 else "right", fontsize=7.4, color="#333333")
+    ax.legend(loc="lower right", fontsize=8, ncol=2)
 
-    merged = gdf.merge(tehsil_stats, on="tehsil", how="left")
+    merged = gdf
     merged.plot(
         column="vulnerability", ax=ax2, cmap=ST.CDI_CMAP,
+        vmin=-1.0, vmax=1.0,
         edgecolor="#8A8A8A", linewidth=0.12, legend=True,
         legend_kwds={"label": "Vulnerability score", "orientation": "horizontal",
-                     "shrink": 0.7, "pad": 0.02},
+                     "shrink": 0.65, "pad": 0.02},
     )
     tehsils = D.load_tehsils()
     if tehsils is not None:

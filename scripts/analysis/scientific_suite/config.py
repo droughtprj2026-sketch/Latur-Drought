@@ -27,6 +27,8 @@ from common import classify  # noqa: E402  (needs the path fix above)
 # Inputs
 # --------------------------------------------------------------------------
 PANEL_CSV = ROOT / "data" / "processed" / "csv" / "village_with_baseline.csv"
+SPI_DIR = ROOT / "output" / "spi" / "csv"
+RAIN_CSV = ROOT / "output" / "spi" / "extra" / "csv" / "village_monthly_rainfall_wide.csv"
 VILLAGE_GEOJSON = ROOT / "frontend" / "public" / "data" / "latur_villages_latest.geojson"
 FALLBACK_VILLAGE_GEOJSON = ROOT / "data" / "vector" / "latur_villages.geojson"
 TEHSIL_GEOJSON = ROOT / "data" / "vector" / "latur_tehsils.geojson"
@@ -131,7 +133,7 @@ D_CLASS_LABELS = {
     "ND": "No data",
 }
 DROUGHT_COLORS = dict(zip(D_CODES, D_COLORS))
-DROUGHT_COLORS["ND"] = "#BDBDBD"
+DROUGHT_COLORS["ND"] = "#9E9E9E"
 # Ordered codes used on stacked bars: wettest to driest.
 CLASS_ORDER = ["None", "D0", "D1", "D2", "D3", "D4"]
 DROUGHT_CODES = ["D0", "D1", "D2", "D3", "D4"]

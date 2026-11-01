@@ -247,6 +247,7 @@ def fig_component_completeness(panel: pd.DataFrame) -> None:
         values = composition[code].to_numpy()
         ax2.bar(x, values, bottom=bottom, color=C.DROUGHT_COLORS.get(code, "#BDBDBD"),
                 edgecolor="white", linewidth=0.5,
+                hatch="///" if code == "ND" else None,
                 label=C.D_CLASS_LABELS.get(code, code))
         bottom += values
     ax2.set_xticks(x)

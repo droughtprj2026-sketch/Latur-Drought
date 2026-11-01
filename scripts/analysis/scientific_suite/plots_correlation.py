@@ -18,6 +18,8 @@ from . import style as ST
 PAIRS: list[tuple[str, str]] = [
     ("Rain_mm", "SPI1"),
     ("Rain_mm", "SPI3"),
+    ("Rain_mm", "NSMI"),
+    ("SPI1", "SPI3"),
     ("SPI3", "SPI6"),
     ("SPI6", "SPI12"),
     ("SPI3", "NSMI"),
@@ -25,16 +27,15 @@ PAIRS: list[tuple[str, str]] = [
     ("SPI3", "NDVI"),
     ("SPI3", "VCI"),
     ("NDVI", "VCI"),
-    ("NDVI", "VHI"),
-    ("VCI", "VHI"),
     ("SPI3", "composite_drought_score"),
     ("NDVI", "composite_drought_score"),
     ("VCI", "composite_drought_score"),
+    ("NSMI", "composite_drought_score"),
 ]
 
 
 def short_labels(columns: list[str]) -> list[str]:
-    return [C.COL[c].short if c in C.COL else c for c in columns]
+    return [ST.label_of(c) for c in columns]
 
 
 def pair_label(a: str, b: str) -> str:
@@ -66,7 +67,8 @@ def fig_pearson_matrix(panel: pd.DataFrame) -> None:
     ST.figure_note(
         fig,
         "Pairwise-complete observations. SPI increases with wetness, so SPI-NDVI is expected to be positive; "
-        "CDI increases with drought, so CDI-NDVI is expected to be negative.",
+        "CDI increases with drought, so CDI-NDVI is expected to be negative. VHI is identical to VCI here "
+        "because no thermal input is ingested (see config/composite.yaml).",
     )
     ST.save(
         fig, "correlation", "c1_pearson_matrix.png",
@@ -257,15 +259,17 @@ def _annual_grid(panel: pd.DataFrame, method: str, filename: str, caption: str) 
         ax.axis("off")
 
     estimator = "Pearson" if method == "pearson" else "Spearman"
+    fig.subplots_adjust(hspace=0.62, wspace=0.16)
     fig.suptitle(
-        f"{estimator} correlation, recomputed inside each hydrological year\n"
+        f"{estimator} correlation, recomputed inside each calendar year\n"
         "Stability of the coupling from year to year, not just across the pooled record",
-        fontsize=13.5, y=1.005,
+        fontsize=13.5, y=0.985,
     )
     ST.figure_note(
         fig,
-        f"Each panel uses only that year's village-months. n is the count of village-months with both "
-        f"SPI-3 and NDVI, which is the limiting pair outside the monsoon.",
+        "Each panel uses only that year's village-months. n is the count of village-months with both "
+        "SPI-3 and NDVI, which is the limiting pair outside the monsoon.",
+        y=0.02,
     )
     ST.save(fig, "correlation", filename,
             f"Year-by-year {estimator} correlation grid for the six core indices.", source="village_with_baseline.csv")
@@ -336,12 +340,14 @@ def _tehsil_matrix(panel: pd.DataFrame, method: str, filename: str, caption: str
         "Rows ordered by mean correlation strength; grey cells have too few overlapping observations",
         fontsize=12.5, pad=12,
     )
-    ax.set_xlabel("Index pair")
+    ax.set_xlabel("")
     ax.set_ylabel("Tehsil")
     ST.figure_note(
         fig,
         "A negative SPI-NDVI cell means vegetation in that tehsil does not track rainfall within the "
-        "available months - usually irrigated or double-cropped pockets.",
+        "available months - usually irrigated or double-cropped pockets. VHI is excluded: it equals VCI "
+        "in this build because no thermal input is ingested.",
+        y=-0.06,
     )
     ST.save(fig, "correlation", filename, caption, source="village_with_baseline.csv")
     return matrix

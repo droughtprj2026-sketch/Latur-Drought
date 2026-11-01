@@ -165,6 +165,12 @@ def fig_class_separation(panel: pd.DataFrame) -> pd.DataFrame:
         "Each violin is the distribution of one index inside a class; overlap is the residual uncertainty",
         fontsize=13,
     )
+    ST.figure_note(
+        fig,
+        "NDVI is not monotonic across classes: the monsoon months with high NDVI are cloudy and mostly "
+        "unclassified, while the dry-season months that reach D3-D4 still carry standing crop. Read NDVI "
+        "together with the month x year atlas, not on its own.",
+    )
     ST.save(
         fig, "distribution", "d3_class_separation.png",
         "Violin plots of each index by drought class with Kruskal-Wallis tests, plus class frequencies.",
@@ -176,8 +182,8 @@ def fig_class_separation(panel: pd.DataFrame) -> pd.DataFrame:
 def fig_village_variability(panel: pd.DataFrame) -> pd.DataFrame:
     scored = panel.dropna(subset=[C.CDI_COLUMN])
     stats_v = scored.groupby(["village_idx", "tehsil"])[C.CDI_COLUMN].agg(
-        mean="mean", p25=lambda s: s.quantile(0.25), p75=lambda s: s.quantile(0.75),
-        count="size",
+        mean="mean", median="median", count="size",
+        p10=lambda s: s.quantile(0.10), p90=lambda s: s.quantile(0.90),
     ).reset_index()
     stats_v = stats_v[stats_v["count"] >= 12]
     stats_v = stats_v.sort_values("mean").reset_index(drop=True)
@@ -186,33 +192,45 @@ def fig_village_variability(panel: pd.DataFrame) -> pd.DataFrame:
     stats_v["label"] = stats_v["village_idx"].map(names).fillna("").astype(str)
     stats_v["label"] = stats_v["label"] + " (" + stats_v["tehsil"].astype(str) + ")"
 
+    district_mean = float(scored[C.CDI_COLUMN].mean())
+    p10, p90 = stats_v["mean"].quantile([0.10, 0.90])
+
     fig, (ax, ax2) = plt.subplots(
-        1, 2, figsize=(15.4, 7.4), gridspec_kw={"width_ratios": [1.35, 1]}
+        1, 2, figsize=(15.6, 7.4), gridspec_kw={"width_ratios": [1.25, 1]}, layout="constrained"
     )
+
     x = np.arange(len(stats_v))
-    ax.fill_between(x, stats_v["p25"], stats_v["p75"], color="#90A4AE", alpha=0.55,
-                    label="interquartile range")
-    ax.plot(x, stats_v["mean"], color="#6E1423", lw=1.6, label="village mean CDI")
-    ax.axhline(0.35, color="#F6BC63", ls="--", lw=1.1)
-    ax.axhline(0.50, color="#E9822F", ls="--", lw=1.1)
-    ax.text(0, 0.36, "D1", fontsize=7.5, color="#8D6E00")
-    ax.text(0, 0.51, "D2", fontsize=7.5, color="#A0522D")
+    ax.plot(x, stats_v["mean"], color="#6E1423", lw=1.8, label="village mean CDI")
+    ax.fill_between(x, stats_v["p10"], stats_v["p90"], color="#B0BEC5", alpha=0.45,
+                    label="village p10-p90 of monthly CDI")
+    ax.axhline(district_mean, color="#17405F", ls="--", lw=1.3,
+               label=f"district mean {district_mean:.3f}")
+    ax.axhspan(p10, p90, color="#6E1423", alpha=0.06)
+    ax.text(len(stats_v) * 0.005, p90, "villages between the 10th and 90th percentile of exposure",
+            fontsize=7.4, color="#4A0E14", va="bottom")
+
+    top = stats_v.tail(14)
+    ax.scatter(x[-14:], top["mean"], s=26, color="#4A0E14", zorder=4, label="top 14 villages")
+
     ax.set_xlabel(f"Villages ranked by mean CDI (n = {len(stats_v)})")
     ax.set_ylabel("Composite Drought Index")
-    ax.set_title("Ten-year mean CDI by village with its own interquartile band", fontsize=10.5)
+    ax.set_title("Village-level distribution of drought exposure", fontsize=10.5, loc="left")
+    ax.set_xlim(-8, len(stats_v) + 8)
     ax.legend(loc="upper left")
     ax.grid(axis="y", alpha=0.35)
 
-    top = stats_v.tail(14).iloc[::-1]
-    bars = ax2.barh(np.arange(len(top)), top["mean"], color="#6E1423", alpha=0.9, edgecolor="white")
-    ax2.set_yticks(np.arange(len(top)))
+    top = top.iloc[::-1]
+    y = np.arange(len(top))
+    bars = ax2.barh(y, top["mean"], color="#6E1423", alpha=0.92, edgecolor="white", height=0.72)
+    ax2.set_yticks(y)
     ax2.set_yticklabels(top["label"], fontsize=8)
-    ax2.set_xlabel("Mean CDI")
-    ax2.set_title("The fourteen most drought-exposed villages", fontsize=10.5)
+    ax2.set_xlim(float(top["mean"].min()) * 0.90, float(top["mean"].max()) * 1.06)
+    ax2.set_xlabel("Mean CDI (axis starts near the top-14 minimum)")
+    ax2.set_title("The fourteen most drought-exposed villages", fontsize=10.5, loc="left")
     ax2.grid(axis="x", alpha=0.35)
     for bar, value in zip(bars, top["mean"]):
-        ax2.text(value + 0.005, bar.get_y() + bar.get_height() / 2, f"{value:.2f}",
-                 va="center", fontsize=7.5)
+        ax2.text(bar.get_width(), bar.get_y() + bar.get_height() / 2,
+                 f"  {value:.4f}", va="center", fontsize=7.6, color="#333333")
 
     fig.suptitle(
         "Between-village inequality of drought exposure\n"
@@ -221,7 +239,7 @@ def fig_village_variability(panel: pd.DataFrame) -> pd.DataFrame:
     )
     ST.save(
         fig, "distribution", "d4_village_variability.png",
-        "Village-level mean CDI ranked with its interquartile band, plus the fourteen worst-exposed villages.",
+        "Ranked village mean CDI with per-village p10-p90 band, plus the fourteen most exposed villages.",
         source="village_with_baseline.csv",
     )
     return stats_v.drop(columns=["label"])
@@ -314,7 +332,7 @@ def fig_index_distribution_context(panel: pd.DataFrame, focus: str, out_name: st
         for band in _clf.composite_thresholds():
             lo, hi = prev, float(band["max"])
             code = band["code"]
-            ax_raw.axvspan(lo, hi, color=C.DROUGHT_COLORS[code], alpha=0.42, linewidth=0)
+            ax_raw.axvspan(lo, hi, color=C.DROUGHT_COLORS[code], alpha=0.22, linewidth=0)
             if lo < values.max():
                 ax_raw.text(min((lo + hi) / 2.0, values.max()), 0.965, code,
                             transform=ax_raw.get_xaxis_transform(),
@@ -324,9 +342,9 @@ def fig_index_distribution_context(panel: pd.DataFrame, focus: str, out_name: st
         bands = [(-10.0, -2.0, "D4"), (-2.0, -1.6, "D3"), (-1.6, -1.3, "D2"),
                  (-1.3, -0.8, "D1"), (-0.8, -0.5, "D0")]
         for lo, hi, code in bands:
-            ax_raw.axvspan(lo, hi, color=C.DROUGHT_COLORS[code], alpha=0.38, linewidth=0)
+            ax_raw.axvspan(lo, hi, color=C.DROUGHT_COLORS[code], alpha=0.22, linewidth=0)
         ax_raw.axvspan(-0.5, float(values.max()) + 0.2,
-                       color=C.DROUGHT_COLORS["None"], alpha=0.28, linewidth=0)
+                       color=C.DROUGHT_COLORS["None"], alpha=0.18, linewidth=0)
 
     ax_raw.hist(values, bins=70, density=True, color=color, alpha=0.72,
                 edgecolor="white", linewidth=0.3)
@@ -345,7 +363,12 @@ def fig_index_distribution_context(panel: pd.DataFrame, focus: str, out_name: st
     ax_raw.set_ylabel("probability density")
     ax_raw.set_title(f"{spec.short}: distribution over all {len(values):,} observed village-months",
                      fontsize=11.5, loc="left")
-    ax_raw.legend(loc="upper right")
+    lo_x = float(values.quantile(0.0005))
+    hi_x = float(values.quantile(0.9995))
+    if lo_x == hi_x:
+        lo_x, hi_x = lo_x - 1.0, hi_x + 1.0
+    ax_raw.set_xlim(lo_x, hi_x)
+    ax_raw.legend(loc="upper right", bbox_to_anchor=(1.0, 0.86))
     ax_raw.grid(axis="y", alpha=0.3)
 
     summary = {
@@ -393,7 +416,7 @@ def fig_index_distribution_context(panel: pd.DataFrame, focus: str, out_name: st
 
     # ---- Panel C: ECDF against the CDI components -------------------------
     components = [c for c in ("SPI3", "NDVI", "VCI", "NSMI") if c in panel.columns]
-    ordered = components + [focus]
+    ordered = list(dict.fromkeys(components + [focus]))
     palette = plt.cm.viridis(np.linspace(0.1, 0.85, len(ordered)))
     for col, colr in zip(ordered, palette):
         v = panel[col].dropna()

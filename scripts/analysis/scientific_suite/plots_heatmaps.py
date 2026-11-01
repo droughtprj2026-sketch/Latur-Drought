@@ -58,7 +58,8 @@ def _atlas(panel: pd.DataFrame, builder, filename: str, suptitle: str, caption: 
     for ax in axes[len(specs):]:
         ax.axis("off")
 
-    fig.suptitle(suptitle, fontsize=14, y=1.0)
+    fig.subplots_adjust(hspace=0.55, wspace=0.28, top=0.90)
+    fig.suptitle(suptitle, fontsize=13.5, y=0.965)
     ST.figure_note(
         fig,
         "Grey cells are months with no observation. Each panel keeps its own colour scale so the seasonal "
@@ -103,7 +104,8 @@ def fig_village_year_clustermap(panel: pd.DataFrame) -> None:
     grid = sns.clustermap(
         matrix,
         cmap=ST.CDI_CMAP,
-        vmin=0.0, vmax=float(np.nanpercentile(matrix.to_numpy(), 95)),
+        vmin=float(np.nanpercentile(matrix.to_numpy(), 5)),
+        vmax=float(np.nanpercentile(matrix.to_numpy(), 95)),
         col_cluster=False,
         row_cluster=True,
         metric="euclidean",
@@ -111,10 +113,10 @@ def fig_village_year_clustermap(panel: pd.DataFrame) -> None:
         figsize=(10.6, 13.5),
         yticklabels=False,
         xticklabels=[str(c) for c in matrix.columns],
-        cbar_kws={"label": "Annual mean CDI", "shrink": 0.45},
+        cbar_kws={"label": "Annual mean CDI", "shrink": 0.40},
         linewidths=0.0,
     )
-    grid.ax_heatmap.set_xlabel("Year")
+    grid.ax_heatmap.set_xlabel("Year", labelpad=8)
     grid.ax_heatmap.set_ylabel(f"Villages ({matrix.shape[0]}) grouped by ten-year drought profile")
     grid.ax_heatmap.tick_params(axis="x", rotation=90, labelsize=8)
     grid.fig.suptitle(
@@ -122,11 +124,13 @@ def fig_village_year_clustermap(panel: pd.DataFrame) -> None:
         "Villages sharing a similar ten-year history fall into the same block",
         fontsize=13,
     )
-    ST.figure_note(
-        grid.fig,
+    grid.fig.subplots_adjust(bottom=0.13, top=0.94)
+    grid.fig.text(
+        0.5, 0.045,
         "Row clustering uses the annual-mean CDI vector, so blocks are exposure archetypes, not "
-        "administrative units. White gaps are village-years with no score.",
-        y=0.02,
+        "administrative units. White gaps are village-years with no score. Colour scale clipped at the "
+        "5th and 95th percentile.",
+        ha="center", va="bottom", fontsize=7.2, style="italic", color="#555555",
     )
     ST.save(
         grid.fig, "heatmap", "h3_village_year_clustermap.png",
@@ -201,7 +205,7 @@ def fig_class_share_heatmap(panel: pd.DataFrame) -> None:
 
     fig, ax = plt.subplots(figsize=(13.0, 4.6))
     sns.heatmap(
-        share, ax=ax, cmap="YlOrRd", vmin=0, vmax=100,
+        share, ax=ax, cmap="Blues", vmin=0, vmax=100,
         annot=True, fmt=".1f", annot_kws={"size": 7.5},
         linewidths=0.5, linecolor="white",
         cbar_kws={"label": "% of scored village-months", "shrink": 0.8},

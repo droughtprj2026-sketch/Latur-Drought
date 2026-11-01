@@ -254,9 +254,12 @@ def lag_correlation(df: pd.DataFrame, driver: str, response: str,
 
     a = D.pivot_period_village(df, driver)
     b = D.pivot_period_village(df, response)
-    idx = a.index.union(b.index).sort_values()
-    a = a.reindex(idx)
-    b = b.reindex(idx)
+    idx = a.index.intersection(b.index).sort_values()
+    cols = a.columns.intersection(b.columns).sort_values()
+    if idx.empty or cols.empty:
+        return pd.DataFrame(columns=["driver", "response", "lag_months", "r", "p", "n"])
+    a = a.reindex(index=idx, columns=cols)
+    b = b.reindex(index=idx, columns=cols)
 
     a_np = a.to_numpy(dtype=float)
     b_np = b.to_numpy(dtype=float)

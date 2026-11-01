@@ -72,7 +72,7 @@ def fig_annual_series(panel: pd.DataFrame) -> pd.DataFrame:
         ("ndvi", "Annual mean NDVI", "#2E7D32"),
     ]
 
-    fig, axes = plt.subplots(2, 3, figsize=(15.4, 9.0))
+    fig, axes = plt.subplots(2, 3, figsize=(15.4, 9.2), layout="constrained")
     rows = []
     for ax, (column, label, color) in zip(axes.ravel(), series):
         y = annual[column].dropna()
@@ -83,7 +83,7 @@ def fig_annual_series(panel: pd.DataFrame) -> pd.DataFrame:
         ss = S.sens_slope(y.to_numpy(), index=y.index.to_numpy())
 
         ax.plot(y.index, y, marker="o", ms=5, lw=1.9, color=color)
-        ax.fill_between(y.index, y.mean(), y, color=color, alpha=0.12)
+        ax.fill_between(y.index, y.mean(), y, color=color, alpha=0.10)
         ax.axhline(y.mean(), color="#666666", ls=":", lw=1.0)
         if np.isfinite(ss["slope"]):
             xs = np.array([y.index.min(), y.index.max()], dtype=float)
@@ -96,8 +96,7 @@ def fig_annual_series(panel: pd.DataFrame) -> pd.DataFrame:
         ax.set_xticks(sorted(y.index))
         ax.tick_params(axis="x", rotation=90, labelsize=7.5)
         ax.grid(alpha=0.35)
-        arrow = {"increasing": "up", "decreasing": "down"}.get(mk["trend"], "flat")
-        ax.text(0.02, 0.96, f"Mann-Kendall tau={mk['tau']:+.2f}\n{ST.p_text(mk['p'])}\n{arrow}",
+        ax.text(0.02, 0.96, f"Mann-Kendall tau={mk['tau']:+.2f}\n{ST.p_text(mk['p'])}\n{mk['trend']}",
                 transform=ax.transAxes, va="top", fontsize=7.4, family="monospace",
                 bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="#CCCCCC", lw=0.5, alpha=0.92))
 
@@ -180,30 +179,36 @@ def fig_drought_extent(panel: pd.DataFrame) -> pd.DataFrame:
     scored["is_drought"] = scored["dclass"].isin(C.DROUGHT_CODES)
     scored["is_severe"] = scored["dclass"].isin(["D2", "D3", "D4"])
 
-    extent = scored.groupby("period")[["is_drought", "is_severe"]].mean() * 100.0
-    extent = extent.sort_index()
-    smooth = extent.rolling(3, min_periods=1).mean()
-    dates = extent.index.to_timestamp()
+    extent = (scored.groupby("period")[["is_drought", "is_severe"]].mean() * 100.0).sort_index()
+    # Reindex onto the full monthly grid so months with no observation break the
+    # line instead of being bridged by a straight segment.
+    extent = extent.reindex(D.study_periods(panel))
+    smooth = extent["is_drought"].rolling(3, min_periods=2).mean()
 
-    fig, ax = plt.subplots(figsize=(14.2, 5.8))
-    ax.fill_between(dates, extent["is_drought"], color="#F6BC63", alpha=0.35,
-                    label="any drought (D0-D4), monthly")
-    ax.plot(dates, smooth["is_drought"], color="#C23B22", lw=2.0, label="3-month running mean")
-    ax.plot(dates, extent["is_severe"], color="#6E1423", lw=1.2, ls="--",
+    dates = extent.index.to_timestamp()
+    fig, ax = plt.subplots(figsize=(14.4, 6.0), layout="constrained")
+    ax.fill_between(dates, smooth.to_numpy(), color="#F6BC63", alpha=0.35,
+                    label="any drought (D0-D4), 3-month running mean")
+    ax.plot(dates, smooth.to_numpy(), color="#C23B22", lw=2.1,
+            label="3-month running mean")
+    ax.plot(dates, extent["is_drought"].to_numpy(), color="#E09F3E", lw=0.9, alpha=0.85,
+            label="monthly extent")
+    ax.plot(dates, extent["is_severe"].to_numpy(), color="#6E1423", lw=1.1, ls="--",
             label="severe or worse (D2-D4)")
+
     ax.xaxis.set_major_locator(mdates.YearLocator())
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
     ax.set_ylim(0, 100)
     ax.set_ylabel("Share of scored villages (%)")
     ax.set_xlabel("Year")
     ax.grid(alpha=0.35)
-    ax.legend(loc="upper left", ncol=3)
+    ax.legend(loc="upper left", ncol=2, fontsize=8)
 
     peak_period = extent["is_drought"].idxmax()
     ax.annotate(
         f"peak {extent['is_drought'].max():.0f}% ({peak_period})",
         xy=(peak_period.to_timestamp(), extent["is_drought"].max()),
-        xytext=(12, -18), textcoords="offset points", fontsize=8.5,
+        xytext=(14, -26), textcoords="offset points", fontsize=8.5,
         bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="#C23B22", lw=0.8),
         arrowprops=dict(arrowstyle="->", color="#C23B22", lw=0.9),
     )
@@ -215,8 +220,8 @@ def fig_drought_extent(panel: pd.DataFrame) -> pd.DataFrame:
     )
     ST.figure_note(
         fig,
-        "Averaged over scored villages only; months that are entirely cloud-covered carry no villages "
-        "and are absent from the line.",
+        "Averaged over scored villages only. Months with no observation are absent from the line, "
+        "so a break is a data gap and not a return to normal conditions.",
     )
     ST.save(
         fig, "temporal", "t4_drought_extent.png",
@@ -227,54 +232,71 @@ def fig_drought_extent(panel: pd.DataFrame) -> pd.DataFrame:
 
 
 def fig_spi12_episodes(panel: pd.DataFrame) -> pd.DataFrame:
-    series = panel.groupby("period")["SPI12"].mean().dropna().sort_index()
+    series = panel.groupby("period")["SPI12"].mean().sort_index()
     if series.empty:
         return pd.DataFrame()
+    series = series.reindex(D.study_periods(panel))
     dates = series.index.to_timestamp()
 
-    fig, ax = plt.subplots(figsize=(14.2, 6.0))
-    ax.axhspan(0.0, 0.5, color="#E2DED2", alpha=0.45)
-    ax.axhspan(-0.8, 0.0, color="#F2E26B", alpha=0.25)
+    fig, ax = plt.subplots(figsize=(14.6, 6.2), layout="constrained")
+    ax.axhspan(0.0, 1.0, color="#E2DED2", alpha=0.45)
+    ax.axhspan(-0.8, 0.0, color="#F2E26B", alpha=0.28)
     ax.axhspan(-1.3, -0.8, color="#F6BC63", alpha=0.35)
-    ax.axhspan(-1.6, -1.3, color="#E9822F", alpha=0.40)
-    ax.axhspan(-2.0, -1.6, color="#C23B22", alpha=0.35)
-    ax.axhspan(series.min() - 0.3, -2.0, color="#6E1423", alpha=0.35)
+    ax.axhspan(-1.6, -1.3, color="#E9822F", alpha=0.38)
+    ax.axhspan(-2.0, -1.6, color="#C23B22", alpha=0.33)
+    ax.axhspan(float(np.nanmin(series)) - 0.4, -2.0, color="#6E1423", alpha=0.30)
 
-    ax.plot(dates, series, color="#111111", lw=2.0)
-    ax.scatter(dates, series, s=10, color="#111111", zorder=3)
+    ax.plot(dates, series.to_numpy(), color="#111111", lw=1.9)
+    ax.scatter(dates, series.to_numpy(), s=12, color="#111111", zorder=3)
     ax.axhline(0, color="#444444", lw=0.8)
     for level in (-0.8, -1.3, -1.6, -2.0):
-        ax.axhline(level, color="#7A7A7A", lw=0.6, ls=":")
+        ax.axhline(level, color="#6E6E6E", lw=0.6, ls=":")
 
-    # Drought episodes: contiguous runs below -1.0.
-    mask = series <= -1.0
+    # Episodes: contiguous runs at or below -1.0, using only observed months.
+    observed = series.dropna()
+    mask = observed <= -1.0
     groups = (mask != mask.shift()).cumsum()
     episodes = []
-    for _, block in series[mask].groupby(groups[mask]):
-        if len(block) >= 2:
-            episodes.append((block.index.min(), block.index.max(), block.min(), len(block)))
-            ax.axvspan(block.index.min().to_timestamp(), block.index.max().to_timestamp(),
-                       color="#6E1423", alpha=0.10)
-            ax.text(block.index.min().to_timestamp(), series.min() - 0.15,
-                    f"{block.min():.1f}", fontsize=7.5, color="#6E1423", rotation=90,
-                    va="bottom", ha="center")
+    top = float(np.nanmax(series)) + 0.35
+    for _, block in observed[mask].groupby(groups[mask]):
+        if len(block) < 2:
+            continue
+        start, end = block.index.min(), block.index.max()
+        episodes.append((start, end, float(block.min()), len(block)))
+        ax.axvspan(start.to_timestamp(), end.to_timestamp(), color="#6E1423", alpha=0.09,
+                   linewidth=0, zorder=0)
+        for edge in (start, end):
+            ax.axvline(edge.to_timestamp(), color="#6E1423", lw=0.8, alpha=0.55, ls="-")
+        ax.text(
+            start.to_timestamp() + (end.to_timestamp() - start.to_timestamp()) / 2, top,
+            f"{len(block)} mo\nmin {block.min():.1f}",
+            ha="center", va="top", fontsize=7.4, color="#4A0E14", family="monospace",
+            bbox=dict(boxstyle="round,pad=0.22", fc="white", ec="#6E1423", lw=0.6, alpha=0.9),
+        )
 
     ax.xaxis.set_major_locator(mdates.YearLocator())
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
+    ax.set_ylim(float(np.nanmin(series)) - 0.4, top + 0.45)
     ax.set_ylabel("District mean SPI-12")
     ax.set_xlabel("Year")
     ax.set_title(
         "SPI-12 drought episodes and their severity\n"
-        "Bands are the McKee / US-DM SPI classes; shaded spans are runs of two months or more below -1.0",
+        "Bands are the McKee / US-DM SPI classes; boxes mark runs of two months or more below -1.0",
         fontsize=12,
     )
     ax.grid(axis="x", alpha=0.25)
 
-    for label, y in zip(("D0", "D1", "D2", "D3", "D4"), (-0.35, -1.05, -1.45, -1.8, -2.3)):
-        ax.text(dates[-1], y, label, fontsize=8, va="center", ha="left", color="#333333",
-                bbox=dict(boxstyle="round,pad=0.15", fc="white", ec="none", alpha=0.75))
+    for code, y in (("D0", -0.35), ("D1", -1.05), ("D2", -1.45), ("D3", -1.8), ("D4", -2.3)):
+        ax.annotate(
+            code, xy=(1.0, y), xycoords=("axes fraction", "data"), xytext=(5, 0),
+            textcoords="offset points", fontsize=8, va="center", ha="left", color="#333333",
+            annotation_clip=False,
+        )
 
-    fig.tight_layout()
+    ST.figure_note(
+        fig,
+        "D9-style breaks in the black line are months with no SPI-12 observation, not a return to normal.",
+    )
     ST.save(
         fig, "temporal", "t5_spi12_episodes.png",
         "District mean SPI-12 with SPI class bands and detected multi-month drought episodes.",
