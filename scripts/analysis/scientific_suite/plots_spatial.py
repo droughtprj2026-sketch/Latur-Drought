@@ -12,6 +12,7 @@ from . import config as C
 from . import data as D
 from . import stats as S
 from . import style as ST
+from . import plots_cartographic_atlas as CA
 
 
 import matplotlib.ticker as ticker
@@ -128,7 +129,7 @@ def fig_village_mean_cdi(panel: pd.DataFrame) -> pd.DataFrame:
         fontsize=13,
     )
     ST.save(
-        fig, "spatial", "s1_village_mean_cdi.png",
+        fig, "spatial", "overview_and_vulnerability/s1_village_mean_cdi.png",
         "Choropleth of ten-year mean CDI per village with the most exposed villages labelled.",
         source="village_with_baseline.csv + latur_villages_latest.geojson",
     )
@@ -182,7 +183,7 @@ def fig_village_correlation(panel: pd.DataFrame) -> pd.DataFrame:
         fontsize=13,
     )
     ST.save(
-        fig, "spatial", "s2_village_spi_ndvi_correlation.png",
+        fig, "spatial", "overview_and_vulnerability/s2_village_spi_ndvi_correlation.png",
         "Village choropleth and histogram of the SPI-3 vs NDVI Pearson correlation.",
         source="village_with_baseline.csv + latur_villages_latest.geojson",
     )
@@ -229,7 +230,7 @@ def fig_village_trend(panel: pd.DataFrame) -> pd.DataFrame:
     )
     ST.figure_note(fig, "Symmetric colour scale about zero so the sign is never implied by the ramp.", y=0.06)
     ST.save(
-        fig, "spatial", "s3_village_trend.png",
+        fig, "spatial", "overview_and_vulnerability/s3_village_trend.png",
         "Choropleth of Sen's slope of annual mean CDI per village.",
         source="village_with_baseline.csv + latur_villages_latest.geojson",
     )
@@ -278,7 +279,7 @@ def fig_annual_atlas(panel: pd.DataFrame) -> None:
         fontsize=14, y=0.995,
     )
     ST.save(
-        fig, "spatial", "s4_annual_drought_atlas.png",
+        fig, "spatial", "overview_and_vulnerability/s4_annual_drought_atlas.png",
         "Small-multiple annual choropleths of mean village CDI.",
         source="village_with_baseline.csv + latur_villages_latest.geojson",
     )
@@ -382,7 +383,7 @@ def fig_tehsil_vulnerability(panel: pd.DataFrame) -> pd.DataFrame:
         fontsize=13,
     )
     ST.save(
-        fig, "spatial", "s5_tehsil_vulnerability_ranking.png",
+        fig, "spatial", "overview_and_vulnerability/s5_tehsil_vulnerability_ranking.png",
         "Tehsil vulnerability ranking and its choropleth, built from mean CDI, drought frequency and trend.",
         source="village_with_baseline.csv + latur_villages_latest.geojson",
     )

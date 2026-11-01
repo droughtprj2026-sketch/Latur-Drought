@@ -60,6 +60,21 @@ python scripts/analysis/build_village_timeseries.py     # frontend/public/data/v
 python scripts/analysis/build_village_registry.py       # villages_by_tehsil.json, village_baselines.json
 ```
 
+## Publication figures
+
+The scientific figure suite reads the village panel and writes a structured tree under
+`output/figures/scientific_suite/` (numbered theme folders, `INDEX.md`, `index.html`).
+
+```bash
+python scripts/analysis/generate_scientific_visualizations.py             # everything
+python scripts/analysis/generate_scientific_visualizations.py --list      # section names
+python scripts/analysis/generate_scientific_visualizations.py --only distribution correlation
+```
+
+Sections: `availability`, `correlation`, `heatmap`, `relationships`, `distribution`, `temporal`,
+`spatial`. Every figure has its numbers exported to `08_statistics_tables/`. Section 07 needs
+`geopandas`; the rest only needs pandas/numpy/scipy/matplotlib/seaborn.
+
 ## Scheduling and runbook
 
 `scripts/realtime/run_scheduled.sh` / `run_scheduled.ps1` run the tests, the update and `scripts/realtime/check_outputs.py` for cron or

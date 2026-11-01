@@ -47,7 +47,7 @@ def fig_tehsil_year_availability(panel: pd.DataFrame) -> None:
         )
         ax.set_title(label, fontsize=10, pad=8)
         ax.set_xlabel("Year")
-        ax.set_ylabel("Tehsil (ranked by coverage)" if i == 0 else "")
+        ax.set_ylabel("Tehsil (ranked)" if i == 0 else "")
         ax.tick_params(axis="x", rotation=90, labelsize=8)
         ax.tick_params(axis="y", rotation=0, labelsize=8)
         for text in ax.texts:
@@ -65,8 +65,10 @@ def fig_tehsil_year_availability(panel: pd.DataFrame) -> None:
     )
     ST.figure_note(
         fig,
-        "100 means every village was observed in every month of that year. A value of 33 in 2018 is the "
-        "shared gap in all three sources, so it is a pipeline gap rather than cloud cover.",
+        "Rows are ranked by mean optical coverage. 100 means every village had a valid value in every "
+        "month of that year. The 2018 column separates the two failure modes: CHIRPS is complete while "
+        "Sentinel-2 and Sentinel-1 hold only 33%, so that is an archive gap, whereas the thin monsoon "
+        "months in every year are cloud cover.",
     )
     ST.save(
         fig, "availability", "a1_tehsil_year_availability.png",

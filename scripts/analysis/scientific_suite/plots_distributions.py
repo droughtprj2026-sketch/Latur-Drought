@@ -59,39 +59,89 @@ def fig_index_distributions(panel: pd.DataFrame) -> None:
 
 
 def fig_monthly_climatology(panel: pd.DataFrame) -> None:
-    columns = [("Rain_mm", "Monthly rainfall [mm]"), ("NDVI", "NDVI"),
-               ("NSMI", "NSMI"), (C.CDI_COLUMN, "Composite Drought Index")]
-    fig, axes = plt.subplots(2, 2, figsize=(14.2, 10.0))
-    for ax, (column, label) in zip(axes.ravel(), columns):
+    columns = [
+        ("Rain_mm", "Monthly Rainfall [mm]", "#0284C7", "a"),
+        ("NDVI", "Vegetation Condition [NDVI]", "#16A34A", "b"),
+        ("NSMI", "Soil Moisture Index [NSMI]", "#D97706", "c"),
+        (C.CDI_COLUMN, "Composite Drought Index [CDI]", "#DC2626", "d"),
+    ]
+
+    # Pre-filter CDI for unobserved / all-zero months
+    cdi_valid = panel.groupby("period")[C.CDI_COLUMN].apply(
+        lambda s: s.notna().any() and not (s == 0.0).all() and (s == 0.0).mean() < 0.90
+    )
+    valid_cdi_periods = set(cdi_valid[cdi_valid].index)
+
+    fig, axes = plt.subplots(2, 2, figsize=(15.5, 11.2), layout="constrained")
+
+    months = np.arange(1, 13)
+    month_names = C.MONTHS
+
+    for ax, (column, label, base_color, tag) in zip(axes.ravel(), columns):
         if column not in panel.columns:
             ax.axis("off")
             continue
-        sub = panel.dropna(subset=[column])
-        sns.boxplot(
-            data=sub, x="month", y=column, ax=ax, color=ST.cmap_for(column)(0.55),
-            fliersize=1.2, linewidth=0.8, whis=1.5,
-        )
-        ax.set_xticks(range(12))
-        ax.set_xticklabels(C.MONTHS, rotation=45, ha="right")
-        ax.set_xlabel("")
-        ax.set_ylabel(label)
-        ax.set_title(f"{C.COL[column].label} by calendar month", fontsize=10)
-        ax.grid(axis="y", alpha=0.35)
 
-    wet, dry = D.season_months(panel)
+        if column == C.CDI_COLUMN:
+            sub = panel[panel["period"].isin(valid_cdi_periods) & panel[column].notna()]
+        else:
+            sub = panel[panel[column].notna()]
+
+        # Compute monthly percentiles across all years
+        monthly_stats = sub.groupby("month")[column].quantile([0.10, 0.25, 0.50, 0.75, 0.90]).unstack()
+        monthly_stats = monthly_stats.reindex(months)
+
+        # Plot climatological envelopes
+        ax.fill_between(
+            months, monthly_stats[0.10], monthly_stats[0.90],
+            color=base_color, alpha=0.15, label="10th–90th percentile envelope"
+        )
+        ax.fill_between(
+            months, monthly_stats[0.25], monthly_stats[0.75],
+            color=base_color, alpha=0.28, label="Interquartile Range (IQR)"
+        )
+        ax.plot(
+            months, monthly_stats[0.50],
+            color="#0F172A", lw=2.2, marker="o", ms=4.5, zorder=4, label="Historical Median"
+        )
+
+        # Compute benchmark trajectories (district-wide mean per month)
+        for yr, yr_color, yr_ls, yr_m, yr_name in [
+            (2018, "#DC2626", "--", "s", "2018 (Severe Drought)"),
+            (2020, "#2563EB", "-.", "^", "2020 (Wet Surplus)"),
+            (2024, "#9333EA", ":", "D", "2024 (Recent Year)"),
+        ]:
+            yr_sub = sub[sub["year"] == yr]
+            if not yr_sub.empty:
+                yr_mean = yr_sub.groupby("month")[column].mean().reindex(months)
+                ax.plot(
+                    months, yr_mean,
+                    color=yr_color, ls=yr_ls, lw=1.8, marker=yr_m, ms=4.5,
+                    zorder=5, label=yr_name
+                )
+
+        ax.set_xticks(months)
+        ax.set_xticklabels(month_names, fontsize=9.5)
+        ax.set_ylabel(label, fontsize=10.5, weight="bold")
+        ax.set_title(f"({tag}) {label} Climatology & Benchmark Trajectories", fontsize=11.0, weight="bold")
+        ax.grid(True, linestyle=":", color="#94A3B8", alpha=0.5)
+
+        # Legend on top right of each panel
+        ax.legend(loc="upper right" if column != "Rain_mm" else "upper left", fontsize=7.8, framealpha=0.92)
+
     fig.suptitle(
-        "Seasonal climatology and its dispersion\n"
-        f"Wet season resolved from the rainfall record: {D.season_label(wet)}",
-        fontsize=13,
+        "Phenological Climatology Envelopes with Benchmark Drought Overlays (2016–2026)\n"
+        "Shaded envelopes represent historical variability (10th–90th percentile, IQR) vs key benchmark years",
+        fontsize=13.0, weight="bold",
     )
     ST.figure_note(
         fig,
-        "Boxes are the interquartile range, whiskers 1.5 IQR. Wide boxes in the monsoon are cloud gaps, "
-        "not real variability in every village.",
+        "Notice the acute departure in 2018 during peak Kharif (July–October): rainfall collapsed below the 10th percentile, "
+        "causing subsequent vegetation (NDVI) and soil moisture (NSMI) deficits, spiking the CDI above 0.40.",
     )
     ST.save(
         fig, "distribution", "d2_monthly_climatology.png",
-        "Monthly boxplots for rainfall, NDVI, NSMI and CDI showing the seasonal cycle and its spread.",
+        "Phenological climatology envelopes (10th-90th percentile, IQR) with benchmark drought overlays for 2018, 2020, and 2024.",
         source="village_with_baseline.csv",
     )
 

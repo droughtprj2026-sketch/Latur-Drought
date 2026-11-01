@@ -41,7 +41,19 @@ SECTION_RUNNERS = {
     "distribution": lambda p: DI.build(p),
     "temporal": lambda p: T.build(p),
     "spatial": lambda p: SP.build(p),
+    "atlas": lambda p: _cartographic_atlas(p),
 }
+
+
+def _cartographic_atlas(panel: pd.DataFrame) -> dict[str, pd.DataFrame]:
+    """Cartographic atlas: one map per index, per year and per month."""
+    from . import plots_cartographic_atlas as CA
+
+    CA.build(panel)
+    return {}
+
+
+DEFAULT_SECTIONS = list(SECTION_RUNNERS)
 
 
 # --------------------------------------------------------------------------
@@ -194,6 +206,12 @@ def run(sections: list[str] | None = None) -> dict:
         "villages": D.n_villages(panel),
         "tehsils": int(panel["tehsil"].nunique()),
         "rows": f"{len(panel):,}",
+        "village_months": f"{len(panel):,}",
+        "grid_months": f"{D.n_villages(panel) * int(panel['period'].nunique()):,}",
+        "completeness": (
+            f"{100.0 * len(panel) / (D.n_villages(panel) * int(panel['period'].nunique())):.1f}%"
+        ),
+        "periods": int(panel["period"].nunique()),
         "generated_at": datetime.now().isoformat(timespec="seconds"),
         "panel": str(C.PANEL_CSV.relative_to(C.ROOT)),
     }
@@ -207,7 +225,7 @@ def run(sections: list[str] | None = None) -> dict:
     print(f"  output     : {C.OUT_ROOT}")
     print("=" * 72)
 
-    selected = sections or list(SECTION_RUNNERS)
+    selected = sections or DEFAULT_SECTIONS
     unknown = [s for s in selected if s not in SECTION_RUNNERS]
     if unknown:
         raise SystemExit(f"Unknown section(s): {unknown}. Choose from {list(SECTION_RUNNERS)}")
@@ -229,7 +247,7 @@ def run(sections: list[str] | None = None) -> dict:
     html = report.write_html(meta)
 
     print("\n" + "=" * 72)
-    print(f"  figures : {len(report.figures())}")
+    print(f"  figures : {len({entry['filename'] for entry in report.figures()})}")
     print(f"  tables  : {n_tables}")
     print(f"  index   : {md}")
     print(f"  gallery : {html}")

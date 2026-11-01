@@ -81,10 +81,22 @@ def load_panel() -> pd.DataFrame:
             df.loc[missing_v, "year"] = dt.dt.year
             df.loc[missing_v, "month"] = dt.dt.month
 
-        # Monsoon cloud periods: when optical is missing but SPI3 is published, score via SPI alone
-        needs_cdi = df[C.CDI_COLUMN].isna() & df["SPI3"].notna()
-        if needs_cdi.any():
-            df.loc[needs_cdi, C.CDI_COLUMN] = np.clip(-df.loc[needs_cdi, "SPI3"] / 3.0, 0.0, 1.0)
+        # Months whose optical inputs are missing but whose rainfall is published
+        # (monsoon cloud) are scored by the official scorer with the remaining
+        # components re-weighted, exactly as config/composite.yaml's
+        # `min_inputs: 1` specifies. Never invent a score with an ad-hoc formula.
+        score_inputs = [c for c in ("SPI3", "NDVI", "VCI", "NSMI") if c in df.columns]
+        needs_score = df[C.CDI_COLUMN].isna() & df[score_inputs].notna().any(axis=1)
+        if needs_score.any():
+            from common import village_cdi
+
+            cfg = village_cdi._load_cfg()
+            tmp = df.copy()
+            tmp["period"] = tmp["date"].astype(str)
+            scored = village_cdi.fuse_cdi(tmp, cfg)
+            for column in (C.CDI_COLUMN, "component_contributions", "formula_version"):
+                if column in scored.columns:
+                    df.loc[needs_score, column] = scored.loc[needs_score, column].to_numpy()
 
     df["date"] = df["date"].astype(str)
     df["period"] = pd.PeriodIndex(df["date"], freq="M")

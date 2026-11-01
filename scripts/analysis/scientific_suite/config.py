@@ -49,6 +49,7 @@ SECTIONS = {
     "distribution": "05_distributions",
     "temporal": "06_temporal_analysis",
     "spatial": "07_spatial_analysis",
+    "atlas": "07_spatial_analysis",
     "tables": "08_statistics_tables",
 }
 
@@ -60,6 +61,7 @@ SECTION_TITLES = {
     "distribution": "Index distributions and drought-class separation",
     "temporal": "Temporal evolution and drought episodes",
     "spatial": "Spatial pattern across villages and tehsils",
+    "atlas": "Cartographic atlas: every index, every year, every month",
     "tables": "Machine-readable statistics",
 }
 

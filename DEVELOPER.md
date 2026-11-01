@@ -103,7 +103,14 @@ drought-monitoring/
 │   │   ├── rescore_history.py        # re-score the record after a formula change (--rebuild: all outputs)
 │   │   ├── build_baseline_drought.py, build_village_registry.py, build_village_timeseries.py
 │   │   ├── build_tehsil_analytics.py, dashboard_master.py
-│   │   └── compare_formulas.py, rescore_panel.py, validate_historical_analysis.py, generate_scientific_visualizations.py
+│   │   ├── compare_formulas.py, rescore_panel.py, validate_historical_analysis.py
+│   │   ├── generate_scientific_visualizations.py   # thin CLI shim
+│   │   └── scientific_suite/                       # the figure suite itself
+│   │       ├── config.py data.py stats.py grids.py style.py report.py
+│   │       ├── plots_availability.py plots_correlation.py plots_heatmaps.py
+│   │       ├── plots_relationships.py plots_distributions.py
+│   │       ├── plots_temporal.py plots_spatial.py
+│   │       └── run.py                              # orchestration / table export
 │   ├── common/
 │   │   ├── village_cdi.py # CDI scoring (weights/thresholds from config/composite.yaml)
 │   │   ├── raster.py      # file scanning, dedupe, read_stack
@@ -303,6 +310,57 @@ load, then requests only the GeoJSON it needs.
 
 **Important:** the processed files are the _only_ bridge between
 Python and the Node.js backend. The API does not re-read rasters.
+
+### 5.9 Scientific visualization suite
+
+`scripts/analysis/generate_scientific_visualizations.py` is a thin shim over
+the `scripts/analysis/scientific_suite/` package. It reads
+`data/processed/csv/village_with_baseline.csv` and writes a structured figure
+tree, never a flat directory:
+
+```
+output/figures/scientific_suite/
+├── 01_image_availability/      sampling completeness per source, tehsil, month
+├── 02_correlation/             Pearson and Spearman, pooled / annual / seasonal / per tehsil
+├── 03_heatmaps/                every index as month x year and tehsil x year
+├── 04_index_relationships/     scatter regressions, multi-scale lag-response (SPI-1/3/6/12 with 95% CI)
+├── 05_distributions/           distributions, phenological climatology envelopes with benchmark overlays (2018, 2020, 2024)
+├── 06_temporal_analysis/       true West-to-East Hovmöller transect (10 tehsils x 129 months), DAP stacked area chart (D0-D4)
+├── 07_spatial_analysis/        cartographic atlases (Times New Roman, single North arrow, hairline 0.05pt village borders):
+│   ├── yearly_mean_atlases/    3x4 annual mean spatial matrices (2016–2026 + 11-yr reference climatology)
+│   ├── monthly_climatologies/  4x3 seasonal progression matrices (Jan–Dec long-term mean)
+│   ├── 2016/ ... 2026/         annual 12-month spatial progression atlases strictly grouped by year
+│   └── overview_and_vulnerability/ village choropleths, Sen's slope trends, and tehsil rankings
+├── 08_statistics_tables/       the CSV backing every figure
+├── INDEX.md                    generated catalogue with annual summary table, 3-part structured cards, and data sources
+└── index.html                  interactive gallery with year/category filtering, instant search, and full modal viewer
+```
+
+Rules the suite enforces:
+
+- The drought palette comes from `scripts/common/classify.py` and the CDI
+  thresholds are read at runtime from `config/composite.yaml` via
+  `classify.composite_thresholds()`. Nothing is duplicated in the plotting code.
+- Tehsils, villages, months and the study window are derived from the data.
+  A month with no rows is drawn grey and never zero-filled.
+- `village_with_baseline.csv` leaves `composite_drought_class` empty for any
+  score below the first threshold. `scientific_suite/data.py` derives the class
+  from `composite_drought_score` with the same YAML thresholds, which reproduces
+  every stored class exactly (verified) and recovers the 72,622 "not in drought"
+  rows.
+- Every `plots_*.build()` returns `dict[str, DataFrame]` so the numbers behind
+  the figure are exported next to it.
+
+Run it:
+
+```bash
+python scripts/analysis/generate_scientific_visualizations.py            # all sections
+python scripts/analysis/generate_scientific_visualizations.py --list     # section names
+python scripts/analysis/generate_scientific_visualizations.py --only distribution correlation
+```
+
+Optional extras beyond Matplotlib/Seaborn: `geopandas` for section 07. If it is
+missing, the rest of the suite still runs.
 
 ---
 

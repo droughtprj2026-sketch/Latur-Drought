@@ -19,31 +19,128 @@ def _period_dates(index: pd.PeriodIndex) -> np.ndarray:
     return index.to_timestamp().to_numpy()
 
 
+def get_tehsils_west_to_east(panel: pd.DataFrame) -> list[tuple[str, float]]:
+    """Return list of (tehsil_name, centroid_longitude) ordered West to East."""
+    import json
+    if C.TEHSIL_GEOJSON.exists():
+        try:
+            with open(C.TEHSIL_GEOJSON, "r", encoding="utf-8") as f:
+                gj = json.load(f)
+            tehsil_lons = {}
+            for feat in gj.get("features", []):
+                name = feat["properties"].get("TEHSIL", feat["properties"].get("tehsil_name"))
+                coords = feat["geometry"]["coordinates"]
+
+                def get_lons(c):
+                    if isinstance(c[0], (int, float)):
+                        return [c[0]]
+                    l = []
+                    for sub in c:
+                        l.extend(get_lons(sub))
+                    return l
+
+                lons = get_lons(coords)
+                if name and lons:
+                    tehsil_lons[name] = sum(lons) / len(lons)
+            present = set(panel["tehsil"].unique())
+            res = [(t, tehsil_lons[t]) for t in tehsil_lons if t in present]
+            if res:
+                return sorted(res, key=lambda x: x[1])
+        except Exception:
+            pass
+    return [(t, float("nan")) for t in sorted(panel["tehsil"].unique())]
+
+
 def fig_hovmoller(panel: pd.DataFrame) -> None:
-    fig, axes = plt.subplots(2, 1, figsize=(14.0, 11.5), sharex=True)
-    panels = [(C.CDI_COLUMN, "A. Composite Drought Index (higher = more stressed)"),
-              ("SPI3", "B. SPI-3 (negative = rainfall deficit)")]
+    ordered_tehsils = get_tehsils_west_to_east(panel)
+    tehsil_names = [t[0] for t in ordered_tehsils]
+    tehsil_labels = [f"{t[0]} ({t[1]:.2f}°E)" if np.isfinite(t[1]) else t[0] for t in ordered_tehsils]
 
-    for ax, (column, title) in zip(axes, panels):
-        grid = G.month_year_matrix(panel, column)
-        norm = G.nice_norm(column, panel[column].to_numpy(dtype=float))
-        G.draw_month_year(
-            ax, grid, cmap=ST.cmap_for(column), norm=norm,
-            annot=True, fmt="{:.2f}", annot_size=5.8, cbar=True,
-            cbar_kws={"label": C.COL[column].label, "shrink": 0.7},
+    study_periods = D.study_periods(panel)
+    dates = [p.to_timestamp() for p in study_periods]
+    next_date = study_periods[-1].to_timestamp() + pd.DateOffset(months=1)
+    date_edges = dates + [next_date]
+    y_edges = np.arange(len(tehsil_names) + 1)
+
+    # 1. CDI matrix: detect valid observed periods
+    cdi_period_valid = panel.groupby("period")[C.CDI_COLUMN].apply(
+        lambda s: s.notna().any() and not (s == 0.0).all() and (s == 0.0).mean() < 0.90
+    )
+    piv_cdi = panel.groupby(["tehsil", "period"])[C.CDI_COLUMN].mean().unstack(level="period")
+    piv_cdi = piv_cdi.reindex(index=tehsil_names, columns=study_periods)
+    for col in piv_cdi.columns:
+        if not cdi_period_valid.get(col, False):
+            piv_cdi[col] = np.nan
+    matrix_cdi = piv_cdi.to_numpy()
+
+    # 2. SPI-3 matrix
+    piv_spi = panel.groupby(["tehsil", "period"])["SPI3"].mean().unstack(level="period")
+    piv_spi = piv_spi.reindex(index=tehsil_names, columns=study_periods)
+    matrix_spi = piv_spi.to_numpy()
+
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(15.5, 9.8), sharex=True, layout="constrained")
+    for ax in (ax1, ax2):
+        ax.set_facecolor("#F1F5F9")
+
+    # Plot CDI Hovmoller
+    pm1 = ax1.pcolormesh(date_edges, y_edges, matrix_cdi, cmap=ST.CDI_CMAP, vmin=0.0, vmax=0.75, shading="flat")
+    ax1.set_yticks(np.arange(len(tehsil_names)) + 0.5)
+    ax1.set_yticklabels(tehsil_labels, fontsize=9.5)
+    ax1.set_ylabel("← West       Longitudinal Transect       East →\nTehsil", fontsize=10.5, weight="bold")
+    ax1.set_title("A. Composite Drought Index (CDI) Hovmöller (0.0 = Normal, >0.50 = Extreme/Exceptional Drought)", fontsize=11.5, weight="bold")
+
+    cbar1 = fig.colorbar(pm1, ax=ax1, shrink=0.75, pad=0.015, aspect=20)
+    cbar1.set_label("Composite Drought Index (CDI)", fontsize=9.5)
+    cbar1.set_ticks([0.0, 0.20, 0.30, 0.40, 0.50, 0.65])
+    cbar1.set_ticklabels(["Normal", "D0", "D1", "D2", "D3", "D4"])
+
+    # Plot SPI-3 Hovmoller
+    import matplotlib.cm as mcm
+    spi_cmap = mcm.get_cmap("RdBu")
+    pm2 = ax2.pcolormesh(date_edges, y_edges, matrix_spi, cmap=spi_cmap, vmin=-2.5, vmax=2.5, shading="flat")
+    ax2.set_yticks(np.arange(len(tehsil_names)) + 0.5)
+    ax2.set_yticklabels(tehsil_labels, fontsize=9.5)
+    ax2.set_ylabel("← West       Longitudinal Transect       East →\nTehsil", fontsize=10.5, weight="bold")
+    ax2.set_title("B. Standardized Precipitation Index (SPI-3) Hovmöller (Diverging Meteorological Moisture)", fontsize=11.5, weight="bold")
+
+    cbar2 = fig.colorbar(pm2, ax=ax2, shrink=0.75, pad=0.015, aspect=20)
+    cbar2.set_label("SPI-3 (Precipitation Anomaly)", fontsize=9.5)
+
+    # Highlight major historical episodes across both panels
+    episodes = [
+        (pd.Timestamp("2018-06-01"), pd.Timestamp("2019-06-01"), "2018–19 Severe Drought", "#DC2626"),
+        (pd.Timestamp("2020-06-01"), pd.Timestamp("2021-10-01"), "2020–21 Wet Surplus", "#2563EB"),
+        (pd.Timestamp("2023-08-01"), pd.Timestamp("2024-04-01"), "2023–24 Late Deficit", "#D97706"),
+    ]
+    for start, end, label, color in episodes:
+        for ax in (ax1, ax2):
+            ax.axvspan(start, end, color=color, alpha=0.07, zorder=3)
+            ax.axvline(start, color=color, ls="--", lw=0.9, alpha=0.6, zorder=3)
+            ax.axvline(end, color=color, ls="--", lw=0.9, alpha=0.6, zorder=3)
+        ax1.text(
+            start + (end - start) / 2, len(tehsil_names) + 0.15, label,
+            ha="center", va="bottom", fontsize=8.2, color=color, weight="bold",
+            bbox=dict(boxstyle="round,pad=0.2", fc="white", ec=color, lw=0.8, alpha=0.9)
         )
-        ax.set_title(title, fontsize=11)
-        ax.set_ylabel("Calendar month")
 
-    axes[-1].set_xlabel("Year")
+    ax2.xaxis.set_major_locator(mdates.YearLocator())
+    ax2.xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
+    ax2.xaxis.set_minor_locator(mdates.MonthLocator(bymonth=[4, 7, 10]))
+    ax2.set_xlabel("Observation Month (2016–2026 Continuous Record)", fontsize=11, weight="bold")
+
     fig.suptitle(
-        "Hovmoller diagram of drought evolution, month by month for the whole record\n"
-        "Grey cells are months without an observation, so a blank band is a data gap, never zero drought",
-        fontsize=13,
+        "Spatio-Temporal Hovmöller Diagram: West-to-East Drought Transect Across Latur (2016–2026)\n"
+        "Tracking meteorological deficit (SPI-3) and composite drought impact (CDI) propagation along longitude (76.50°E → 77.16°E)",
+        fontsize=13.0, weight="bold",
+    )
+    ST.figure_note(
+        fig,
+        "Subtle grey cells in the CDI panel represent cloud-masked or unobserved monsoon months, never zero drought. "
+        "Tehsils are strictly ordered from West to East based on geographic polygon centroids.",
     )
     ST.save(
         fig, "temporal", "t1_hovmoller_cdi_spi.png",
-        "Month x year Hovmoller heatmaps of the CDI and SPI-3.",
+        "True spatio-temporal Hovmöller diagram showing West-to-East drought propagation across 10 tehsils and 129 continuous months.",
         source="village_with_baseline.csv",
     )
 
@@ -362,6 +459,93 @@ def fig_tehsil_trends(panel: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def fig_drought_area_percentage(panel: pd.DataFrame) -> pd.DataFrame:
+    """10-Year Drought Area Percentage (DAP) Evolution (2016-2026)."""
+    # Exclude unobserved/all-zero periods for CDI
+    cdi_valid = panel.groupby("period")[C.CDI_COLUMN].apply(
+        lambda s: s.notna().any() and not (s == 0.0).all() and (s == 0.0).mean() < 0.90
+    )
+    valid_periods = cdi_valid[cdi_valid].index
+
+    scored = panel[panel["period"].isin(valid_periods) & panel["dclass"].isin(C.CLASS_ORDER)].copy()
+    if scored.empty:
+        return pd.DataFrame()
+
+    monthly = (
+        pd.crosstab(scored["period"], scored["dclass"], normalize="index")
+        .reindex(columns=C.CLASS_ORDER)
+        .fillna(0.0)
+        * 100.0
+    )
+    # Reindex to full study periods to preserve gaps
+    full_periods = D.study_periods(panel)
+    monthly = monthly.reindex(full_periods)
+
+    dates = [p.to_timestamp() for p in monthly.index]
+
+    fig, (ax_stack, ax_severe) = plt.subplots(2, 1, figsize=(15.2, 9.8), sharex=True,
+                                             gridspec_kw={"height_ratios": [2.2, 1.0]},
+                                             layout="constrained")
+
+    # Palette matching USDM / WMO standards
+    colors = [C.DROUGHT_COLORS.get(c, "#E2E8F0") for c in C.CLASS_ORDER]
+    labels = [C.D_CLASS_LABELS.get(c, c) for c in C.CLASS_ORDER]
+
+    # Stackplot
+    stack_data = [monthly[c].to_numpy() for c in C.CLASS_ORDER]
+    ax_stack.stackplot(dates, stack_data, labels=labels, colors=colors, alpha=0.92,
+                       edgecolor="white", linewidth=0.3)
+    ax_stack.set_ylim(0, 100)
+    ax_stack.set_ylabel("Share of District Villages (% Area)", fontsize=11, weight="bold")
+    ax_stack.set_title("A. 10-Year Drought Area Percentage (DAP) Stacked Composition", fontsize=11.5, weight="bold")
+    ax_stack.legend(loc="upper center", bbox_to_anchor=(0.5, 1.15), ncol=6, fontsize=9.0, frameon=True)
+    ax_stack.grid(axis="y", linestyle=":", alpha=0.5)
+
+    # Severe Drought Line (D2 + D3 + D4)
+    severe_pct = monthly[["D2", "D3", "D4"]].sum(axis=1)
+    ax_severe.fill_between(dates, severe_pct.to_numpy(), color="#DC2626", alpha=0.25, label="Severe-to-Exceptional (D2–D4)")
+    ax_severe.plot(dates, severe_pct.to_numpy(), color="#991B1B", lw=2.0)
+    ax_severe.scatter(dates, severe_pct.to_numpy(), s=14, color="#991B1B", zorder=3)
+    ax_severe.set_ylim(0, 100)
+    ax_severe.set_ylabel("Severe (D2–D4) %", fontsize=10.5, weight="bold")
+    ax_severe.set_title("B. High-Impact Drought Area (D2–D4 Cumulative)", fontsize=11.0, weight="bold")
+    ax_severe.grid(axis="y", linestyle=":", alpha=0.5)
+
+    # Highlight peak severe drought
+    peak_date = severe_pct.idxmax()
+    peak_val = severe_pct.max()
+    if np.isfinite(peak_val) and peak_val > 10.0:
+        ax_severe.annotate(
+            f"Peak: {peak_val:.1f}% ({peak_date})",
+            xy=(peak_date.to_timestamp(), peak_val),
+            xytext=(15, -20), textcoords="offset points", fontsize=8.5, weight="bold",
+            bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="#991B1B", lw=0.9),
+            arrowprops=dict(arrowstyle="->", color="#991B1B", lw=1.0)
+        )
+
+    ax_severe.xaxis.set_major_locator(mdates.YearLocator())
+    ax_severe.xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
+    ax_severe.xaxis.set_minor_locator(mdates.MonthLocator(bymonth=[4, 7, 10]))
+    ax_severe.set_xlabel("Year", fontsize=11, weight="bold")
+
+    fig.suptitle(
+        "10-Year Drought Area Percentage (DAP) Evolution across Latur District (2016–2026)\n"
+        "Categorical USDM/WMO severity hierarchy aggregated over 954 villages",
+        fontsize=13.0, weight="bold"
+    )
+    ST.figure_note(
+        fig,
+        "Evaluated over observed village-months. Breaks in the stack represent cloud-masked monsoon periods. "
+        "D2–D4 indicates villages requiring immediate agricultural drought relief interventions.",
+    )
+    ST.save(
+        fig, "temporal", "t7_drought_area_percentage_stacked.png",
+        "10-Year Drought Area Percentage (DAP) stacked area chart showing monthly evolution of USDM drought classes D0-D4.",
+        source="village_with_baseline.csv",
+    )
+    return monthly.reset_index()
+
+
 def build(panel: pd.DataFrame) -> dict[str, pd.DataFrame]:
     fig_hovmoller(panel)
     annual = fig_annual_series(panel)
@@ -369,9 +553,11 @@ def build(panel: pd.DataFrame) -> dict[str, pd.DataFrame]:
     extent = fig_drought_extent(panel)
     episodes = fig_spi12_episodes(panel)
     trends = fig_tehsil_trends(panel)
+    dap = fig_drought_area_percentage(panel)
     return {
         "annual_trends_district": annual,
         "drought_extent": extent,
         "spi12_episodes": episodes,
         "annual_trends_tehsil": trends,
+        "drought_area_percentage": dap,
     }

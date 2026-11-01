@@ -27,8 +27,8 @@ def apply_style() -> None:
             "savefig.facecolor": "white",
             "figure.facecolor": "white",
             "axes.facecolor": "white",
-            "font.family": "sans-serif",
-            "font.sans-serif": ["Arial", "Helvetica", "DejaVu Sans"],
+            "font.family": "serif",
+            "font.serif": ["Times New Roman", "DejaVu Serif", "Times", "serif"],
             "mathtext.fontset": "cm",
             "font.size": 10.5,
             "axes.titlesize": 12.0,
@@ -121,10 +121,21 @@ def cmap_for(column: str):
 # --------------------------------------------------------------------------
 def save(fig, section: str, filename: str, caption: str, source: str = "") -> Path:
     """Write a figure to its section folder and record it in the index."""
+    import time
     out_dir = C.section_dir(section)
     path = out_dir / filename
     path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(path, dpi=C.DPI, bbox_inches="tight", facecolor="white")
+    
+    # Robust save with retries on Windows file locks
+    for attempt in range(4):
+        try:
+            fig.savefig(path, dpi=C.DPI, bbox_inches="tight", facecolor="white")
+            break
+        except (OSError, PermissionError) as e:
+            if attempt == 3:
+                raise
+            time.sleep(0.2)
+
     plt.close(fig)
     report.register(section=section, filename=filename, caption=caption, source=source, path=path)
     print(f"  [{section}] {filename}")
