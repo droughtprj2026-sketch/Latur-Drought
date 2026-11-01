@@ -55,6 +55,7 @@ SECTIONS = {
     "spatial": "07_spatial_analysis",
     "atlas": "07_spatial_analysis",
     "tables": "08_statistics_tables",
+    "animations": "09_animations",
 }
 
 SECTION_TITLES = {
@@ -67,6 +68,7 @@ SECTION_TITLES = {
     "spatial": "Spatial pattern across villages and tehsils",
     "atlas": "Cartographic atlas: every index, every year, every month",
     "tables": "Machine-readable statistics",
+    "animations": "PowerPoint cartographic animations and drought progression time-lapses",
 }
 
 DPI = 300

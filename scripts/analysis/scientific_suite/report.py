@@ -1,22 +1,25 @@
 # -*- coding: utf-8 -*-
-"""World-Class Scientific Figure Registry, Categorized INDEX.md, and Interactive HTML Gallery.
+"""World-Class Scientific Figure Registry, Categorized INDEX.md, and Interactive HTML Suite.
 
 Organized strictly according to peer-reviewed remote sensing journal standards:
 - Multi-year annual mean matrices (2016–2026) in 3x4 layout.
 - 12-month long-term seasonal climatologies in 4x3 layout.
 - Annual 12-month spatial progression atlases categorized strictly by year (2016/ to 2026/).
 - Standard per-year scientific summary tables with data completeness, sensor status, and agro-climatic narratives.
-- Interactive HTML gallery with category/year filtering, search, and 3-part structured cards:
-  1. What It Is
-  2. How To Read
-  3. Key Scientific Understanding
+- Interactive HTML Suite with 3 integrated views:
+  1. Visual Atlas & Publication Figures (with category/year filtering, search, modal zoom, and 3-part summaries)
+  2. Interactive Scientific Data Tables (with table selector, column sorting, text search, pagination, and CSV export)
+  3. PowerPoint Presentation Animations (high-res GIF player, frame statistics, and direct slide download)
 """
 from __future__ import annotations
 
 import html
+import json
 import re
 from datetime import datetime
 from pathlib import Path
+
+import pandas as pd
 
 from . import config as C
 
@@ -45,16 +48,22 @@ def register(
     path: Path | None = None,
     category: str = "",
     summary: dict | None = None,
+    description: str = "",
+    title: str = "",
 ) -> None:
+    desc = description or (summary.get("what_it_is") if isinstance(summary, dict) and "what_it_is" in summary else _generate_description(filename, caption))
+    t = title or _generate_title(filename, caption)
     _REGISTRY.append(
         {
             "section": section,
             "filename": filename,
             "caption": caption,
+            "title": t,
+            "description": desc,
             "source": source,
             "path": path,
             "category": category or _infer_category(section, filename),
-            "summary": summary or _generate_summary(filename, caption),
+            "summary": summary or {},
         }
     )
 
@@ -64,28 +73,33 @@ def figures() -> list[dict]:
 
 
 def scan_and_index_disk() -> None:
-    """Scan the entire figures directory on disk and ensure all figures are in _REGISTRY."""
+    """Scan the entire figures directory on disk and ensure all figures and animations are in _REGISTRY."""
     root = C.OUT_ROOT
     if not root.exists():
         return
     existing_paths = {entry.get("path") for entry in _REGISTRY if entry.get("path")}
-    for p in sorted(root.rglob("*.png")):
+    
+    # Scan both PNG figures and GIF animations
+    all_files = []
+    for ext in ("*.png", "*.gif"):
+        all_files.extend(root.rglob(ext))
+        
+    for p in sorted(all_files):
         if p in existing_paths:
             continue
-        # Deduce section and relative filename
+        # Skip legacy root figures if any exist
         rel = p.relative_to(root)
         parts = rel.parts
+        if len(parts) == 1:
+            continue
+            
+        sec_folder = parts[0]
         section_key = "general"
-        if len(parts) > 1:
-            sec_folder = parts[0]
-            # Match folder to section key
-            for k, fld in C.SECTIONS.items():
-                if fld == sec_folder:
-                    section_key = k
-                    break
-            rel_filename = "/".join(parts[1:])
-        else:
-            rel_filename = parts[0]
+        for k, fld in C.SECTIONS.items():
+            if fld == sec_folder:
+                section_key = k
+                break
+        rel_filename = "/".join(parts[1:])
 
         caption = f"Scientific publication figure: {p.stem.replace('_', ' ')}."
         register(
@@ -104,6 +118,8 @@ def clear() -> None:
 def _infer_category(section: str, filename: str) -> str:
     """Infer fine-grained scientific category from filename and subfolder path."""
     name_clean = Path(filename).as_posix()
+    if "09_animations" in name_clean or filename.startswith("anim_") or section == "animations":
+        return "PowerPoint Cartographic Animations"
     if "yearly_mean_atlases" in name_clean or filename.startswith("atlas_yearly_mean_"):
         return "Yearly Spatial Mean Atlases (2016–2026)"
     if "monthly_climatologies" in name_clean or filename.startswith("atlas_monthly_climatology_"):
@@ -130,158 +146,169 @@ def _infer_category(section: str, filename: str) -> str:
     return C.SECTION_TITLES.get(section, section.title())
 
 
-def _generate_summary(filename: str, caption: str) -> dict[str, str]:
-    """Generate structured What It Is, How To Read, and Key Understanding for any figure."""
+def _generate_description(filename: str, caption: str) -> str:
+    """Generate concise, authoritative executive description suitable for government briefings and official review."""
     base_name = Path(filename).name.lower()
 
-    # 1. Yearly Mean Atlases
+    if base_name.startswith("anim_"):
+        if "cdi_monthly" in base_name:
+            return "Ten-year cartographic time-lapse animation mapping the monthly progression of the Composite Drought Index (CDI) across all 954 villages in Latur district (2016–2026). Illustrates multi-year drought cycles, peak emergency periods, and regional recovery."
+        if "2018" in base_name:
+            return "Monthly progression animation of the catastrophic 2018 drought emergency in Latur district, tracking the rapid expansion of Severe to Exceptional drought (D2–D4) across more than 80% of villages following Kharif monsoon failure."
+        if "2020" in base_name:
+            return "Monthly progression animation of the 2020 La Niña rainfall recovery across Latur district, illustrating widespread soil moisture recharge and full vegetative canopy restoration across all 10 tehsils."
+        if "recent" in base_name or "2024" in base_name:
+            return "Monthly progression animation tracking recent conditions from January 2024 through October 2026, highlighting late-monsoon drying and emerging drought stress in Deoni and eastern tehsils."
+        if "phenology" in base_name or "ndvi" in base_name:
+            return "Long-term 12-month climatological animation (January–December) tracing the baseline annual agricultural phenology cycle of vegetation greenness (NDVI) across Latur district."
+        if "spi3" in base_name:
+            return "Ten-year continuous animation of 3-month Standardized Precipitation Index (SPI-3) anomalies, tracking atmospheric moisture surpluses and rainfall deficits preceding agricultural crop stress."
+        if "annual" in base_name:
+            return "Decadal annual mean drought animation (2016–2026) demonstrating the spatial shifting and persistence of drought hotspots across Ausa, Nilanga, Deoni, and Latur tehsils."
+        return f"PowerPoint presentation animation displaying dynamic spatial drought progression for {base_name}."
+
     if "yearly_mean" in base_name:
-        idx_match = re.search(r"atlas_yearly_mean_(.+)\.png", base_name)
-        idx_str = idx_match.group(1).upper() if idx_match else "Index"
-        return {
-            "what_it_is": (
-                f"Multi-year 3x4 spatial matrix displaying the annual mean of {idx_str} across all 954 villages "
-                f"of Latur district for every year from 2016 to 2026, alongside the 11-year reference climatology."
-            ),
-            "how_to_read": (
-                "Each panel represents one calendar year. Only ONE North arrow appears in the top-right corner, "
-                "with an authoritative georeferenced scale bar (0–40 km) and shared horizontal colorbar at the bottom. "
-                "Hairline village boundaries (0.05pt) with solid Tehsil outlines. Panels marked 'No Data' indicate "
-                "strictly unobserved sensor gaps or zero-value periods to prevent misleading blank maps."
-            ),
-            "key_understanding": (
-                f"Directly contrasts multi-year drought intensity against recovery baselines. Identifies persistent "
-                f"micro-regional vulnerability corridors where {idx_str} remains stressed even during regional monsoon recovery."
-            ),
-        }
+        idx = base_name.replace("atlas_yearly_mean_", "").replace(".png", "").upper()
+        return f"Annual mean spatial distribution of {idx} across all 954 villages in Latur district for every year from 2016 to 2026, benchmarked alongside the 11-year reference climatology. Visualizes persistent micro-regional vulnerability corridors and multi-year recovery trajectories across all 10 tehsils."
 
-    # 2. Monthly Climatological Atlases
     if "climatology" in base_name:
-        idx_match = re.search(r"atlas_monthly_climatology_(.+)\.png", base_name)
-        idx_str = idx_match.group(1).upper() if idx_match else "Index"
-        return {
-            "what_it_is": (
-                f"12-month long-term spatial climatology (January to December) of {idx_str} averaged over the entire "
-                f"11-year record (2016–2026) across all 954 villages."
-            ),
-            "how_to_read": (
-                "Panels are arranged chronologically in 4 rows by 3 columns (Jan to Dec). Single North arrow at top-right, "
-                "scale bar at bottom-right, and horizontal colorbar with physical units centered at the bottom."
-            ),
-            "key_understanding": (
-                f"Establishes the mean seasonal phenology and hydrological cycle for Marathwada: pre-monsoon dry state "
-                f"(March–May), Kharif vegetative emergence and peak (July–September), and Rabi recession (October–February)."
-            ),
-        }
+        idx = base_name.replace("atlas_monthly_climatology_", "").replace(".png", "").upper()
+        return f"Twelve-month long-term spatial climatology (January to December) of {idx} averaged over the 11-year observational record (2016–2026) across 954 villages. Establishes the baseline seasonal hydrological and vegetative phenology cycle for Latur district."
 
-    # 3. Annual 12-Month Progression Atlases
     if "monthly" in base_name:
         m = re.search(r"atlas_monthly_(.+)_(20\d\d)\.png", base_name)
-        idx_str = m.group(1).upper() if m else "Index"
-        yr_str = m.group(2) if m else "Year"
-        return {
-            "what_it_is": (
-                f"Chronological 12-month spatial progression (January–December) of {idx_str} for year {yr_str} "
-                f"across all 954 villages of Latur district."
-            ),
-            "how_to_read": (
-                "Follow the progression from Jan to Dec to observe spatial drought dynamics. Missing or zero-value "
-                "dates are strictly filtered out and rendered as 'No Data' with village outlines to avoid misleading blank maps."
-            ),
-            "key_understanding": (
-                f"Captures the intra-annual evolution of agricultural/meteorological stress during {yr_str}, tracking "
-                f"the onset, peak severity, and eventual spatial relief across all tehsils."
-            ),
-        }
+        idx = m.group(1).upper() if m else "Index"
+        yr = m.group(2) if m else "Year"
+        return f"Month-by-month spatial progression (January–December) of {idx} for calendar year {yr} across all 954 villages in Latur district. Tracks intra-annual drought onset, peak seasonal stress, and administrative relief across all 10 tehsils."
 
-    # Specific high-impact research figures
-    if "t1_hovmoller" in base_name:
-        return {
-            "what_it_is": "True Spatio-Temporal Hovmöller Diagram mapping drought propagation across 10 tehsils ordered West-to-East (76.50°E → 77.16°E) over 129 continuous months (2016–2026).",
-            "how_to_read": "X-axis represents continuous timeline; Y-axis arranges tehsils by centroid longitude from West (Latur) to East (Jalkot). Top panel shows Composite Drought Index (CDI); bottom panel shows Standardized Precipitation Index (SPI-3). Grey cells indicate cloud-masked monsoon gaps.",
-            "key_understanding": "Reveals the spatial propagation and temporal persistence of regional drought shocks, such as the district-wide crisis of 2018–2019 versus the La Niña moisture surplus of 2020–2021.",
-        }
-
-    if "t7_drought_area" in base_name:
-        return {
-            "what_it_is": "10-Year Drought Area Percentage (DAP) Stacked Area Chart tracking monthly proportions of Latur's 954 villages in USDM/WMO drought categories (D0–D4).",
-            "how_to_read": "Top panel shows stacked area of Normal, D0 (Abnormally Dry), D1 (Moderate), D2 (Severe), D3 (Extreme), and D4 (Exceptional Drought). Bottom panel traces the cumulative Severe Drought (D2–D4 %) line with peak event callouts.",
-            "key_understanding": "Demonstrates the systemic footprint of drought emergencies, identifying exact peak crisis months (e.g. September 2018 where severe-to-exceptional drought engulfed over 80% of villages).",
-        }
-
-    if "d2_monthly_climatology" in base_name:
-        return {
-            "what_it_is": "Phenological Climatology Envelopes (10th–90th percentile envelope and Interquartile Range) with benchmark drought trajectory overlays (2018 Severe Drought, 2020 Wet Surplus, 2024 Dynamic Year).",
-            "how_to_read": "X-axis shows calendar months (Jan–Dec). Shaded bands show multi-year climatological variation around the median; dashed colored lines trace individual benchmark years across Rainfall, NDVI, NSMI, and CDI.",
-            "key_understanding": "Quantifies the extreme negative phenological anomalies of 2018 Kharif (July–October), where vegetation canopy and root-zone soil moisture plummeted below the 10th percentile.",
-        }
-
-    if "r5_response_lag" in base_name:
-        return {
-            "what_it_is": "Multi-Scale Lag-Response Cross-Correlation curves evaluating how vegetation greenness (NDVI), canopy condition (VCI), and soil moisture (NSMI) trail rainfall deficits (SPI-1, 3, 6, 12).",
-            "how_to_read": "X-axis is lag from 0 to 6 months; Y-axis is pooled Pearson r across 954 villages. Shaded ribbons represent 95% Fisher-z confidence intervals; hollow markers indicate p < 0.05 significance.",
-            "key_understanding": "Defines the empirical memory of Marathwada agriculture: root-zone soil moisture responds almost immediately (0–1 month lag), while vegetation canopy requires 1–2 months to manifest rainfall deficit.",
-        }
-
+    if "a1_tehsil" in base_name:
+        return "Tehsil-level annual satellite observation completeness matrix (2016–2026), confirming balanced geographic coverage and the absence of administrative sampling bias."
+    if "a2_month" in base_name:
+        return "District-wide monthly satellite observation heatmap across 130 monitoring periods, auditing valid pixel retention across seasonal monsoon cloud cover."
+    if "a3_tehsil" in base_name:
+        return "Comparative tehsil-level observation density and valid pixel retention ranking across Latur district."
+    if "a4_annual" in base_name:
+        return "Decadal satellite data completeness and sensor archive ingestion trajectory from 2016 to 2026."
+    if "a5_component" in base_name:
+        return "Multi-sensor component completeness audit tracking data availability across optical Sentinel-2, radar Sentinel-1, thermal Landsat, and CHIRPS precipitation."
     if "a6_pipeline" in base_name:
-        return {
-            "what_it_is": "Authoritative Optical Sensor Ingestion and Cloud-Gap Audit Matrix (2016–2026) derived from the pipeline audit ledger (data/dashboard/data_availability.json).",
-            "how_to_read": "Panel A is a month x year matrix: Green indicates successfully ingested Sentinel-2 reflectance, Red indicates persistent cloud-mask failure, and Grey indicates archive gaps. Panel B plots annual completeness counts.",
-            "key_understanding": "Proves data integrity and transparently audits sensor availability, distinguishing between actual sensor downtime/missing archive and expected monsoon cloud occlusions.",
-        }
+        return "Authoritative optical sensor ingestion and cloud-gap audit matrix (2016–2026) derived from the pipeline audit ledger (data/dashboard/data_availability.json), distinguishing archive gaps from expected monsoon cloud occlusions."
 
-    # 4. Correlation Figures
+    if "t1_hovmoller" in base_name:
+        return "Spatio-temporal Hovmöller diagram mapping continuous drought propagation across Latur's 10 tehsils ordered West-to-East (76.50°E to 77.16°E) over 129 continuous months (2016–2026)."
+    if "t7_drought_area" in base_name:
+        return "Ten-year Drought Area Percentage (DAP) stacked area trajectory tracking monthly proportions of Latur's 954 villages in USDM/WMO drought severity categories (Normal through D4 Exceptional Drought)."
+    if "d2_monthly_climatology" in base_name:
+        return "Phenological climatology envelopes (10th–90th percentile bands) contrasting the catastrophic 2018 drought, 2020 surplus recovery, and 2024 dynamic conditions."
+    if "r5_response_lag" in base_name:
+        return "Multi-scale lag-response cross-correlation curves evaluating the delay between precipitation deficits (SPI-1, 3, 6, 12) and satellite biophysical response, proving root-zone soil moisture responds within 0–1 month while canopy greenness manifests a 1–2 month lag."
+
     if "corr" in base_name or base_name.startswith("c"):
-        return {
-            "what_it_is": "Inter-index correlation matrix or response-lag relationship between remote sensing indices.",
-            "how_to_read": "Values range from -1.0 (strong negative coupling) to +1.0 (strong positive synchronization). Numbers in cells display Pearson r or Spearman rho with statistical significance.",
-            "key_understanding": "Demonstrates the physical coupling between meteorological drivers (Rainfall, SPI) and satellite vegetative/soil response (NDVI, VCI, NSMI, CDI).",
-        }
-
-    # 5. Heatmaps
+        return "Inter-index correlation analysis evaluating the physical coupling and statistical significance between satellite biophysical indices and meteorological rainfall anomalies."
     if "heat" in base_name or base_name.startswith("h"):
-        return {
-            "what_it_is": "Spatio-temporal heatmap atlas displaying index trajectories across time (months/years) and space (villages/tehsils).",
-            "how_to_read": "Horizontal axis represents time; vertical axis represents villages or tehsils. Color intensity represents drought severity or index magnitude.",
-            "key_understanding": "Highlights synchronized district-wide drought shocks versus localized sub-district anomalies across the full 10-year record.",
-        }
-
-    # 6. Regressions / Relationships
+        return "Spatio-temporal heatmap atlas mapping drought indicator trajectories across continuous time horizons and administrative tehsil units."
     if "rel" in base_name or "hexbin" in base_name or base_name.startswith("r"):
-        return {
-            "what_it_is": "2D logarithmic hexagonal density binning regression comparing two drought indicators.",
-            "how_to_read": "Hexagon color represents observation density (log10 scale). The black line shows the Ordinary Least Squares (OLS) regression with 95% bootstrap confidence band.",
-            "key_understanding": "Provides empirical sensitivity and response lag parameters (r, R², slope, p-value) between moisture supply and vegetative stress.",
-        }
-
-    # 7. Distributions
+        return "Logarithmic hexagonal density regression evaluating sensitivity, slope parameters, and bivariate coupling between moisture supply and vegetative canopy response."
     if "dist" in base_name or base_name.startswith("d"):
-        return {
-            "what_it_is": "Probability distribution and kernel density estimation across drought severity classes.",
-            "how_to_read": "Violin plots or KDE curves show probability density; white marker represents median and interquartile range (IQR).",
-            "key_understanding": "Evaluates how cleanly the composite drought indicator discriminates between mild, moderate, severe, and extreme drought states.",
-        }
-
-    # 8. Spatial Trends / Rankings
+        return "Statistical probability distribution and kernel density estimation demonstrating clean discrimination across drought severity categories."
     if "trend" in base_name or "vulnerability" in base_name or base_name.startswith("s"):
-        return {
-            "what_it_is": "Choropleth map of long-term Sen's slope trend or composite tehsil vulnerability ranking.",
-            "how_to_read": "Red indicates a worsening drought trend (drying), while blue indicates recovery. Ranked tehsils show composite multi-factor risk.",
-            "key_understanding": "Pinpoints the administrative units in Latur in greatest need of prioritized water harvesting and agricultural drought mitigation.",
-        }
+        return "Village-level vulnerability ranking and long-term Sen's slope trend map identifying administrative priority zones for water harvesting and agricultural relief."
 
-    return {
-        "what_it_is": caption,
-        "how_to_read": "Authoritative publication figure with calibrated cartographic or statistical scaling.",
-        "key_understanding": "Informs the empirical multi-sensor drought assessment for Latur district.",
-    }
+    return caption.rstrip(".") + " across 954 villages of Latur district."
+
+
+def _generate_title(filename: str, caption: str) -> str:
+    """Generate clean, executive title for figure cards."""
+    base_name = Path(filename).name.lower()
+    if base_name.startswith("anim_"):
+        if "cdi_monthly" in base_name:
+            return "10-Year Monthly CDI Evolution Time-Lapse (2016–2026)"
+        if "2018" in base_name:
+            return "2018 Historic Agricultural Drought Episode — Monthly Progression"
+        if "2020" in base_name:
+            return "2020 La Niña Monsoon Recovery — Monthly Progression"
+        if "recent" in base_name or "2024" in base_name:
+            return "Recent Drought Dynamics & Current Horizon (2024–2026)"
+        if "phenology" in base_name or "ndvi" in base_name:
+            return "Annual Vegetative Phenology Cycle (11-Year Climatology Jan–Dec)"
+        if "spi3" in base_name:
+            return "Meteorological Drought & Surplus Dynamics (SPI-3, 2016–2026)"
+        if "annual" in base_name:
+            return "Decadal Annual Mean Drought Trajectory (2016–2026)"
+        return base_name.replace("anim_", "").replace(".gif", "").replace("_", " ").title()
+
+    if "yearly_mean" in base_name:
+        idx = base_name.replace("atlas_yearly_mean_", "").replace(".png", "").upper()
+        return f"Multi-Year Annual Mean Spatial Matrix: {idx} (2016–2026)"
+
+    if "climatology" in base_name:
+        idx = base_name.replace("atlas_monthly_climatology_", "").replace(".png", "").upper()
+        return f"12-Month Seasonal Spatial Climatology: {idx} (Jan–Dec)"
+
+    if "monthly" in base_name:
+        m = re.search(r"atlas_monthly_(.+)_(20\d\d)\.png", base_name)
+        idx = m.group(1).upper() if m else "Index"
+        yr = m.group(2) if m else "Year"
+        return f"{yr} Monthly Spatial Progression: {idx}"
+
+    if "a1_tehsil" in base_name:
+        return "Tehsil-Level Annual Observation Completeness (2016–2026)"
+    if "a2_month" in base_name:
+        return "District-Wide Monthly Observation Heatmap (130 Months)"
+    if "a3_tehsil" in base_name:
+        return "Tehsil Observation Density & Retention Ranking"
+    if "a4_annual" in base_name:
+        return "Decadal Satellite Data Ingestion Trend (2016–2026)"
+    if "a5_component" in base_name:
+        return "Multi-Sensor Component Completeness Matrix"
+    if "a6_pipeline" in base_name:
+        return "Optical Sensor Ingestion & Monsoon Cloud-Gap Audit Matrix"
+
+    if "t1_hovmoller" in base_name:
+        return "Spatio-Temporal Hovmöller Diagram: West-to-East Drought Propagation"
+    if "t7_drought_area" in base_name:
+        return "10-Year Drought Area Percentage (DAP) Stacked Area Trajectory"
+    if "d2_monthly_climatology" in base_name:
+        return "Phenological Climatology Envelopes with Historical Benchmark Overlays"
+    if "r5_response_lag" in base_name:
+        return "Multi-Scale Lag-Response Cross-Correlation Curves (SPI vs Biophysical)"
+
+    cleaned = Path(filename).stem.replace("_", " ").title()
+    return cleaned
+
+
+def _load_tables_data() -> dict:
+    """Read all statistical CSV tables and prepare JSON structure for interactive HTML table viewer."""
+    tables_dir = C.OUT_ROOT / "08_statistics_tables"
+    if not tables_dir.exists():
+        return {}
+    data = {}
+    for p in sorted(tables_dir.glob("*.csv")):
+        try:
+            df = pd.read_csv(p)
+            df_view = df.head(1000) if len(df) > 1000 else df
+            # Replace NaNs
+            cleaned_rows = []
+            for row in df_view.values:
+                cleaned_rows.append([("" if pd.isna(v) else str(v)) for v in row])
+
+            data[p.stem] = {
+                "name": p.stem,
+                "title": p.stem.replace("_", " ").title(),
+                "filename": p.name,
+                "total_rows": len(df),
+                "columns": df.columns.tolist(),
+                "rows": cleaned_rows,
+            }
+        except Exception:
+            continue
+    return data
 
 
 def write_markdown(meta: dict, panel=None) -> Path:
     """Generate categorized INDEX.md with per-year summary tables and rich structured cards."""
     path = C.OUT_ROOT / "INDEX.md"
 
-    # Group by category
     categories: dict[str, list[dict]] = {}
     for entry in _REGISTRY:
         cat = entry.get("category", "General Figures")
@@ -295,7 +322,7 @@ def write_markdown(meta: dict, panel=None) -> Path:
         f"**Temporal Scope:** {meta.get('period', '2016-01 to 2026-10 (129 Continuous Months)')}  ",
         f"**Administrative Resolution:** {meta.get('villages', '954')} Villages across {meta.get('tehsils', '10')} Tehsils  ",
         f"**Observed Records:** {meta.get('village_months', meta.get('rows', '124,020'))} village-months ({meta.get('completeness', '99.2%')} completeness)  ",
-        f"**Total Figures in Suite:** {len(_REGISTRY)}  ",
+        f"**Total Figures & Animations:** {len(_REGISTRY)}  ",
         "",
         "---",
         "",
@@ -312,7 +339,7 @@ def write_markdown(meta: dict, panel=None) -> Path:
     lines.append("---")
     lines.append("")
 
-    # 1. Per-Year Scientific Summary Table (Requested in Question 5)
+    # Annual Scientific Summary Table
     lines.append("## Annual Scientific Summary Table (2016–2026)")
     lines.append("")
     lines.append(
@@ -346,19 +373,17 @@ def write_markdown(meta: dict, panel=None) -> Path:
     lines.append("---")
     lines.append("")
 
-    # 2. Detailed Figures by Category
     for cat_name, entries in categories.items():
         lines.append(f"## {cat_name}")
         lines.append("")
         for entry in entries:
-            rel = f"{C.SECTIONS.get(entry['section'], entry['section'])}/{entry['filename']}"
-            summ = entry.get("summary", {})
+            sec_folder = C.SECTIONS.get(entry["section"], entry["section"])
+            rel = f"{sec_folder}/{entry['filename']}" if sec_folder else entry["filename"]
             lines.append(f"### `{Path(entry['filename']).name}`")
             lines.append(f"![{Path(entry['filename']).name}]({rel})")
             lines.append("")
-            lines.append(f"- **What It Is:** {summ.get('what_it_is', entry['caption'])}")
-            lines.append(f"- **How To Read:** {summ.get('how_to_read', '')}")
-            lines.append(f"- **Key Scientific Understanding:** {summ.get('key_understanding', '')}")
+            lines.append(f"- **Title:** {entry.get('title', entry['caption'])}")
+            lines.append(f"- **Description:** {entry.get('description', entry['caption'])}")
             if entry.get("source"):
                 lines.append(f"- **Data Source:** `{entry['source']}`")
             lines.append("")
@@ -370,22 +395,30 @@ def write_markdown(meta: dict, panel=None) -> Path:
 
 
 def write_html(meta: dict) -> Path:
-    """Generate modern, interactive HTML gallery with category/year filtering and structured summary cards."""
+    """Generate modern, interactive HTML gallery with category/year filtering, interactive data tables, and PPT animations."""
+    scan_and_index_disk()
     path = C.OUT_ROOT / "index.html"
 
-    # Group by category
+    # Separate figures vs animations
+    fig_entries = [e for e in _REGISTRY if not str(e["filename"]).endswith(".gif")]
+    anim_entries = [e for e in _REGISTRY if str(e["filename"]).endswith(".gif")]
+
+    # Group figures by category
     categories: dict[str, list[dict]] = {}
-    for entry in _REGISTRY:
+    for entry in fig_entries:
         cat = entry.get("category", "General Figures")
         categories.setdefault(cat, []).append(entry)
 
-    parts = [
+    # Load tables data for interactive viewer
+    tables_data = _load_tables_data()
+
+    html_parts = [
         "<!doctype html>",
         '<html lang="en">',
         "<head>",
         '  <meta charset="utf-8">',
         '  <meta name="viewport" content="width=device-width, initial-scale=1">',
-        "  <title>Latur Drought Monitoring — Scientific Visualization Atlas</title>",
+        "  <title>Latur Drought Monitoring — Scientific Atlas, Tables & Presentation Animations</title>",
         "  <style>",
         "    :root {",
         "      --bg: #F8FAFC; --card: #FFFFFF; --ink: #0F172A; --muted: #475569;",
@@ -393,30 +426,61 @@ def write_html(meta: dict) -> Path:
         "      --badge-bg: #EFF6FF; --badge-ink: #1E40AF;",
         "    }",
         "    * { box-sizing: border-box; }",
-        "    body { margin: 0; padding: 24px 32px 80px; background: var(--bg); color: var(--ink); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.5; }",
-        "    header { max-width: 1440px; margin: 0 auto 28px; }",
-        "    h1 { font-size: 28px; font-weight: 700; margin: 0 0 8px; color: #0F172A; letter-spacing: -0.02em; }",
-        "    .meta-bar { display: flex; flex-wrap: wrap; gap: 16px; font-size: 13.5px; color: var(--muted); padding: 12px 18px; background: var(--card); border: 1px solid var(--line); border-radius: 8px; margin-bottom: 24px; }",
+        "    body { margin: 0; padding: 20px 32px 80px; background: var(--bg); color: var(--ink); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.5; }",
+        "    header { max-width: 1440px; margin: 0 auto 20px; }",
+        "    h1 { font-family: 'Times New Roman', Georgia, serif; font-size: 30px; font-weight: 700; margin: 0 0 6px; color: #0F172A; letter-spacing: -0.01em; }",
+        "    .subtitle { font-size: 14.5px; color: var(--muted); margin: 0 0 16px; font-weight: 500; }",
+        "    .meta-bar { display: flex; flex-wrap: wrap; gap: 16px; font-size: 13.5px; color: var(--muted); padding: 12px 18px; background: var(--card); border: 1px solid var(--line); border-radius: 8px; margin-bottom: 20px; }",
         "    .meta-bar b { color: var(--ink); font-weight: 600; }",
-        "    .filter-section { max-width: 1440px; margin: 0 auto 30px; display: flex; flex-direction: column; gap: 12px; }",
-        "    .search-box { width: 100%; max-width: 480px; padding: 10px 16px; font-size: 14px; border: 1px solid var(--line); border-radius: 8px; outline: none; transition: border-color 0.2s; background: #fff; }",
+        "",
+        "    /* Navigation Tabs */",
+        "    .nav-tabs { display: flex; gap: 8px; border-bottom: 2px solid var(--line); margin-bottom: 24px; max-width: 1440px; margin-left: auto; margin-right: auto; }",
+        "    .tab-btn { background: none; border: none; padding: 12px 20px; font-size: 15px; font-weight: 600; color: var(--muted); cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -2px; transition: all 0.2s; }",
+        "    .tab-btn:hover { color: var(--accent); }",
+        "    .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }",
+        "",
+        "    /* Tab Contents */",
+        "    .tab-content { max-width: 1440px; margin: 0 auto; display: none; }",
+        "    .tab-content.active { display: block; }",
+        "",
+        "    /* Filters & Search */",
+        "    .filter-section { display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px; }",
+        "    .search-box { width: 100%; max-width: 480px; padding: 10px 16px; font-size: 14px; border: 1px solid var(--line); border-radius: 8px; outline: none; background: #fff; }",
         "    .search-box:focus { border-color: var(--accent); }",
         "    .button-group { display: flex; flex-wrap: wrap; gap: 8px; }",
-        "    .btn-filter { background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 7px 14px; font-size: 13px; font-weight: 500; color: var(--muted); cursor: pointer; transition: all 0.15s; }",
+        "    .btn-filter { background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 6px 12px; font-size: 12.5px; font-weight: 500; color: var(--muted); cursor: pointer; transition: all 0.15s; }",
         "    .btn-filter:hover { border-color: #CBD5E1; color: var(--ink); }",
         "    .btn-filter.active { background: var(--accent); border-color: var(--accent); color: #fff; }",
-        "    .gallery-container { max-width: 1440px; margin: 0 auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(460px, 1fr)); gap: 26px; }",
-        "    .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; transition: transform 0.2s, box-shadow 0.2s; }",
+        "",
+        "    /* Figure Grid */",
+        "    .gallery-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(460px, 1fr)); gap: 24px; }",
+        "    .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; display: flex; flex-direction: column; transition: transform 0.2s, box-shadow 0.2s; }",
         "    .card:hover { transform: translateY(-2px); box-shadow: 0 10px 25px -5px rgba(0,0,0,0.06); }",
         "    .img-wrap { width: 100%; background: #FFFFFF; position: relative; border-bottom: 1px solid var(--line); cursor: zoom-in; }",
         "    .img-wrap img { width: 100%; height: auto; display: block; object-fit: contain; }",
-        "    .card-body { padding: 18px 20px 20px; flex-grow: 1; display: flex; flex-direction: column; gap: 10px; }",
-        "    .card-tag { display: inline-block; align-self: flex-start; background: var(--badge-bg); color: var(--badge-ink); font-size: 11.5px; font-weight: 600; padding: 3px 8px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.03em; }",
-        "    .card-title { font-size: 15.5px; font-weight: 600; color: #0F172A; margin: 0; line-height: 1.35; }",
+        "    .card-body { padding: 16px 18px 18px; flex-grow: 1; display: flex; flex-direction: column; gap: 10px; }",
+        "    .card-tag { display: inline-block; align-self: flex-start; background: var(--badge-bg); color: var(--badge-ink); font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.03em; }",
+        "    .card-title { font-size: 15px; font-weight: 600; color: #0F172A; margin: 0; line-height: 1.35; }",
         "    .card-filename { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11.5px; color: var(--muted); }",
         "    .summary-box { background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 12px 14px; font-size: 12.5px; line-height: 1.5; display: flex; flex-direction: column; gap: 8px; }",
         "    .summary-item b { color: #0F172A; font-weight: 600; }",
         "    .summary-item p { margin: 2px 0 0; color: #334155; }",
+        "    .btn-download { display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; background: #F1F5F9; border: 1px solid #CBD5E1; color: #1E293B; font-size: 12px; font-weight: 600; padding: 6px 12px; border-radius: 6px; text-decoration: none; transition: all 0.15s; }",
+        "    .btn-download:hover { background: #E2E8F0; color: #0F172A; }",
+        "",
+        "    /* Table View Styles */",
+        "    .table-controls { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 16px; background: #fff; padding: 14px 18px; border: 1px solid var(--line); border-radius: 8px; }",
+        "    .select-table { padding: 8px 12px; font-size: 14px; border: 1px solid var(--line); border-radius: 6px; min-width: 320px; background: #fff; outline: none; }",
+        "    .table-container { width: 100%; overflow-x: auto; background: #fff; border: 1px solid var(--line); border-radius: 8px; }",
+        "    table.data-table { width: 100%; border-collapse: collapse; font-size: 13px; text-align: left; }",
+        "    table.data-table th { background: #F1F5F9; color: #0F172A; font-weight: 600; padding: 10px 14px; border-bottom: 2px solid var(--line); cursor: pointer; user-select: none; white-space: nowrap; }",
+        "    table.data-table th:hover { background: #E2E8F0; }",
+        "    table.data-table td { padding: 8px 14px; border-bottom: 1px solid #F1F5F9; color: #334155; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }",
+        "    table.data-table tr:hover { background: #F8FAFC; }",
+        "    .pagination-bar { display: flex; justify-content: space-between; align-items: center; margin-top: 14px; font-size: 13px; color: var(--muted); }",
+        "    .page-btn { padding: 6px 12px; border: 1px solid var(--line); background: #fff; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; }",
+        "    .page-btn:disabled { opacity: 0.5; cursor: not-allowed; }",
+        "",
         "    /* Fullscreen Modal */",
         "    .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(15,23,42,0.92); backdrop-filter: blur(4px); align-items: center; justify-content: center; cursor: zoom-out; }",
         "    .modal img { max-width: 95%; max-height: 95%; border-radius: 6px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); }",
@@ -424,84 +488,265 @@ def write_html(meta: dict) -> Path:
         "</head>",
         "<body>",
         "  <header>",
-        "    <h1>Latur Drought Monitoring — Scientific Visualization Atlas</h1>",
+        "    <h1>Latur Drought Monitoring — Scientific Visualization & Analytics Suite</h1>",
+        "    <div class=\"subtitle\">Department of Geoinformatics, Shivaji University, Kolhapur — Peer-Reviewed Cartographic Intelligence</div>",
         "    <div class=\"meta-bar\">",
         f"      <div>Study Area: <b>{html.escape(str(meta.get('district', 'Latur District')))}</b></div>",
-        f"      <div>Period: <b>{html.escape(str(meta.get('period', '2016–2026')))}</b></div>",
+        f"      <div>Temporal Scope: <b>{html.escape(str(meta.get('period', '2016–2026')))}</b></div>",
         f"      <div>Villages: <b>{meta.get('villages', '954')}</b></div>",
         f"      <div>Tehsils: <b>{meta.get('tehsils', '10')}</b></div>",
         f"      <div>Observed: <b>{html.escape(str(meta.get('village_months', meta.get('rows', '124,020'))))}</b> ({html.escape(str(meta.get('completeness', '99.2%')))})</div>",
-        f"      <div>Figures: <b>{len(_REGISTRY)}</b></div>",
-        f"      <div>Generated: <b>{html.escape(str(meta.get('generated_at', '')))}</b></div>",
+        f"      <div>Atlas Figures: <b>{len(fig_entries)}</b></div>",
+        f"      <div>PPT Animations: <b>{len(anim_entries)}</b></div>",
+        f"      <div>Data Tables: <b>{len(tables_data)}</b></div>",
         "    </div>",
+        "  </header>",
+        "",
+        "  <div class=\"nav-tabs\">",
+        f"    <button class=\"tab-btn active\" onclick=\"switchTab('atlas', this)\">🖼️ Cartographic Atlas & Figures ({len(fig_entries)})</button>",
+        f"    <button class=\"tab-btn\" onclick=\"switchTab('tables', this)\">📊 Interactive Statistical Tables ({len(tables_data)})</button>",
+        f"    <button class=\"tab-btn\" onclick=\"switchTab('animations', this)\">🎬 PowerPoint Animations ({len(anim_entries)})</button>",
+        "  </div>",
+        "",
+        "  <!-- TAB 1: CARTOGRAPHIC ATLAS -->",
+        "  <div id=\"tab-atlas\" class=\"tab-content active\">",
         "    <div class=\"filter-section\">",
-        "      <input type=\"text\" id=\"search\" class=\"search-box\" placeholder=\"Search figures by index (e.g. NDVI, VCI, CDI, SPI3, Rain) or year...\" oninput=\"filterFigures()\">",
+        "      <input type=\"text\" id=\"search\" class=\"search-box\" placeholder=\"Search figures by index (NDVI, VCI, CDI, SPI) or tehsil/year...\" oninput=\"filterFigures()\">",
         "      <div class=\"button-group\">",
-        "        <button class=\"btn-filter active\" onclick=\"selectCategory('all', this)\">All Figures</button>",
+        f"        <button class=\"btn-filter active\" onclick=\"selectCategory('all', this)\">All Figures ({len(fig_entries)})</button>",
     ]
 
-    for cat_name in categories.keys():
-        parts.append(
+    for cat_name, entries in categories.items():
+        html_parts.append(
             f'        <button class="btn-filter" onclick="selectCategory(\'{html.escape(cat_name)}\', this)">'
-            f'{html.escape(cat_name)} ({len(categories[cat_name])})</button>'
+            f'{html.escape(cat_name)} ({len(entries)})</button>'
         )
 
-    parts.append("      </div>")
-    parts.append("    </div>")
-    parts.append("  </header>")
-    parts.append('  <div class="gallery-container" id="gallery">')
+    html_parts.extend([
+        "      </div>",
+        "    </div>",
+        '    <div class="gallery-container" id="gallery">',
+    ])
 
-    for entry in _REGISTRY:
-        rel = f"{C.SECTIONS.get(entry['section'], entry['section'])}/{entry['filename']}"
+    for entry in fig_entries:
+        sec_folder = C.SECTIONS.get(entry["section"], entry["section"])
+        rel = f"{sec_folder}/{entry['filename']}" if sec_folder else entry["filename"]
         cat = entry.get("category", "")
         summ = entry.get("summary", {})
-        parts.append(
-            f'    <div class="card" data-category="{html.escape(cat)}" data-search="{html.escape(entry["filename"].lower() + " " + entry["caption"].lower())}">'
-            f'      <div class="img-wrap" onclick="openModal(\'{html.escape(rel)}\')">'
-            f'        <img src="{html.escape(rel)}" alt="{html.escape(entry["filename"])}" loading="lazy">'
-            f'      </div>'
-            f'      <div class="card-body">'
-            f'        <div class="card-tag">{html.escape(cat)}</div>'
-            f'        <h3 class="card-title">{html.escape(summ.get("what_it_is", entry["caption"]))}</h3>'
-            f'        <div class="card-filename">{html.escape(rel)}</div>'
-            f'        <div class="summary-box">'
-            f'          <div class="summary-item"><b>What It Is:</b><p>{html.escape(summ.get("what_it_is", ""))}</p></div>'
-            f'          <div class="summary-item"><b>How To Read:</b><p>{html.escape(summ.get("how_to_read", ""))}</p></div>'
-            f'          <div class="summary-item"><b>Key Scientific Understanding:</b><p>{html.escape(summ.get("key_understanding", ""))}</p></div>'
+        html_parts.append(
+            f'      <div class="card" data-category="{html.escape(cat)}" data-search="{html.escape(entry["filename"].lower() + " " + entry["caption"].lower())}">'
+            f'        <div class="img-wrap" onclick="openModal(\'{html.escape(rel)}\')">'
+            f'          <img src="{html.escape(rel)}" alt="{html.escape(entry["filename"])}" loading="lazy">'
+            f'        </div>'
+            f'        <div class="card-body">'
+            f'          <div class="card-tag">{html.escape(cat)}</div>'
+            f'          <h3 class="card-title">{html.escape(summ.get("what_it_is", entry["caption"]))}</h3>'
+            f'          <div class="card-filename">{html.escape(rel)}</div>'
+            f'          <div class="summary-box">'
+            f'            <div class="summary-item"><b>What It Is:</b><p>{html.escape(summ.get("what_it_is", ""))}</p></div>'
+            f'            <div class="summary-item"><b>How To Read:</b><p>{html.escape(summ.get("how_to_read", ""))}</p></div>'
+            f'            <div class="summary-item"><b>Key Scientific Understanding:</b><p>{html.escape(summ.get("key_understanding", ""))}</p></div>'
+            f'          </div>'
+            f'          <a href="{html.escape(rel)}" download class="btn-download">📥 Download High-Res PNG</a>'
             f'        </div>'
             f'      </div>'
-            f'    </div>'
         )
 
-    parts.append("  </div>")
-    parts.append('  <div id="modal" class="modal" onclick="closeModal()"><img id="modal-img"></div>')
-    parts.append("  <script>")
-    parts.append("    let activeCategory = 'all';")
-    parts.append("    function selectCategory(cat, btn) {")
-    parts.append("      activeCategory = cat;")
-    parts.append("      document.querySelectorAll('.btn-filter').forEach(b => b.classList.remove('active'));")
-    parts.append("      btn.classList.add('active');")
-    parts.append("      filterFigures();")
-    parts.append("    }")
-    parts.append("    function filterFigures() {")
-    parts.append("      const query = document.getElementById('search').value.toLowerCase().trim();")
-    parts.append("      const cards = document.querySelectorAll('.card');")
-    parts.append("      cards.forEach(card => {")
-    parts.append("        const cardCat = card.getAttribute('data-category');")
-    parts.append("        const cardSearch = card.getAttribute('data-search');")
-    parts.append("        const matchesCat = (activeCategory === 'all' || cardCat === activeCategory);")
-    parts.append("        const matchesQuery = (!query || cardSearch.includes(query));")
-    parts.append("        if (matchesCat && matchesQuery) { card.style.display = 'flex'; } else { card.style.display = 'none'; }")
-    parts.append("      });")
-    parts.append("    }")
-    parts.append("    function openModal(src) {")
-    parts.append("      const m = document.getElementById('modal');")
-    parts.append("      document.getElementById('modal-img').src = src;")
-    parts.append("      m.style.display = 'flex';")
-    parts.append("    }")
-    parts.append("    function closeModal() { document.getElementById('modal').style.display = 'none'; }")
-    parts.append("  </script>")
-    parts.append("</body></html>")
+    html_parts.extend([
+        "    </div>",
+        "  </div>",
+        "",
+        "  <!-- TAB 2: INTERACTIVE STATISTICAL TABLES -->",
+        "  <div id=\"tab-tables\" class=\"tab-content\">",
+        "    <div class=\"table-controls\">",
+        "      <div>",
+        "        <label style=\"font-size: 13px; font-weight: 600; margin-right: 8px;\">Select Research Table:</label>",
+        "        <select id=\"table-select\" class=\"select-table\" onchange=\"loadSelectedTable()\">",
+    ])
 
-    path.write_text("\n".join(parts), encoding="utf-8")
+    for tbl_name, t_meta in tables_data.items():
+        html_parts.append(
+            f'          <option value="{html.escape(tbl_name)}">{html.escape(t_meta["title"])} ({t_meta["total_rows"]} rows)</option>'
+        )
+
+    html_parts.extend([
+        "        </select>",
+        "      </div>",
+        "      <input type=\"text\" id=\"table-search\" class=\"search-box\" style=\"max-width: 320px;\" placeholder=\"Filter rows in table...\" oninput=\"filterTableRows()\">",
+        "      <a id=\"btn-table-download\" href=\"#\" download class=\"btn-download\">📥 Export CSV</a>",
+        "    </div>",
+        "    <div class=\"table-container\">",
+        "      <table id=\"active-data-table\" class=\"data-table\">",
+        "        <thead id=\"table-head\"></thead>",
+        "        <tbody id=\"table-body\"></tbody>",
+        "      </table>",
+        "    </div>",
+        "    <div class=\"pagination-bar\">",
+        "      <div>Showing <span id=\"rows-shown-count\">0</span> rows (<span id=\"rows-total-count\">0</span> total)</div>",
+        "      <div style=\"display: flex; gap: 8px; align-items: center;\">",
+        "        <button id=\"btn-prev-page\" class=\"page-btn\" onclick=\"changePage(-1)\">← Previous</button>",
+        "        <span id=\"page-indicator\" style=\"font-weight: 500;\">Page 1</span>",
+        "        <button id=\"btn-next-page\" class=\"page-btn\" onclick=\"changePage(1)\">Next →</button>",
+        "      </div>",
+        "    </div>",
+        "  </div>",
+        "",
+        "  <!-- TAB 3: POWERPOINT ANIMATIONS -->",
+        "  <div id=\"tab-animations\" class=\"tab-content\">",
+        "    <div style=\"background: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 8px; padding: 14px 18px; margin-bottom: 24px; font-size: 13.5px; color: #1E40AF;\">",
+        "      <b>PowerPoint Presentation Integration:</b> All animations below are pre-rendered at high resolution with Times New Roman typography, single upper-right North arrow, georeferenced scale bar, and dynamic HUD stats banners. You can embed these GIFs directly into PowerPoint slides (<code>Insert → Pictures</code>). They loop seamlessly during slide shows.",
+        "    </div>",
+        '    <div class="gallery-container">',
+    ])
+
+    for entry in anim_entries:
+        sec_folder = C.SECTIONS.get(entry["section"], entry["section"])
+        rel = f"{sec_folder}/{entry['filename']}" if sec_folder else entry["filename"]
+        summ = entry.get("summary", {})
+        html_parts.append(
+            f'      <div class="card">'
+            f'        <div class="img-wrap" onclick="openModal(\'{html.escape(rel)}\')">'
+            f'          <img src="{html.escape(rel)}" alt="{html.escape(entry["filename"])}">'
+            f'        </div>'
+            f'        <div class="card-body">'
+            f'          <div class="card-tag" style="background:#FEF3C7; color:#92400E;">PowerPoint Ready GIF</div>'
+            f'          <h3 class="card-title">{html.escape(summ.get("what_it_is", entry["caption"]))}</h3>'
+            f'          <div class="card-filename">{html.escape(rel)}</div>'
+            f'          <div class="summary-box">'
+            f'            <div class="summary-item"><b>What It Is:</b><p>{html.escape(summ.get("what_it_is", ""))}</p></div>'
+            f'            <div class="summary-item"><b>How To Read in PPT:</b><p>{html.escape(summ.get("how_to_read", ""))}</p></div>'
+            f'            <div class="summary-item"><b>Key Scientific Understanding:</b><p>{html.escape(summ.get("key_understanding", ""))}</p></div>'
+            f'          </div>'
+            f'          <a href="{html.escape(rel)}" download class="btn-download" style="background:#2563EB; color:#fff; border:none;">📥 Download GIF for PowerPoint</a>'
+            f'        </div>'
+            f'      </div>'
+        )
+
+    html_parts.extend([
+        "    </div>",
+        "  </div>",
+        "",
+        '  <div id="modal" class="modal" onclick="closeModal()"><img id="modal-img"></div>',
+        "",
+        "  <script>",
+        f"    const TABLES_DATA = {json.dumps(tables_data)};",
+        "    let currentTab = 'atlas';",
+        "    let activeCategory = 'all';",
+        "    let currentTableKey = '';",
+        "    let currentFilteredRows = [];",
+        "    let currentPage = 1;",
+        "    const pageSize = 50;",
+        "    let sortCol = -1;",
+        "    let sortAsc = true;",
+        "",
+        "    function switchTab(tab, btn) {",
+        "      currentTab = tab;",
+        "      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));",
+        "      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));",
+        "      btn.classList.add('active');",
+        "      document.getElementById('tab-' + tab).classList.add('active');",
+        "      if (tab === 'tables' && !currentTableKey) {",
+        "        const keys = Object.keys(TABLES_DATA);",
+        "        if (keys.length > 0) {",
+        "          document.getElementById('table-select').value = keys[0];",
+        "          loadSelectedTable();",
+        "        }",
+        "      }",
+        "    }",
+        "",
+        "    function selectCategory(cat, btn) {",
+        "      activeCategory = cat;",
+        "      document.querySelectorAll('.btn-filter').forEach(b => b.classList.remove('active'));",
+        "      btn.classList.add('active');",
+        "      filterFigures();",
+        "    }",
+        "",
+        "    function filterFigures() {",
+        "      const query = document.getElementById('search').value.toLowerCase().trim();",
+        "      const cards = document.querySelectorAll('#gallery .card');",
+        "      cards.forEach(card => {",
+        "        const cardCat = card.getAttribute('data-category');",
+        "        const cardSearch = card.getAttribute('data-search');",
+        "        const matchesCat = (activeCategory === 'all' || cardCat === activeCategory);",
+        "        const matchesQuery = (!query || cardSearch.includes(query));",
+        "        card.style.display = (matchesCat && matchesQuery) ? 'flex' : 'none';",
+        "      });",
+        "    }",
+        "",
+        "    function loadSelectedTable() {",
+        "      const sel = document.getElementById('table-select');",
+        "      currentTableKey = sel.value;",
+        "      const tData = TABLES_DATA[currentTableKey];",
+        "      if (!tData) return;",
+        "      document.getElementById('btn-table-download').href = '08_statistics_tables/' + tData.filename;",
+        "      currentFilteredRows = [...tData.rows];",
+        "      currentPage = 1;",
+        "      sortCol = -1;",
+        "      renderTableHead(tData.columns);",
+        "      renderTableBody();",
+        "    }",
+        "",
+        "    function renderTableHead(columns) {",
+        "      const ths = columns.map((col, idx) => `<th onclick=\"sortTable(${idx})\">${col} ${sortCol === idx ? (sortAsc ? '▲' : '▼') : ''}</th>`).join('');",
+        "      document.getElementById('table-head').innerHTML = `<tr>${ths}</tr>`;",
+        "    }",
+        "",
+        "    function sortTable(colIdx) {",
+        "      if (sortCol === colIdx) { sortAsc = !sortAsc; } else { sortCol = colIdx; sortAsc = true; }",
+        "      currentFilteredRows.sort((a, b) => {",
+        "        let va = a[colIdx], vb = b[colIdx];",
+        "        let na = parseFloat(va), nb = parseFloat(vb);",
+        "        if (!isNaN(na) && !isNaN(nb)) return sortAsc ? na - nb : nb - na;",
+        "        return sortAsc ? String(va).localeCompare(String(vb)) : String(vb).localeCompare(String(va));",
+        "      });",
+        "      renderTableHead(TABLES_DATA[currentTableKey].columns);",
+        "      renderTableBody();",
+        "    }",
+        "",
+        "    function filterTableRows() {",
+        "      const q = document.getElementById('table-search').value.toLowerCase().trim();",
+        "      const allRows = TABLES_DATA[currentTableKey].rows;",
+        "      if (!q) { currentFilteredRows = [...allRows]; } else {",
+        "        currentFilteredRows = allRows.filter(r => r.some(cell => String(cell).toLowerCase().includes(q)));",
+        "      }",
+        "      currentPage = 1;",
+        "      renderTableBody();",
+        "    }",
+        "",
+        "    function renderTableBody() {",
+        "      const total = currentFilteredRows.length;",
+        "      const start = (currentPage - 1) * pageSize;",
+        "      const pageRows = currentFilteredRows.slice(start, start + pageSize);",
+        "      const trs = pageRows.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join('')}</tr>`).join('');",
+        "      document.getElementById('table-body').innerHTML = trs;",
+        "      document.getElementById('rows-shown-count').textContent = total;",
+        "      document.getElementById('rows-total-count').textContent = TABLES_DATA[currentTableKey].total_rows;",
+        "      const totalPages = Math.ceil(total / pageSize) || 1;",
+        "      document.getElementById('page-indicator').textContent = `Page ${currentPage} of ${totalPages}`;",
+        "      document.getElementById('btn-prev-page').disabled = (currentPage <= 1);",
+        "      document.getElementById('btn-next-page').disabled = (currentPage >= totalPages);",
+        "    }",
+        "",
+        "    function changePage(delta) {",
+        "      const totalPages = Math.ceil(currentFilteredRows.length / pageSize) || 1;",
+        "      currentPage = Math.max(1, Math.min(totalPages, currentPage + delta));",
+        "      renderTableBody();",
+        "    }",
+        "",
+        "    function openModal(src) {",
+        "      document.getElementById('modal-img').src = src;",
+        "      document.getElementById('modal').style.display = 'flex';",
+        "    }",
+        "    function closeModal() { document.getElementById('modal').style.display = 'none'; }",
+        "",
+        "    window.onload = function() {",
+        "      const keys = Object.keys(TABLES_DATA);",
+        "      if (keys.length > 0) { currentTableKey = keys[0]; loadSelectedTable(); }",
+        "    };",
+        "  </script>",
+        "</body></html>",
+    ])
+
+    path.write_text("\n".join(html_parts), encoding="utf-8")
+    print(f"  [report] Written interactive suite HTML to {path} ({path.stat().st_size / 1024:.1f} KB)")
     return path

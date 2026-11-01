@@ -1,0 +1,113 @@
+site_name: Near Real-Time Drought Monitoring System — Latur District
+site_description: Academic and Operational Drought Monitoring Suite developed by Shivaji University, Kolhapur
+site_author: Department of Geoinformatics, Shivaji University
+site_url: https://droughtprj2026-sketch.github.io/Latur-Drought/
+repo_url: https://github.com/droughtprj2026-sketch/Latur-Drought
+repo_name: droughtprj2026-sketch/Latur-Drought
+edit_uri: ""
+
+exclude_docs: |
+  README.md
+  figures/INDEX.md
+  figures/index.html
+
+theme:
+  name: material
+  language: en
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: blue
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: blue
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - navigation.footer
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+  font:
+    text: Roboto
+    code: Roboto Mono
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.arithmatex:
+      generic: true
+  - tables
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
+
+extra_javascript:
+  - javascripts/mathjax.js
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
+  - javascripts/lightbox.js
+
+extra_css:
+  - stylesheets/extra.css
+
+nav:
+  - Home: index.md
+  - Scientific Foundation:
+      - Literature Review & Foundations: science/literature.md
+      - Drought Indices Encyclopedia: science/indices.md
+      - Mathematical Formulations: science/equations.md
+  - Satellite Data & Ingestion:
+      - Sensor Ingestion & Satellites: data/satellites.md
+      - Data Harmonization & Quality: data/ingestion.md
+      - Sensor Availability Audit: data/accuracy-audit.md
+  - Methodology & Pipeline:
+      - Dual Engine Architecture: pipeline/architecture.md
+      - Multi-Index Composite (CDI): pipeline/composite-cdi.md
+      - Drought Classification: pipeline/classification.md
+      - Incremental Processing: pipeline/manifests.md
+  - Results & Analytics:
+      - Cartographic Atlas: results/cartographic-atlas.md
+      - Statistical Findings: results/statistical-analysis.md
+      - PowerPoint Animations: results/ppt-animations.md
+      - Machine-Readable Data Tables: results/data-tables.md
+  - System Architecture:
+      - Interactive Next.js Dashboard: system/dashboard.md
+      - Known Limitations & Recovery: system/limitations.md
+  - Developer & Operations:
+      - Development Setup: developer/setup.md
+      - Pipeline Runbook: developer/workflows.md
+  - Archival Reports:
+      - Data Accuracy Audit: DATA_ACCURACY_AUDIT.md
+      - Historical Analysis & Validation: HISTORICAL_ANALYSIS_AND_VALIDATION.md
+      - Near Real-Time Pipeline: NEAR_REALTIME_PIPELINE.md
+      - Image Availability Harmonization: SATELLITE_IMAGE_AVAILABILITY_AND_DATA_HARMONIZATION.md
+      - Scientific Methodology & Proof: SCIENTIFIC_METHODOLOGY_AND_PROOF.md
+      - Thermal & Soil Moisture Specs: THERMAL_AND_SOIL_MOISTURE.md
+      - Validation Accuracy Report: VALIDATION_AND_ACCURACY_REPORT.md
+      - Operations Runbook: RUNBOOK_ANTIGRAVITY.md
