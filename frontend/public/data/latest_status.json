@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-10-31T02:53:14+00:00",
-  "monitoring_status": "operational",
+  "generated_at": "2026-11-01T02:55:31+00:00",
+  "monitoring_status": "degraded",
   "sentinel2": {
     "latest_observation_date": "2026-10-15",
     "latest_period_id": "2026-10",
@@ -48,8 +48,8 @@
   },
   "synthetic_input": false,
   "pipeline_run": {
-    "started_at": "2026-10-31T02:52:53+00:00",
-    "ok": true,
+    "started_at": "2026-11-01T02:54:58+00:00",
+    "ok": false,
     "steps": [
       {
         "name": "formula",
@@ -64,7 +64,7 @@
       {
         "name": "targets",
         "status": "ok",
-        "detail": "['2026-10']"
+        "detail": "['2026-10', '2026-11']"
       },
       {
         "name": "earth-engine",
@@ -82,9 +82,29 @@
         "detail": "LST/soil moisture not fully published"
       },
       {
+        "name": "sentinel2 2026-11",
+        "status": "skipped",
+        "detail": "scenes=0 coverage=0%"
+      },
+      {
+        "name": "chirps 2026-11",
+        "status": "skipped",
+        "detail": "month not fully published"
+      },
+      {
+        "name": "thermal 2026-11",
+        "status": "skipped",
+        "detail": "LST/soil moisture not fully published"
+      },
+      {
         "name": "rebuild",
         "status": "skipped",
         "detail": "no new data"
+      },
+      {
+        "name": "freshness",
+        "status": "failed",
+        "detail": "no data ingested for ['2026-10']"
       },
       {
         "name": "publish-supabase",
@@ -93,6 +113,6 @@
       }
     ],
     "ingested": [],
-    "finished_at": "2026-10-31T02:53:14+00:00"
+    "finished_at": "2026-11-01T02:55:31+00:00"
   }
 }
