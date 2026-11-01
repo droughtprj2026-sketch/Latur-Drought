@@ -223,6 +223,13 @@ def _generate_summary(filename: str, caption: str) -> dict[str, str]:
             "key_understanding": "Defines the empirical memory of Marathwada agriculture: root-zone soil moisture responds almost immediately (0–1 month lag), while vegetation canopy requires 1–2 months to manifest rainfall deficit.",
         }
 
+    if "a6_pipeline" in base_name:
+        return {
+            "what_it_is": "Authoritative Optical Sensor Ingestion and Cloud-Gap Audit Matrix (2016–2026) derived from the pipeline audit ledger (data/dashboard/data_availability.json).",
+            "how_to_read": "Panel A is a month x year matrix: Green indicates successfully ingested Sentinel-2 reflectance, Red indicates persistent cloud-mask failure, and Grey indicates archive gaps. Panel B plots annual completeness counts.",
+            "key_understanding": "Proves data integrity and transparently audits sensor availability, distinguishing between actual sensor downtime/missing archive and expected monsoon cloud occlusions.",
+        }
+
     # 4. Correlation Figures
     if "corr" in base_name or base_name.startswith("c"):
         return {

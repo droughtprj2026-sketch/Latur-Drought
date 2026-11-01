@@ -1,18 +1,18 @@
 # Scientific Visualization Suite — Drought Monitoring Atlas
 
-**Generated:** 2026-11-01T12:09:49  
+**Generated:** 2026-11-01T12:22:05  
 **Study Area:** Latur District, Marathwada  
 **Temporal Scope:** 2016-01 to 2026-10 (129 Continuous Months)  
 **Administrative Resolution:** 954 Villages across 10 Tehsils  
 **Observed Records:** 124,020 village-months (99.2% completeness)  
-**Total Figures in Suite:** 142  
+**Total Figures in Suite:** 143  
 
 ---
 
 ## Table of Contents
 
 - [Annual Scientific Summary Table (2016–2026)](#annual-scientific-summary-table-2016-2026)
-- [Satellite Observation & Sampling Completeness](#satellite-observation-&-sampling-completeness) (5 figures)
+- [Satellite Observation & Sampling Completeness](#satellite-observation-&-sampling-completeness) (6 figures)
 - [Inter-Index Correlation & Response Lag Structure](#inter-index-correlation-&-response-lag-structure) (10 figures)
 - [Spatio-Temporal Heatmap Atlases](#spatio-temporal-heatmap-atlases) (5 figures)
 - [Bivariate Regressions & Density Coupling](#bivariate-regressions-&-density-coupling) (6 figures)
@@ -90,6 +90,13 @@
 - **What It Is:** Scientific publication figure: a5 component completeness.
 - **How To Read:** Authoritative publication figure with calibrated cartographic or statistical scaling.
 - **Key Scientific Understanding:** Informs the empirical multi-sensor drought assessment for Latur district.
+
+### `a6_pipeline_ingestion_audit.png`
+![a6_pipeline_ingestion_audit.png](01_image_availability/a6_pipeline_ingestion_audit.png)
+
+- **What It Is:** Authoritative Optical Sensor Ingestion and Cloud-Gap Audit Matrix (2016–2026) derived from the pipeline audit ledger (data/dashboard/data_availability.json).
+- **How To Read:** Panel A is a month x year matrix: Green indicates successfully ingested Sentinel-2 reflectance, Red indicates persistent cloud-mask failure, and Grey indicates archive gaps. Panel B plots annual completeness counts.
+- **Key Scientific Understanding:** Proves data integrity and transparently audits sensor availability, distinguishing between actual sensor downtime/missing archive and expected monsoon cloud occlusions.
 
 ---
 

@@ -62,7 +62,7 @@ def _draw_villages(ax, gdf, column: str, cmap, norm=None, vmin=None, vmax=None,
     ax.xaxis.set_major_formatter(ticker.FuncFormatter(lon_formatter))
     ax.yaxis.set_major_formatter(ticker.FuncFormatter(lat_formatter))
     ax.tick_params(labelsize=8.5, colors="#334155")
-    ax.grid(True, linestyle=":", color="#94A3B8", alpha=0.55, linewidth=0.7)
+    ax.grid(False)
     for spine in ax.spines.values():
         spine.set_visible(True)
         spine.set_color("#334155")
@@ -117,9 +117,8 @@ def fig_village_mean_cdi(panel: pd.DataFrame) -> pd.DataFrame:
         ax.annotate(
             f"{row.get('village_name', row.get('village', ''))}  {row['mean']:.2f}",
             xy=(point.x, point.y), xytext=offsets[i % len(offsets)], textcoords="offset points",
-            ha=ha, va=va, fontsize=6.8, color="#4A0E14",
+            ha=ha, va=va, fontsize=6.8, color="#4A0E14", fontfamily="serif",
             arrowprops=dict(arrowstyle="-", color="#4A0E14", lw=0.7),
-            bbox=dict(boxstyle="round,pad=0.22", fc="white", ec="#4A0E14", lw=0.5, alpha=0.92),
             zorder=11,
         )
 
@@ -174,8 +173,7 @@ def fig_village_correlation(panel: pd.DataFrame) -> pd.DataFrame:
     ax2.text(0.98, 0.96,
              f"villages = {len(values)}\npositive r = {100 * (values > 0).mean():.0f}%\n"
              f"negative r = {100 * (values < 0).mean():.0f}%",
-             transform=ax2.transAxes, ha="right", va="top", fontsize=8, family="monospace",
-             bbox=dict(boxstyle="round,pad=0.35", fc="white", ec="#CCCCCC", lw=0.6, alpha=0.92))
+             transform=ax2.transAxes, ha="right", va="top", fontsize=8.5, fontfamily="serif")
 
     fig.suptitle(
         "Where does vegetation actually follow rainfall\n"

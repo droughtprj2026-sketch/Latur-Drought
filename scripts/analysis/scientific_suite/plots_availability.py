@@ -271,9 +271,103 @@ def fig_component_completeness(panel: pd.DataFrame) -> None:
     )
 
 
+def fig_pipeline_data_availability() -> None:
+    manifest = D.availability_manifest()
+    if not manifest:
+        return
+
+    s2_periods = set(manifest.get("sentinel2", {}).get("periods", []))
+    s2_failed = set(manifest.get("sentinel2", {}).get("failed", []))
+
+    # All 2016-01 to 2026-10 periods
+    years = list(range(2016, 2027))
+    months = list(range(1, 13))
+
+    grid = np.zeros((12, len(years)))
+    # 0 = No observation / Gap, 1 = Successfully Available, -1 = Failed / Cloud-masked
+    for y_idx, y in enumerate(years):
+        for m_idx, m in enumerate(months):
+            period_str = f"{y}-{m:02d}"
+            if y == 2026 and m > 10:
+                grid[m_idx, y_idx] = np.nan
+            elif period_str in s2_periods:
+                grid[m_idx, y_idx] = 1
+            elif period_str in s2_failed:
+                grid[m_idx, y_idx] = -1
+            else:
+                grid[m_idx, y_idx] = 0
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15.2, 6.2), gridspec_kw={"width_ratios": [1.8, 1]}, layout="constrained")
+
+    # Heatmap
+    from matplotlib.colors import ListedColormap
+    # Colors: Failed (#EF4444 red), Gap (#E2E8F0 light slate), Ingested (#16A34A green)
+    cmap = ListedColormap(["#EF4444", "#E2E8F0", "#16A34A"])
+    mask = np.isnan(grid)
+    sns.heatmap(
+        grid, ax=ax1, cmap=cmap, vmin=-1, vmax=1, mask=mask,
+        cbar=False, linewidths=0.5, linecolor="white",
+        xticklabels=[str(y) for y in years], yticklabels=C.MONTHS
+    )
+    ax1.set_title("A. Sentinel-2 Monthly Acquisition Matrix (from data_availability.json)", fontsize=11.5, weight="bold")
+    ax1.set_xlabel("Year", fontsize=10.5, weight="bold")
+    ax1.set_ylabel("Calendar Month", fontsize=10.5, weight="bold")
+
+    # Custom legend for ax1
+    from matplotlib.patches import Patch
+    legend_elements = [
+        Patch(facecolor="#16A34A", edgecolor="none", label=f"Ingested ({len(s2_periods)} months)"),
+        Patch(facecolor="#EF4444", edgecolor="none", label=f"Cloud / Flagged Failed ({len(s2_failed)} months)"),
+        Patch(facecolor="#E2E8F0", edgecolor="none", label="Unobserved / Archive Gap"),
+    ]
+    ax1.legend(handles=legend_elements, loc="upper center", bbox_to_anchor=(0.5, -0.12), ncol=3, fontsize=9.0)
+
+    # Annual summary bar
+    annual_ingested = []
+    annual_failed = []
+    annual_gaps = []
+    for y_idx, y in enumerate(years):
+        col = grid[:, y_idx]
+        col_valid = col[~np.isnan(col)]
+        annual_ingested.append((col_valid == 1).sum())
+        annual_failed.append((col_valid == -1).sum())
+        annual_gaps.append((col_valid == 0).sum())
+
+    x = np.arange(len(years))
+    ax2.bar(x, annual_ingested, label="Ingested", color="#16A34A", edgecolor="white", linewidth=0.4)
+    ax2.bar(x, annual_failed, bottom=annual_ingested, label="Cloud Failed", color="#EF4444", edgecolor="white", linewidth=0.4)
+    bottom_gaps = np.array(annual_ingested) + np.array(annual_failed)
+    ax2.bar(x, annual_gaps, bottom=bottom_gaps, label="Archive Gap", color="#E2E8F0", edgecolor="white", linewidth=0.4)
+
+    ax2.set_xticks(x)
+    ax2.set_xticklabels([str(y) for y in years], rotation=45, ha="right", fontsize=9.0)
+    ax2.set_ylabel("Number of Months", fontsize=10.5, weight="bold")
+    ax2.set_title("B. Annual Acquisition Completeness", fontsize=11.5, weight="bold")
+    ax2.set_ylim(0, 13)
+    ax2.grid(axis="y", linestyle=":", color="#CBD5E1", alpha=0.6)
+    ax2.legend(loc="upper center", bbox_to_anchor=(0.5, -0.12), ncol=3, fontsize=9.0)
+
+    fig.suptitle(
+        "Authoritative Optical Sensor Ingestion & Cloud Gap Audit (2016–2026)\n"
+        "Derived from pipeline audit ledger (data/dashboard/data_availability.json)",
+        fontsize=13.0, weight="bold"
+    )
+    ST.figure_note(
+        fig,
+        f"Manifest generated at {manifest.get('generated_at', 'n/a')}. Total valid Sentinel-2 periods: {len(s2_periods)}. "
+        "Failed acquisitions are predominantly monsoon months where persistent optical cloud cover prevented clean reflectance retrieval."
+    )
+    ST.save(
+        fig, "availability", "a6_pipeline_ingestion_audit.png",
+        "Authoritative Sentinel-2 optical pipeline acquisition matrix and annual completeness from data_availability.json.",
+        source="data_availability.json",
+    )
+
+
 def build(panel: pd.DataFrame) -> None:
     fig_tehsil_year_availability(panel)
     fig_month_year_availability(panel)
     fig_tehsil_availability_bars(panel)
     fig_annual_availability_trend(panel)
     fig_component_completeness(panel)
+    fig_pipeline_data_availability()

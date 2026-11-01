@@ -153,20 +153,18 @@ def p_text(p: float) -> str:
     return f"p = {p:.3f}"
 
 
-def stats_box(ax, lines: list[str], loc: str = "upper left", fontsize: float = 8.0,
+def stats_box(ax, lines: list[str], loc: str = "upper left", fontsize: float = 8.5,
               alpha: float = 0.92) -> None:
     anchors = {
-        "upper left": (0.03, 0.97, "left", "top"),
-        "upper right": (0.97, 0.97, "right", "top"),
-        "lower left": (0.03, 0.03, "left", "bottom"),
-        "lower right": (0.97, 0.03, "right", "bottom"),
+        "upper left": (0.04, 0.96, "left", "top"),
+        "upper right": (0.96, 0.96, "right", "top"),
+        "lower left": (0.04, 0.04, "left", "bottom"),
+        "lower right": (0.96, 0.04, "right", "bottom"),
     }
     x, y, ha, va = anchors[loc]
     ax.text(
         x, y, "\n".join(lines), transform=ax.transAxes, ha=ha, va=va,
-        fontsize=fontsize, family="monospace", linespacing=1.35,
-        bbox=dict(boxstyle="round,pad=0.45", facecolor="white", edgecolor="#9E9E9E",
-                  linewidth=0.7, alpha=alpha),
+        fontsize=fontsize, fontfamily="serif", linespacing=1.35,
         zorder=10,
     )
 
@@ -190,8 +188,7 @@ def significance_stars(p: float) -> str:
 def annotate_max(ax, x, y, label: str, color: str = "#111111") -> None:
     ax.annotate(
         label, xy=(x, y), xytext=(6, 10), textcoords="offset points",
-        fontsize=8, color=color, weight="bold",
-        bbox=dict(boxstyle="round,pad=0.2", fc="white", ec=color, lw=0.6, alpha=0.85),
+        fontsize=8.5, color=color, weight="bold", fontfamily="serif",
     )
 
 
@@ -200,7 +197,7 @@ def add_panel_label(ax, label: str = "(a)", x: float = -0.05, y: float = 1.04,
     """Standard Nature/Elsevier publication subfigure tag: (a), (b), (c)..."""
     ax.text(
         x, y, label, transform=ax.transAxes,
-        fontsize=fontsize, weight="bold", color="#111827",
+        fontsize=fontsize, weight="bold", color="#111827", fontfamily="serif",
         va="bottom", ha="right", zorder=15
     )
 
@@ -210,12 +207,12 @@ def add_north_arrow(ax, x: float = 0.93, y: float = 0.90, length: float = 0.08) 
     ax.annotate(
         "N", xy=(x, y + length), xytext=(x, y),
         xycoords="axes fraction", textcoords="axes fraction",
-        ha="center", va="bottom", fontsize=10.5, weight="bold", color="#111827",
+        ha="center", va="bottom", fontsize=11.0, fontweight="bold", fontfamily="serif",
         arrowprops=dict(
             arrowstyle="-|>,head_length=0.7,head_width=0.4",
             facecolor="#111827", edgecolor="#111827", lw=1.2
         ),
-        zorder=12,
+        zorder=25,
     )
 
 
@@ -241,9 +238,9 @@ def add_scale_bar(ax, length_km: float = 20.0, x: float = 0.06, y: float = 0.07)
     ax.fill([mid, x1, x1, mid], [y0, y0, y0 + h, y0 + h], color="#FFFFFF", edgecolor="#111827", lw=0.8, zorder=12)
     ax.plot([x0, x1, x1, x0, x0], [y0, y0, y0 + h, y0 + h, y0], color="#111827", lw=0.9, zorder=13)
 
-    ax.text(x0, y0 - 0.005 * span_y, "0", ha="center", va="top", fontsize=8.0, color="#111827", weight="bold")
-    ax.text(mid, y0 - 0.005 * span_y, f"{int(length_km/2)}", ha="center", va="top", fontsize=8.0, color="#111827", weight="bold")
-    ax.text(x1, y0 - 0.005 * span_y, f"{int(length_km)} km", ha="center", va="top", fontsize=8.0, color="#111827", weight="bold")
+    ax.text(x0, y0 - 0.005 * span_y, "0", ha="center", va="top", fontsize=8.0, color="#111827", weight="bold", fontfamily="serif")
+    ax.text(mid, y0 - 0.005 * span_y, f"{int(length_km/2)}", ha="center", va="top", fontsize=8.0, color="#111827", weight="bold", fontfamily="serif")
+    ax.text(x1, y0 - 0.005 * span_y, f"{int(length_km)} km", ha="center", va="top", fontsize=8.0, color="#111827", weight="bold", fontfamily="serif")
 
 
 def figure_note(fig, text: str, y: float = -0.02) -> None:

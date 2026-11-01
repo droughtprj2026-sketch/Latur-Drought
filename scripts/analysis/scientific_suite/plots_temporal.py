@@ -119,8 +119,7 @@ def fig_hovmoller(panel: pd.DataFrame) -> None:
             ax.axvline(end, color=color, ls="--", lw=0.9, alpha=0.6, zorder=3)
         ax1.text(
             start + (end - start) / 2, len(tehsil_names) + 0.15, label,
-            ha="center", va="bottom", fontsize=8.2, color=color, weight="bold",
-            bbox=dict(boxstyle="round,pad=0.2", fc="white", ec=color, lw=0.8, alpha=0.9)
+            ha="center", va="bottom", fontsize=8.5, color=color, weight="bold", fontfamily="serif"
         )
 
     ax2.xaxis.set_major_locator(mdates.YearLocator())
@@ -194,8 +193,7 @@ def fig_annual_series(panel: pd.DataFrame) -> pd.DataFrame:
         ax.tick_params(axis="x", rotation=90, labelsize=7.5)
         ax.grid(alpha=0.35)
         ax.text(0.02, 0.96, f"Mann-Kendall tau={mk['tau']:+.2f}\n{ST.p_text(mk['p'])}\n{mk['trend']}",
-                transform=ax.transAxes, va="top", fontsize=7.4, family="monospace",
-                bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="#CCCCCC", lw=0.5, alpha=0.92))
+                transform=ax.transAxes, va="top", fontsize=8.0, fontfamily="serif")
 
         rows.append(S.trend_table(y, label))
 
@@ -305,8 +303,7 @@ def fig_drought_extent(panel: pd.DataFrame) -> pd.DataFrame:
     ax.annotate(
         f"peak {extent['is_drought'].max():.0f}% ({peak_period})",
         xy=(peak_period.to_timestamp(), extent["is_drought"].max()),
-        xytext=(14, -26), textcoords="offset points", fontsize=8.5,
-        bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="#C23B22", lw=0.8),
+        xytext=(14, -26), textcoords="offset points", fontsize=8.5, fontfamily="serif", weight="bold",
         arrowprops=dict(arrowstyle="->", color="#C23B22", lw=0.9),
     )
 
@@ -367,8 +364,7 @@ def fig_spi12_episodes(panel: pd.DataFrame) -> pd.DataFrame:
         ax.text(
             start.to_timestamp() + (end.to_timestamp() - start.to_timestamp()) / 2, top,
             f"{len(block)} mo\nmin {block.min():.1f}",
-            ha="center", va="top", fontsize=7.4, color="#4A0E14", family="monospace",
-            bbox=dict(boxstyle="round,pad=0.22", fc="white", ec="#6E1423", lw=0.6, alpha=0.9),
+            ha="center", va="top", fontsize=8.0, color="#4A0E14", fontfamily="serif", weight="bold"
         )
 
     ax.xaxis.set_major_locator(mdates.YearLocator())
@@ -437,8 +433,7 @@ def fig_tehsil_trends(panel: pd.DataFrame) -> pd.DataFrame:
         ax.grid(alpha=0.3)
         ax.text(0.04, 0.94,
                 f"slope {ss['slope']:+.4f}/yr\n{ST.p_text(mk['p'])}",
-                transform=ax.transAxes, va="top", fontsize=7.0, family="monospace",
-                bbox=dict(boxstyle="round,pad=0.25", fc="white", ec="#CCCCCC", lw=0.5, alpha=0.9))
+                transform=ax.transAxes, va="top", fontsize=7.5, fontfamily="serif")
         rows.append({**S.trend_table(y, C.COL[C.CDI_COLUMN].short), "scope": tehsil})
 
     for ax in axes[len(tehsils):]:
@@ -518,8 +513,7 @@ def fig_drought_area_percentage(panel: pd.DataFrame) -> pd.DataFrame:
         ax_severe.annotate(
             f"Peak: {peak_val:.1f}% ({peak_date})",
             xy=(peak_date.to_timestamp(), peak_val),
-            xytext=(15, -20), textcoords="offset points", fontsize=8.5, weight="bold",
-            bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="#991B1B", lw=0.9),
+            xytext=(15, -20), textcoords="offset points", fontsize=8.5, weight="bold", fontfamily="serif",
             arrowprops=dict(arrowstyle="->", color="#991B1B", lw=1.0)
         )
 

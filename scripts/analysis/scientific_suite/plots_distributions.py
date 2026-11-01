@@ -173,8 +173,7 @@ def fig_class_separation(panel: pd.DataFrame) -> pd.DataFrame:
         test = S.kruskal_by(sub, column, "dclass")
         ax.text(0.02, 0.97,
                 f"Kruskal-Wallis\nH = {test['h']:.1f}\n{ST.p_text(test['p'])}",
-                transform=ax.transAxes, va="top", fontsize=7.4, family="monospace",
-                bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="#CCCCCC", lw=0.5, alpha=0.9))
+                transform=ax.transAxes, va="top", fontsize=8.0, fontfamily="serif")
 
         for code in C.CLASS_ORDER:
             values = sub.loc[sub["dclass"] == code, column]

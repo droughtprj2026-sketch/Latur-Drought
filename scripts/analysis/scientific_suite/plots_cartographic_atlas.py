@@ -205,22 +205,20 @@ class CartographicAtlasRenderer:
             ax.set_ylim(self.ylim)
             ax.set_aspect("equal")
 
-            # Panel label (e.g. 'Jan' or '2016')
+            # Panel label (e.g. 'Jan' or '2016') - No box behind value
             ax.text(
                 0.93, 0.89, label, transform=ax.transAxes,
                 fontsize=11.5, fontweight="bold", fontfamily="serif",
                 ha="right", va="top", color="#0F172A",
-                bbox=dict(boxstyle="square,pad=0.25", facecolor="white", edgecolor="#E2E8F0", alpha=0.85, lw=0.5),
                 zorder=10
             )
 
-            # Subtitle (mean value or status)
+            # Subtitle (mean value or status) - No box behind value
             if has_data and subtitle:
                 ax.text(
                     0.93, 0.77, subtitle, transform=ax.transAxes,
                     fontsize=8.5, fontfamily="serif",
                     ha="right", va="top", color="#334155",
-                    bbox=dict(boxstyle="square,pad=0.15", facecolor="white", edgecolor="none", alpha=0.75),
                     zorder=10
                 )
             else:
@@ -228,7 +226,6 @@ class CartographicAtlasRenderer:
                     0.50, 0.50, "No Data", transform=ax.transAxes,
                     fontsize=10.0, fontstyle="italic", fontfamily="serif",
                     ha="center", va="center", color="#64748B",
-                    bbox=dict(boxstyle="round,pad=0.3", facecolor="white", edgecolor="#CBD5E1", alpha=0.9, lw=0.6),
                     zorder=10
                 )
 
@@ -249,17 +246,16 @@ class CartographicAtlasRenderer:
                 spine.set_color("#64748B")
                 spine.set_linewidth(0.7)
 
-        # Single North Arrow in top-right corner of entire figure
-        top_right_ax = axes_flat[ncols - 1]
-        top_right_ax.annotate(
-            "N", xy=(0.88, 1.26), xytext=(0.88, 1.05),
-            xycoords="axes fraction", textcoords="axes fraction",
-            ha="center", va="bottom", fontsize=11.0, fontweight="bold", fontfamily="serif",
+        # Single North Arrow in top-right corner of entire figure (in figure fraction, clear of all grids)
+        fig.annotate(
+            "N", xy=(0.945, 0.970), xytext=(0.945, 0.932),
+            xycoords="figure fraction", textcoords="figure fraction",
+            ha="center", va="bottom", fontsize=11.5, fontweight="bold", fontfamily="serif",
             arrowprops=dict(
-                arrowstyle="-|>,head_length=0.7,head_width=0.35",
-                facecolor="#0F172A", edgecolor="#0F172A", lw=1.2
+                arrowstyle="-|>,head_length=0.7,head_width=0.38",
+                facecolor="#0F172A", edgecolor="#0F172A", lw=1.3
             ),
-            annotation_clip=False, zorder=20
+            annotation_clip=False, zorder=50
         )
 
         # Main overall figure title in Times New Roman bold

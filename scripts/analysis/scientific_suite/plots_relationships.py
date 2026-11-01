@@ -222,8 +222,7 @@ def fig_regression_by_tehsil(panel: pd.DataFrame) -> pd.DataFrame:
             ax.plot(xs, res["intercept"] + res["slope"] * xs, color="#6E1423", lw=1.9)
         ax.set_title(f"{tehsil}", fontsize=9.5)
         ax.text(0.04, 0.06, f"r = {res['r']:+.2f}\nn = {res['n']:,}", transform=ax.transAxes,
-                fontsize=7.4, va="bottom", family="monospace",
-                bbox=dict(boxstyle="round,pad=0.25", fc="white", ec="#CCCCCC", lw=0.5, alpha=0.9))
+                fontsize=8.0, va="bottom", fontfamily="serif")
         ax.grid(alpha=0.3)
         rows.append({"tehsil": tehsil, **res})
 

@@ -33,7 +33,11 @@ VILLAGE_GEOJSON = ROOT / "frontend" / "public" / "data" / "latur_villages_latest
 FALLBACK_VILLAGE_GEOJSON = ROOT / "data" / "vector" / "latur_villages.geojson"
 TEHSIL_GEOJSON = ROOT / "data" / "vector" / "latur_tehsils.geojson"
 DISTRICT_GEOJSON = ROOT / "data" / "vector" / "latur_district.geojson"
-AVAILABILITY_JSON = ROOT / "outputs" / "Dashboard" / "data_availability.json"
+AVAILABILITY_JSON = (
+    ROOT / "data" / "dashboard" / "data_availability.json"
+    if (ROOT / "data" / "dashboard" / "data_availability.json").exists()
+    else ROOT / "outputs" / "Dashboard" / "data_availability.json"
+)
 
 # --------------------------------------------------------------------------
 # Outputs: one folder per analytical theme, so the suite never dumps a flat
