@@ -67,7 +67,8 @@ def load_and_fix_village_data():
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     from common.paths import active_panel
     from common.village_cdi import _load_cfg
-    df = pd.read_csv(active_panel(_load_cfg()))
+    df = pd.read_csv(active_panel(_load_cfg()),
+                      keep_default_na=False, na_values=[""])
     df["date"] = df["date"].astype(str)
     dt = pd.to_datetime(df["date"], format="%Y-%m")
     df["year"] = dt.dt.year

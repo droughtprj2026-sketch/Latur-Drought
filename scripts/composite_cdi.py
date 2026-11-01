@@ -173,7 +173,8 @@ def _district_frame(cfg: dict) -> pd.DataFrame:
     When village-level SPI columns are mostly NaN (no local rasters), the
     district-level SPI from spi_from_chirps_csv.py is used as a fallback.
     """
-    vil = pd.read_csv(OUT / "csv" / "village_Latur_monthly_indices.csv")
+    vil = pd.read_csv(OUT / "csv" / "village_Latur_monthly_indices.csv",
+                      keep_default_na=False, na_values=[""])
     vil["date"] = vil["date"].astype(str)
     agg_cols = {
         "NDVI": "mean", "EVI": "mean", "VCI": "mean", "VHI": "mean",

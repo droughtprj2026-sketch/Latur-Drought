@@ -144,8 +144,8 @@ def build_master() -> pd.DataFrame:
             row["tehsil"] = tehsil
             row["village"] = ""           # tehsil-level row
             row["total_polygon_area_km2"] = area
-            rt = rain_t[(rain_t["period"] == period) & (rain_t["tehsil"] == tehsil)]
-            if not rt.empty:
+            rt = rain_t[(rain_t["period"] == period) & (rain_t["tehsil"] == tehsil)] if "period" in rain_t.columns else rain_t
+            if not rt.empty and "rain_mm" in rt.columns:
                 row["monthly_rainfall_mm"] = round(float(rt["rain_mm"].mean()), 2)
             # Drought area and percentage from the D-code (coarse until
             # per-pixel is wired in; the frontend reads this field as-is).
@@ -272,7 +272,7 @@ def build_village_latest_geojson() -> None:
         print("  village geometry GeoJSON missing; skipping village GeoJSON")
         return
 
-    df = pd.read_csv(village_csv)
+    df = pd.read_csv(village_csv, keep_default_na=False, na_values=[""])
     df["date"] = df["date"].astype(str)
     latest = df["date"].max()
     latest_df = df[df["date"] == latest].copy()

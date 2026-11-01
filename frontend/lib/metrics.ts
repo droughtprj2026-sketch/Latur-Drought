@@ -173,7 +173,7 @@ export const METRICS: Record<MetricName, MetricSpec> = {
   cdi: {
     id: "cdi", label: "Composite drought (CDI)", group: "Drought", cadence: "monthly", unit: "0–1", decimals: 3,
     title: "Composite Drought Index",
-    definition: "Weighted blend of SPI-3, VHI, VCI, NDVI, EVI and PCI (config/composite.yaml). Higher = drier.",
+    definition: "Weighted blend of SPI, VCI, NDVI, PCI and NSMI (config/composite.yaml). Higher = drier.",
     bins: CDI_BINS, value: (p) => p.cdi,
   },
   spi1:  { id: "spi1", label: "SPI-1 · last month", group: "Rainfall", cadence: "monthly", unit: "σ", decimals: 2,

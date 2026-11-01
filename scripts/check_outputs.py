@@ -50,7 +50,8 @@ def main() -> int:
     notes: list[str] = []
     cfg = _load_cfg()
 
-    panel = pd.read_csv(active_panel(cfg))
+    panel = pd.read_csv(active_panel(cfg),
+                        keep_default_na=False, na_values=[""])
     panel["date"] = panel["date"].astype(str)
     latest_scored = panel.loc[panel["composite_drought_score"].notna(), "date"].max()
     cur = panel[panel["date"] == latest_scored]

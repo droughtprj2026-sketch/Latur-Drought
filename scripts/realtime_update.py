@@ -568,7 +568,8 @@ def main() -> int:
         rain_wide = load_rain_wide()
         backfill_chirps_manifest(rain_wide)
         thermal_mode = is_thermal(cfg)
-        panel = pd.read_csv(active_panel(cfg))
+        panel = pd.read_csv(active_panel(cfg),
+                            keep_default_na=False, na_values=[""])
         panel["date"] = panel["date"].astype(str)
         # LST / Sentinel-1 / NDVI / EVI are always downloaded and kept, whichever formula is active; the
         # formula only decides whether they enter the composite.
