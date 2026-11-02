@@ -3,20 +3,22 @@
 import { useEffect, useState } from "react";
 import { loadStatus } from "@/lib/data";
 import { onFallback, remoteBase, usingFallback } from "@/lib/dataSource";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 
 type Tone = "ok" | "warn" | "bad";
 
 /** Reads /api/v1/status and shows what the pipeline has actually delivered.
  *  Never claims "live": it states the last observation date per source. */
 export function StatusRibbon() {
+  const { t } = useLocale();
   const [s, setS] = useState<any | null | undefined>(undefined);
   const [snapshot, setSnapshot] = useState(false);
   useEffect(() => { loadStatus().then(setS).catch(() => setS(null)); }, []);
   // Supabase configured but unreachable: say the numbers are the bundled snapshot.
   useEffect(() => { setSnapshot(usingFallback()); return onFallback(() => setSnapshot(true)); }, []);
 
-  if (s === undefined) return <span className="font-mono text-[11px] text-ink/50">checking pipeline…</span>;
-  if (s === null) return <Chip tone="bad" text="Pipeline status unavailable" />;
+  if (s === undefined) return <span className="font-mono text-[11px] text-ink/50">{t("ribbon.checking")}</span>;
+  if (s === null) return <Chip tone="bad" text={t("ribbon.unavailable")} />;
 
   const s2 = s.sentinel2?.latest_period_id as string | null | undefined;
   const ch = s.chirps?.latest_period_id as string | null | undefined;
@@ -33,18 +35,18 @@ export function StatusRibbon() {
   const ageDays = s.generated_at ? Math.floor((now.getTime() - new Date(s.generated_at).getTime()) / 86_400_000) : null;
   const stalled = ageDays == null || ageDays > 10;
   const tone: Tone = s.monitoring_status === "operational" && worst <= 1 ? "ok" : worst <= 2 ? "warn" : "bad";
-  const label = tone === "ok" ? "Up to date" : tone === "warn" ? "Behind" : "Incomplete";
+  const label = tone === "ok" ? t("ribbon.up_to_date") : tone === "warn" ? t("ribbon.behind") : t("ribbon.incomplete");
 
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
       <Chip tone={tone} text={label} />
-      {s.synthetic_input && <Chip tone="bad" text="Synthetic test data" />}
-      {stalled && <Chip tone="bad" text={ageDays == null ? "No pipeline run recorded" : `No pipeline run for ${ageDays} days`} />}
-      {remoteBase && snapshot && <Chip tone="warn" text="Bundled snapshot" />}
+      {s.synthetic_input && <Chip tone="bad" text={t("ribbon.synthetic")} />}
+      {stalled && <Chip tone="bad" text={ageDays == null ? t("ribbon.no_run") : t("ribbon.stalled").replace("{n}", String(ageDays))} />}
+      {remoteBase && snapshot && <Chip tone="warn" text={t("ribbon.snapshot")} />}
       <span className="font-mono text-[11px] text-ink/70" title={`Today is ${cur}`}>
-        Sentinel-2 to <b>{s2 ?? "none"}</b> · CHIRPS to <b>{ch ?? "none"}</b>
-        {s.thermal && <> · Landsat LST to <b>{s.thermal.last_lst ?? "none"}</b> · Sentinel-1 to <b>{s.thermal.last_vv ?? "none"}</b></>}
-        {ageDays != null && <> · checked {ageDays === 0 ? "today" : `${ageDays}d ago`}</>}
+        {t("ribbon.s2_to")} <b>{s2 ?? t("ribbon.none")}</b> · {t("ribbon.chirps_to")} <b>{ch ?? t("ribbon.none")}</b>
+        {s.thermal && <> · {t("ribbon.lst_to")} <b>{s.thermal.last_lst ?? t("ribbon.none")}</b> · {t("ribbon.s1_to")} <b>{s.thermal.last_vv ?? t("ribbon.none")}</b></>}
+        {ageDays != null && <> · {ageDays === 0 ? t("ribbon.checked_today") : t("ribbon.checked_ago").replace("{n}", String(ageDays))}</>}
       </span>
     </div>
   );

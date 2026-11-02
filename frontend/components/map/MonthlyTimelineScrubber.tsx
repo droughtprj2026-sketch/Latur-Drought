@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 
 interface Props {
   periods: string[];
@@ -12,13 +13,12 @@ interface Props {
   markers?: { p: string; label: string }[];
 }
 
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-const fmt = (p: string) => {
-  const [y, m] = p.split("-");
-  return `${MONTHS[parseInt(m, 10) - 1] ?? m} ${y}`;
-};
-
 export function MonthlyTimelineScrubber({ periods, currentPeriod, onPeriodChange, latestPeriod, markers = [] }: Props) {
+  const { t } = useLocale();
+  const fmt = (p: string) => {
+    const [y, m] = p.split("-");
+    return `${t(`month.${parseInt(m, 10)}`)} ${y}`;
+  };
   const [playing, setPlaying] = useState(false);
   const idx = Math.max(0, periods.indexOf(currentPeriod));
   const idxRef = useRef(idx);
@@ -49,10 +49,10 @@ export function MonthlyTimelineScrubber({ periods, currentPeriod, onPeriodChange
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <button type="button" onClick={() => setPlaying((v) => !v)} aria-pressed={playing}
           className="rounded bg-ink px-2.5 py-1 font-mono text-[11px] text-paper hover:bg-ink/85">
-          {playing ? "Pause" : "Play"}
+          {playing ? t("time.pause") : t("time.play")}
         </button>
-        <button type="button" className={btn} onClick={() => step(-1)} disabled={idx === 0} aria-label="Previous month">‹</button>
-        <button type="button" className={btn} onClick={() => step(1)} disabled={idx >= periods.length - 1} aria-label="Next month">›</button>
+        <button type="button" className={btn} onClick={() => step(-1)} disabled={idx === 0} aria-label={t("time.prev_month")}>‹</button>
+        <button type="button" className={btn} onClick={() => step(1)} disabled={idx >= periods.length - 1} aria-label={t("time.next_month")}>›</button>
         <div className="font-display text-lg leading-none text-ink">{fmt(periods[idx] ?? currentPeriod)}</div>
         <span className="font-mono text-[10px] text-ink/50">{idx + 1}/{periods.length}</span>
         <div className="ml-auto hidden items-center gap-1 xl:flex">
@@ -61,14 +61,14 @@ export function MonthlyTimelineScrubber({ periods, currentPeriod, onPeriodChange
           ))}
           <button type="button" onClick={() => onPeriodChange(latest)}
             className="rounded border border-clay bg-clay/10 px-2 py-1 font-mono text-[11px] font-semibold text-clay hover:bg-clay/20">
-            Latest · {latest}
+            {t("time.latest")} · {latest}
           </button>
         </div>
       </div>
       <input
         type="range" min={0} max={Math.max(0, periods.length - 1)} value={idx}
         onChange={(e) => periods[Number(e.target.value)] && onPeriodChange(periods[Number(e.target.value)])}
-        aria-label="Observation month" aria-valuetext={fmt(periods[idx] ?? currentPeriod)}
+        aria-label={t("time.obs_month")} aria-valuetext={fmt(periods[idx] ?? currentPeriod)}
         className="mt-1.5 h-1.5 w-full cursor-pointer accent-clay"
       />
       <div className="relative mt-0.5 h-3 font-mono text-[9px] text-ink/50">

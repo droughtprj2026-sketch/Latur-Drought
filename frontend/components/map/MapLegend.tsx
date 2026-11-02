@@ -3,6 +3,8 @@
 import { useState } from "react";
 import type { Bin, MetricSpec } from "@/lib/metrics";
 import { NO_DATA_COLOR } from "@/lib/metrics";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { slug } from "@/lib/i18n";
 
 export interface LegendProps {
   spec: MetricSpec;
@@ -22,25 +24,27 @@ function ordered(bins: Bin[], counts: number[]) {
 }
 
 export function MapLegend({ spec, counts, noData, total, period, tehsilLabel, jumpTo }: LegendProps) {
+  const { t, tf } = useLocale();
   const [open, setOpen] = useState(false);
   const rows = ordered(spec.bins, counts);
   const max = Math.max(1, ...rows.map((r) => r.n), noData);
   const mostlyBlank = total > 0 && noData / total > 0.5;
+  const title = tf(`metric.${spec.id}.title`, spec.title);
 
   return (
     <section
-      aria-label={`Legend: ${spec.title}`}
+      aria-label={`${t("legend.aria")}: ${title}`}
       className="pointer-events-auto w-full md:w-[272px] flex-none rounded-lg border border-ink/15 bg-paper/95 shadow-card backdrop-blur"
     >
       <header className="flex items-start justify-between gap-2 px-3 pt-2.5">
         <div className="min-w-0">
-          <h2 className="font-display text-[15px] leading-tight text-ink">{spec.title}</h2>
+          <h2 className="font-display text-[15px] leading-tight text-ink">{title}</h2>
           <p className="mt-0.5 font-mono text-[10px] uppercase tracking-wider text-ink/55">
             {period} · {tehsilLabel}
           </p>
           {spec.group === "Long-term" && (
             <p className="mt-0.5 text-[10px] leading-tight text-ink/60">
-              Accumulated over several months. Changes only when a new month is published.
+              {t("legend.longterm_note")}
             </p>
           )}
         </div>
@@ -50,12 +54,14 @@ export function MapLegend({ spec, counts, noData, total, period, tehsilLabel, ju
           aria-expanded={open}
           className="mt-0.5 rounded border border-ink/20 px-1.5 py-0.5 font-mono text-[10px] text-ink/70 hover:bg-ink/5"
         >
-          {open ? "hide" : "defn"}
+          {open ? t("legend.hide") : t("legend.defn")}
         </button>
       </header>
 
       {open && (
-        <p className="px-3 pt-1.5 text-[11px] leading-snug text-ink/70">{spec.definition}</p>
+        <p className="px-3 pt-1.5 text-[11px] leading-snug text-ink/70">
+          {tf(`metric.${spec.id}.def`, spec.definition)}
+        </p>
       )}
 
       <ul className="px-3 pb-2 pt-2">
@@ -64,28 +70,31 @@ export function MapLegend({ spec, counts, noData, total, period, tehsilLabel, ju
             key={b.label + b.range}
             className="flex items-center gap-2 rounded-[2px] py-[2px] pl-0.5 pr-1 text-[11px] leading-tight"
             style={{ backgroundImage: `linear-gradient(90deg, rgba(29,43,37,.07) ${(n / max) * 100}%, transparent ${(n / max) * 100}%)` }}
-            title={`${n} villages`}
+            title={`${n} ${t("legend.villages")}`}
           >
             <span className="h-3 w-5 flex-none rounded-[2px] border border-ink/25" style={{ background: b.color }} aria-hidden />
-            <span className="min-w-0 flex-1 truncate text-ink">{b.label}</span>
+            <span className="min-w-0 flex-1 truncate text-ink">{tf(`bin.${slug(b.label)}`, b.label)}</span>
             <span className="flex-none font-mono text-[10px] text-ink/55">{b.range}</span>
             <span className="w-8 flex-none text-right font-mono text-[10px] text-ink/80">{n}</span>
           </li>
         ))}
         <li className="flex items-center gap-2 border-t border-ink/10 pt-1.5 mt-1 text-[11px] leading-tight">
           <span className="h-3 w-5 flex-none rounded-[2px] border border-ink/25" style={{ background: NO_DATA_COLOR }} aria-hidden />
-          <span className="flex-1 text-ink/70">No data this month</span>
+          <span className="flex-1 text-ink/70">{t("legend.no_data_month")}</span>
           <span className="w-8 text-right font-mono text-[10px] text-ink/70">{noData}</span>
         </li>
       </ul>
 
       {mostlyBlank && (
         <p className="mx-3 mb-2.5 rounded border border-d3/40 bg-d3/10 px-2 py-1 text-[11px] leading-snug text-ink">
-          {noData} of {total} villages have no {spec.title.split(" (")[0]} value for {period}. The
-          source for this layer has not published this month yet.
+          {t("legend.mostly_blank")
+            .replace("{n}", String(noData))
+            .replace("{total}", String(total))
+            .replace("{layer}", title.split(" (")[0])
+            .replace("{p}", period)}
           {jumpTo && (
             <button type="button" onClick={jumpTo.go} className="mt-1 block font-mono text-[11px] font-semibold text-clay underline underline-offset-2">
-              Show {jumpTo.period}, the latest month with data
+              {t("legend.jump_to").replace("{p}", jumpTo.period)}
             </button>
           )}
         </p>
@@ -96,20 +105,21 @@ export function MapLegend({ spec, counts, noData, total, period, tehsilLabel, ju
 
 /** Compact legend for the two-map pages (compare, timelapse). */
 export function LegendStrip({ spec }: { spec: MetricSpec }) {
+  const { t, tf } = useLocale();
   return (
     <div className="pointer-events-auto rounded-lg border border-ink/15 bg-paper/95 px-3 py-2 shadow-card backdrop-blur">
-      <div className="mb-1 font-display text-[13px] leading-tight">{spec.title}</div>
+      <div className="mb-1 font-display text-[13px] leading-tight">{tf(`metric.${spec.id}.title`, spec.title)}</div>
       <ul className="flex flex-wrap gap-x-3 gap-y-1">
         {spec.bins.map((b) => (
           <li key={b.label + b.range} className="flex items-center gap-1.5 text-[10px]">
             <span className="h-3 w-4 rounded-[2px] border border-ink/25" style={{ background: b.color }} />
-            <span>{b.label}</span>
+            <span>{tf(`bin.${slug(b.label)}`, b.label)}</span>
             <span className="font-mono text-ink/55">{b.range}</span>
           </li>
         ))}
         <li className="flex items-center gap-1.5 text-[10px]">
           <span className="h-3 w-4 rounded-[2px] border border-ink/25" style={{ background: NO_DATA_COLOR }} />
-          <span className="text-ink/70">No data</span>
+          <span className="text-ink/70">{t("sb.no_data")}</span>
         </li>
       </ul>
     </div>

@@ -20,6 +20,7 @@ import {
 import type { VillageProperties } from "./VillageIntelligenceDrawer";
 import { codeForCDI, colorForValue } from "@/lib/classify";
 import { loadBaselines, loadDistrictMonthly, loadTehsilAnalytics, loadTimeseries, loadVillageIndex, type TimeseriesById, type VillagesByTehsil } from "@/lib/data";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 
 interface Props {
   village: VillageProperties | null;
@@ -57,30 +58,23 @@ interface TimeseriesPoint {
   SPI12?: number | null;
 }
 
-const SEVERITY_INFO: Record<string, { bg: string; text: string; border: string; label: string; badge: string }> = {
-  None: { bg: "bg-slate-100", text: "text-slate-700", border: "border-slate-300", label: "Not in drought", badge: "bg-slate-200 text-slate-800 border-slate-300" },
-  D0: { bg: "bg-yellow-50", text: "text-amber-700", border: "border-amber-200", label: "D0 · Abnormally Dry", badge: "bg-amber-100 text-amber-800 border-amber-300" },
-  D1: { bg: "bg-amber-50", text: "text-amber-800", border: "border-amber-300", label: "D1 · Moderate Drought", badge: "bg-amber-200 text-amber-900 border-amber-400" },
-  D2: { bg: "bg-orange-50", text: "text-orange-800", border: "border-orange-300", label: "D2 · Severe Drought", badge: "bg-orange-200 text-orange-900 border-orange-400" },
-  D3: { bg: "bg-red-50", text: "text-red-800", border: "border-red-300", label: "D3 · Extreme Drought", badge: "bg-red-200 text-red-900 border-red-400" },
-  D4: { bg: "bg-rose-50", text: "text-rose-900", border: "border-rose-300", label: "D4 · Exceptional Drought", badge: "bg-rose-200 text-rose-950 border-rose-400" },
+const SEVERITY_INFO: Record<string, { bg: string; text: string; border: string; badge: string }> = {
+  None: { bg: "bg-slate-100", text: "text-slate-700", border: "border-slate-300", badge: "bg-slate-200 text-slate-800 border-slate-300" },
+  D0: { bg: "bg-yellow-50", text: "text-amber-700", border: "border-amber-200", badge: "bg-amber-100 text-amber-800 border-amber-300" },
+  D1: { bg: "bg-amber-50", text: "text-amber-800", border: "border-amber-300", badge: "bg-amber-200 text-amber-900 border-amber-400" },
+  D2: { bg: "bg-orange-50", text: "text-orange-800", border: "border-orange-300", badge: "bg-orange-200 text-orange-900 border-orange-400" },
+  D3: { bg: "bg-red-50", text: "text-red-800", border: "border-red-300", badge: "bg-red-200 text-red-900 border-red-400" },
+  D4: { bg: "bg-rose-50", text: "text-rose-900", border: "border-rose-300", badge: "bg-rose-200 text-rose-950 border-rose-400" },
 };
 
-function getAdvisory(cls?: string): string {
-  switch (cls) {
-    case "D4":
-      return "Emergency declaration tier. Enforce critical drinking water rationing, mobilize emergency tanker supplies, and prepare cattle fodder camps. Complete ban on non-potable surface withdrawals.";
-    case "D3":
-      return "Extreme stress. Initiate micro-irrigation protocols, restrict surface canal diversions for non-essential use, and deploy localized groundwater recharge surveillance.";
-    case "D2":
-      return "Severe drought stress. Prioritize protective sprinkler irrigation for standing Kharif/Rabi crops. Mulching and moisture conservation techniques strongly advised.";
-    case "D1":
-      return "Moderate moisture deficit. Soil moisture below historical average. Monitor reservoir levels and advise farmers against high-water-consumption crops.";
-    case "D0":
-      return "Early moisture deficit warning. Ground condition abnormally dry. Prepare farm pond rainwater storage and monitor meteorological precipitation trends.";
-    default:
-      return "Vegetation health and precipitation indicators within normal climatological baselines. Standard agricultural practices recommended.";
-  }
+/** Interpolate {name} placeholders, rendering each substituted value in bold. */
+function fill(template: string, vals: Record<string, string | number>): React.ReactNode[] {
+  return template.split(/(\{\w+\})/g).map((part, i) => {
+    const m = /^\{(\w+)\}$/.exec(part);
+    return m
+      ? <strong key={i}>{String(vals[m[1]] ?? "")}</strong>
+      : <React.Fragment key={i}>{part}</React.Fragment>;
+  });
 }
 
 export function PermanentSidebar({
@@ -91,6 +85,7 @@ export function PermanentSidebar({
   onSelectVillageByName,
   summary = null,
 }: Props) {
+  const { t } = useLocale();
   const [tab, setTab] = useState<"overview" | "comparisons" | "rankings" | "heatmap">("overview");
   const [chartSubMode, setChartSubMode] = useState<"spi_multiscale" | "cdi_trajectory" | "climatology_envelope">("spi_multiscale");
   const [villageTs, setVillageTs] = useState<TimeseriesPoint[]>([]);
@@ -232,14 +227,15 @@ export function PermanentSidebar({
     const pt: any = currentVillagePoint;
     const v: any = village;
     const m = summary?.means;
-    const t = village
+    const th = village
       ? { tci: pt?.tci ?? v?.TCI ?? null, smi: pt?.smi ?? v?.SMI ?? null, lst: pt?.lst ?? v?.LST ?? null }
       : { tci: m?.tci ?? null, smi: m?.smi ?? null, lst: m?.lst ?? null };
-    return t.tci != null || t.smi != null || t.lst != null ? t : null;
+    return th.tci != null || th.smi != null || th.lst != null ? th : null;
   }, [village, currentVillagePoint, summary]);
 
-  const villageName = village?.village || village?.VILLAGE || village?.name || (selectedTehsil !== "All" ? `${selectedTehsil} Tehsil Aggregate` : "Latur District Aggregate");
-  const tehsilName = village?.tehsil || village?.TEHSIL || (selectedTehsil !== "All" ? selectedTehsil : "All 10 Tehsils");
+  const villageName = village?.village || village?.VILLAGE || village?.name
+    || (selectedTehsil !== "All" ? t("sb.tehsil_aggregate").replace("{t}", selectedTehsil) : t("sb.district_aggregate"));
+  const tehsilName = village?.tehsil || village?.TEHSIL || (selectedTehsil !== "All" ? selectedTehsil : t("sb.all_tehsils_caps"));
   
   // Resolve accurate drought severity class
   // Class always follows the CDI thresholds in config/composite.yaml (same as the map).
@@ -302,10 +298,9 @@ export function PermanentSidebar({
 
   // Compute 12-Month Climatology Envelope Curve (Normal mean vs Observed year)
   const climatologyEnvelope = useMemo(() => {
-    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     const yr = (selectedPeriod || "2026-10").split("-")[0] || "2026";
 
-    return monthNames.map((mName, i) => {
+    return Array.from({ length: 12 }, (_, i) => t(`month.${i + 1}`)).map((mName, i) => {
       const mNum = i + 1;
       const b = (baselinesData?.district && baselinesData.district[mNum]) || {};
       const dateKey = `${yr}-${String(mNum).padStart(2, "0")}`;
@@ -320,7 +315,7 @@ export function PermanentSidebar({
         observed_cdi: observed?.cdi ?? null,
       };
     });
-  }, [baselinesData, selectedPeriod, chartData]);
+  }, [baselinesData, selectedPeriod, chartData, t]);
 
   // Baseline deltas and z-scores from activeMetrics
   const baselineNDVI = currentBaseline?.ndvi_mean;
@@ -347,7 +342,7 @@ export function PermanentSidebar({
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-amber-500 ring-4 ring-amber-100" />
             <h2 className="text-xs font-black uppercase tracking-wider text-slate-800">
-              Intelligence & Scientific Baselines
+              {t("sb.title")}
             </h2>
           </div>
           <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-amber-100 text-amber-900 font-bold border border-amber-200">
@@ -357,46 +352,19 @@ export function PermanentSidebar({
 
         {/* 4 Dedicated Tabs */}
         <div className="flex items-center gap-1">
-          <button
-            onClick={() => setTab("overview")}
-            className={`px-3 py-2 text-xs font-bold border-b-2 transition-all ${
-              tab === "overview"
-                ? "border-amber-600 text-amber-700 bg-white rounded-t-md"
-                : "border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-100/60"
-            }`}
-          >
-            Profile & Baselines
-          </button>
-          <button
-            onClick={() => setTab("comparisons")}
-            className={`px-3 py-2 text-xs font-bold border-b-2 transition-all ${
-              tab === "comparisons"
-                ? "border-amber-600 text-amber-700 bg-white rounded-t-md"
-                : "border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-100/60"
-            }`}
-          >
-            Comparison Charts
-          </button>
-          <button
-            onClick={() => setTab("rankings")}
-            className={`px-3 py-2 text-xs font-bold border-b-2 transition-all ${
-              tab === "rankings"
-                ? "border-amber-600 text-amber-700 bg-white rounded-t-md"
-                : "border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-100/60"
-            }`}
-          >
-            Tehsil Rankings
-          </button>
-          <button
-            onClick={() => setTab("heatmap")}
-            className={`px-3 py-2 text-xs font-bold border-b-2 transition-all ${
-              tab === "heatmap"
-                ? "border-amber-600 text-amber-700 bg-white rounded-t-md"
-                : "border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-100/60"
-            }`}
-          >
-            Heatmap & Matrix
-          </button>
+          {(["overview", "comparisons", "rankings", "heatmap"] as const).map((id) => (
+            <button
+              key={id}
+              onClick={() => setTab(id)}
+              className={`px-3 py-2 text-xs font-bold border-b-2 transition-all ${
+                tab === id
+                  ? "border-amber-600 text-amber-700 bg-white rounded-t-md"
+                  : "border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-100/60"
+              }`}
+            >
+              {t(`tab.${id}`)}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -410,20 +378,24 @@ export function PermanentSidebar({
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-                    {village ? `${tehsilName} tehsil · revenue village` : selectedTehsil !== "All" ? `${tehsilName} tehsil` : "District"}
+                    {village
+                      ? `${tehsilName} ${t("sb.revenue_village")}`
+                      : selectedTehsil !== "All"
+                        ? `${tehsilName} ${t("sb.tehsil_word")}`
+                        : t("sb.district_word")}
                   </span>
                   <h3 className="text-base font-extrabold text-slate-900 leading-tight">
                     {villageName}
                   </h3>
                   {village?.AREA_SQKM && (
                     <span className="text-[11px] text-slate-500 font-mono">
-                      Area: {Number(village.AREA_SQKM).toFixed(2)} km²
+                      {t("sb.area")}: {Number(village.AREA_SQKM).toFixed(2)} km²
                     </span>
                   )}
                 </div>
 
                 <div className={`px-2.5 py-1 rounded-lg border text-xs font-bold shadow-xs ${sev.badge}`}>
-                  {sev.label}
+                  {t(`sev.${cdiClass}`)}
                 </div>
               </div>
             </div>
@@ -433,14 +405,14 @@ export function PermanentSidebar({
               <div className="flex items-center justify-between border-b border-amber-200/80 pb-2">
                 <div>
                   <span className="text-xs font-extrabold text-amber-950 uppercase tracking-wider">
-                    Climatological Normal & Anomaly Departure
+                    {t("sb.clim_title")}
                   </span>
                   <div className="text-[10px] text-amber-800">
-                    10-Year Historical Baseline for Month {currentMonthInt} vs Observed ({selectedPeriod})
+                    {t("sb.clim_sub").replace("{m}", String(currentMonthInt)).replace("{p}", selectedPeriod)}
                   </div>
                 </div>
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-200/60 text-amber-900 font-bold">
-                  μ ± σ Climatology
+                  {t("sb.clim_badge")}
                 </span>
               </div>
 
@@ -449,8 +421,8 @@ export function PermanentSidebar({
                 {/* NDVI Baseline Anomaly */}
                 <div className="p-2.5 rounded-lg border border-slate-200 bg-white shadow-2xs">
                   <div className="flex justify-between items-center text-[10px] text-slate-500 font-bold uppercase mb-1">
-                    <span>NDVI Vegetation</span>
-                    <span className="font-mono text-slate-700">Baseline μ: {baselineNDVI ?? "n/a"}</span>
+                    <span>{t("sb.ndvi_veg")}</span>
+                    <span className="font-mono text-slate-700">{t("sb.baseline_mu")}: {baselineNDVI ?? t("sb.na")}</span>
                   </div>
                   <div className="flex items-baseline justify-between">
                     <span className="text-base font-black font-mono text-slate-900">
@@ -465,7 +437,7 @@ export function PermanentSidebar({
                     )}
                   </div>
                   <div className="text-[10px] text-slate-500 mt-1 flex justify-between">
-                    <span>Z-Score Departure:</span>
+                    <span>{t("sb.zscore")}:</span>
                     <span className="font-mono font-bold text-amber-800">
                       {ndviZScore != null ? `${ndviZScore > 0 ? "+" : ""}${ndviZScore} σ` : "—"}
                     </span>
@@ -475,8 +447,8 @@ export function PermanentSidebar({
                 {/* Rainfall Baseline Anomaly */}
                 <div className="p-2.5 rounded-lg border border-slate-200 bg-white shadow-2xs">
                   <div className="flex justify-between items-center text-[10px] text-slate-500 font-bold uppercase mb-1">
-                    <span>CHIRPS Rain</span>
-                    <span className="font-mono text-slate-700">Baseline μ: {baselineRain ?? "n/a"} mm</span>
+                    <span>{t("sb.chirps_rain")}</span>
+                    <span className="font-mono text-slate-700">{t("sb.baseline_mu")}: {baselineRain ?? t("sb.na")} mm</span>
                   </div>
                   <div className="flex items-baseline justify-between">
                     <span className="text-base font-black font-mono text-blue-900">
@@ -491,9 +463,9 @@ export function PermanentSidebar({
                     )}
                   </div>
                   <div className="text-[10px] text-slate-500 mt-1 flex justify-between">
-                    <span>Precipitation Status:</span>
+                    <span>{t("sb.precip_status")}:</span>
                     <span className="font-semibold text-slate-800">
-                      {rainDeltaPct && rainDeltaPct < -50 ? "Severe Deficit" : rainDeltaPct && rainDeltaPct < -20 ? "Deficit" : "Normal"}
+                      {rainDeltaPct && rainDeltaPct < -50 ? t("sb.severe_deficit") : rainDeltaPct && rainDeltaPct < -20 ? t("sb.deficit") : t("sb.normal")}
                     </span>
                   </div>
                 </div>
@@ -503,18 +475,17 @@ export function PermanentSidebar({
             {/* Situation summary, computed from the villages on screen */}
             <div className="rounded-lg border border-ink/15 bg-paper p-3 shadow-card">
               <div className="font-mono text-[10px] uppercase tracking-wider text-ink/55">
-                {selectedTehsil === "All" ? "Latur district" : `${selectedTehsil} tehsil`} · {selectedPeriod}
+                {selectedTehsil === "All" ? t("sb.latur_district") : `${selectedTehsil} ${t("sb.tehsil_word")}`} · {selectedPeriod}
               </div>
               {summary && summary.assessed > 0 ? (
                 <p className="mt-1 text-[12px] leading-relaxed text-ink">
-                  <strong>{summary.inDrought}</strong> of <strong>{summary.assessed}</strong> assessed villages are in
-                  drought (D0–D4); <strong>{summary.d2plus}</strong> are severe or worse (D2–D4).
+                  {fill(t("sb.summary_main"), { a: summary.inDrought, b: summary.assessed, c: summary.d2plus })}
                   {summary.total > summary.assessed && (
-                    <> {summary.total - summary.assessed} of {summary.total} villages have no composite score this month (cloud cover or missing inputs).</>
+                    <> {fill(t("sb.summary_missing"), { a: summary.total - summary.assessed, b: summary.total })}</>
                   )}
                 </p>
               ) : (
-                <p className="mt-1 text-[12px] text-ink/70">No composite scores are available for this month.</p>
+                <p className="mt-1 text-[12px] text-ink/70">{t("sb.no_scores")}</p>
               )}
             </div>
 
@@ -523,48 +494,46 @@ export function PermanentSidebar({
                 indicators, so they do not belong in the headline numbers of a near-real-time view. */}
             <div>
               <div className="text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-2 flex items-center justify-between">
-                <span>Rainfall this month</span>
-                <span className="text-[9px] font-mono text-slate-400">CHIRPS · monthly</span>
+                <span>{t("sb.rain_this_month")}</span>
+                <span className="text-[9px] font-mono text-slate-400">{t("sb.chirps_monthly")}</span>
               </div>
               <div className="grid grid-cols-2 gap-2 text-center">
                 <div className="p-2 rounded-xl border border-slate-200 bg-white shadow-2xs">
                   <div className="text-[9px] font-bold text-slate-500 uppercase">SPI-1</div>
                   <div className="text-sm font-black font-mono text-slate-900">
-                    {activeMetrics.spi1 != null ? Number(activeMetrics.spi1).toFixed(2) : <span className="text-[10px] text-slate-400 font-sans">not yet published</span>}
+                    {activeMetrics.spi1 != null ? Number(activeMetrics.spi1).toFixed(2) : <span className="text-[10px] text-slate-400 font-sans">{t("sb.not_published")}</span>}
                   </div>
-                  <div className="text-[8px] text-slate-400">rain vs normal, this month</div>
+                  <div className="text-[8px] text-slate-400">{t("sb.spi1_note")}</div>
                 </div>
                 <div className="p-2 rounded-xl border border-slate-200 bg-white shadow-2xs">
-                  <div className="text-[9px] font-bold text-slate-500 uppercase">Rainfall</div>
+                  <div className="text-[9px] font-bold text-slate-500 uppercase">{t("sb.rainfall")}</div>
                   <div className="text-sm font-black font-mono text-slate-900">
-                    {activeMetrics.rain != null ? `${Number(activeMetrics.rain).toFixed(1)} mm` : <span className="text-[10px] text-slate-400 font-sans">not yet published</span>}
+                    {activeMetrics.rain != null ? `${Number(activeMetrics.rain).toFixed(1)} mm` : <span className="text-[10px] text-slate-400 font-sans">{t("sb.not_published")}</span>}
                   </div>
-                  <div className="text-[8px] text-slate-400">month total</div>
+                  <div className="text-[8px] text-slate-400">{t("sb.month_total")}</div>
                 </div>
               </div>
               {activeMetrics.spi1 == null && (
                 <div className="text-[10px] text-amber-800 mt-1.5 font-medium">
-                  CHIRPS rainfall for {selectedPeriod} has not been published yet. Vegetation indices for this month are current.
+                  {t("sb.chirps_pending").replace("{p}", selectedPeriod)}
                 </div>
               )}
 
               <details className="mt-2 rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-2">
                 <summary className="cursor-pointer text-[11px] font-bold text-slate-700">
-                  Long-term rainfall deficit (SPI-3, 6, 12) · updated monthly
+                  {t("sb.longterm_summary")}
                 </summary>
                 <p className="mt-1.5 text-[10px] leading-snug text-slate-600">
-                  These add up rainfall over the last 3, 6 and 12 months, so they move slowly and only when a new
-                  month of CHIRPS is published. They describe accumulated deficit (soil moisture, tank and
-                  groundwater storage), not week-to-week change.
+                  {t("sb.longterm_body")}
                 </p>
                 <div className="mt-2 grid grid-cols-3 gap-2 text-center">
-                  {([["SPI-3", activeMetrics.spi3, "3 months"], ["SPI-6", activeMetrics.spi6, "6 months"], ["SPI-12", activeMetrics.spi12, "12 months"]] as const).map(([lbl, v, win]) => (
+                  {([["SPI-3", activeMetrics.spi3, "sb.months_3"], ["SPI-6", activeMetrics.spi6, "sb.months_6"], ["SPI-12", activeMetrics.spi12, "sb.months_12"]] as const).map(([lbl, v, win]) => (
                     <div key={lbl} className="p-2 rounded-lg border border-slate-200 bg-white">
                       <div className="text-[9px] font-bold text-slate-500 uppercase">{lbl}</div>
                       <div className="text-sm font-black font-mono text-slate-900">
                         {v != null ? Number(v).toFixed(2) : <span className="text-[10px] text-slate-400 font-sans">–</span>}
                       </div>
-                      <div className="text-[8px] text-slate-400">window {win}</div>
+                      <div className="text-[8px] text-slate-400">{t("sb.window")} {t(win)}</div>
                     </div>
                   ))}
                 </div>
@@ -573,11 +542,11 @@ export function PermanentSidebar({
 
             {thermalMetrics && (
               <div className="grid grid-cols-3 gap-2 text-center">
-                {([["LST", thermalMetrics.lst, "°C day", 1], ["TCI", thermalMetrics.tci, "temp. condition", 1], ["SMI", thermalMetrics.smi, "soil moisture", 1]] as const).map(([lbl, v, note, d]) => (
+                {([["LST", thermalMetrics.lst, "sb.lst_note", 1], ["TCI", thermalMetrics.tci, "sb.tci_note", 1], ["SMI", thermalMetrics.smi, "sb.smi_note", 1]] as const).map(([lbl, v, note, d]) => (
                   <div key={lbl} className="p-2 rounded-xl border border-slate-200 bg-white shadow-2xs">
                     <div className="text-[9px] font-bold text-slate-500 uppercase">{lbl}</div>
                     <div className="text-sm font-black text-slate-900 font-mono">{v != null ? Number(v).toFixed(d) : "—"}</div>
-                    <div className="text-[8px] text-slate-500">{note}</div>
+                    <div className="text-[8px] text-slate-500">{t(note)}</div>
                   </div>
                 ))}
               </div>
@@ -586,11 +555,11 @@ export function PermanentSidebar({
             {/* Key Spectral Indices (NDVI, VHI, VCI, CDI) */}
             <div className="grid grid-cols-4 gap-2 text-center">
               <div className="p-2 rounded-xl border border-amber-200 bg-amber-50/50">
-                <div className="text-[9px] font-bold text-amber-700 uppercase">CDI Score</div>
+                <div className="text-[9px] font-bold text-amber-700 uppercase">{t("sb.cdi_score")}</div>
                 <div className="text-sm font-black text-amber-900 font-mono">
                   {activeMetrics.cdi != null ? Number(activeMetrics.cdi).toFixed(3) : "—"}
                 </div>
-                <div className="text-[8px] text-amber-700">Composite</div>
+                <div className="text-[8px] text-amber-700">{t("sb.composite")}</div>
               </div>
 
               <div className="p-2 rounded-xl border border-slate-200 bg-white shadow-2xs">
@@ -598,7 +567,7 @@ export function PermanentSidebar({
                 <div className="text-sm font-black text-slate-900 font-mono">
                   {activeMetrics.ndvi != null ? Number(activeMetrics.ndvi).toFixed(3) : "—"}
                 </div>
-                <div className="text-[8px] text-emerald-600">Greenness</div>
+                <div className="text-[8px] text-emerald-600">{t("sb.greenness")}</div>
               </div>
 
               <div className="p-2 rounded-xl border border-slate-200 bg-white shadow-2xs">
@@ -606,7 +575,7 @@ export function PermanentSidebar({
                 <div className="text-sm font-black text-slate-900 font-mono">
                   {activeMetrics.vhi != null ? Number(activeMetrics.vhi).toFixed(1) : "—"}
                 </div>
-                <div className="text-[8px] text-slate-500">Health</div>
+                <div className="text-[8px] text-slate-500">{t("sb.health")}</div>
               </div>
 
               <div className="p-2 rounded-xl border border-slate-200 bg-white shadow-2xs">
@@ -614,7 +583,7 @@ export function PermanentSidebar({
                 <div className="text-sm font-black text-slate-900 font-mono">
                   {activeMetrics.vci != null ? Number(activeMetrics.vci).toFixed(1) : "—"}
                 </div>
-                <div className="text-[8px] text-slate-500">Condition</div>
+                <div className="text-[8px] text-slate-500">{t("sb.condition")}</div>
               </div>
             </div>
 
@@ -622,11 +591,11 @@ export function PermanentSidebar({
             <div className="p-3.5 rounded-xl border border-amber-200 bg-amber-50/70">
               <div className="flex items-center gap-2 mb-1.5">
                 <span className="text-amber-900 font-extrabold text-xs uppercase tracking-wider">
-                  Agronomic Advisory · Tier {cdiClass}
+                  {t("sb.advisory_title").replace("{c}", cdiClass)}
                 </span>
               </div>
               <p className="text-xs text-amber-950 leading-relaxed font-medium">
-                {getAdvisory(cdiClass)}
+                {t(`adv.${cdiClass}`)}
               </p>
             </div>
           </div>
@@ -644,7 +613,7 @@ export function PermanentSidebar({
                   tsScope === "village" ? "bg-white text-slate-900 shadow-xs" : "text-slate-500 hover:text-slate-800"
                 } ${!village ? "opacity-50 cursor-not-allowed" : ""}`}
               >
-                {village ? `${villageName} Series` : "Select a Village"}
+                {village ? t("sb.series").replace("{v}", villageName) : t("sb.select_village")}
               </button>
               <button
                 onClick={() => setTsScope("district")}
@@ -652,7 +621,7 @@ export function PermanentSidebar({
                   tsScope === "district" ? "bg-white text-slate-900 shadow-xs" : "text-slate-500 hover:text-slate-800"
                 }`}
               >
-                Latur District 10-Yr Aggregate
+                {t("sb.district_10yr")}
               </button>
             </div>
 
@@ -664,7 +633,7 @@ export function PermanentSidebar({
                   chartSubMode === "spi_multiscale" ? "bg-amber-600 text-white shadow-xs" : "text-slate-600 hover:bg-slate-100"
                 }`}
               >
-                SPI 1, 3, 6, 12 Comparison
+                {t("sb.spi_compare")}
               </button>
               <button
                 onClick={() => setChartSubMode("climatology_envelope")}
@@ -672,7 +641,7 @@ export function PermanentSidebar({
                   chartSubMode === "climatology_envelope" ? "bg-amber-600 text-white shadow-xs" : "text-slate-600 hover:bg-slate-100"
                 }`}
               >
-                Baseline Climatology
+                {t("sb.baseline_clim")}
               </button>
               <button
                 onClick={() => setChartSubMode("cdi_trajectory")}
@@ -680,7 +649,7 @@ export function PermanentSidebar({
                   chartSubMode === "cdi_trajectory" ? "bg-amber-600 text-white shadow-xs" : "text-slate-600 hover:bg-slate-100"
                 }`}
               >
-                CDI vs Rain
+                {t("sb.cdi_vs_rain")}
               </button>
             </div>
 
@@ -690,13 +659,13 @@ export function PermanentSidebar({
                 <div className="flex items-center justify-between">
                   <div>
                     <span className="text-xs font-bold text-slate-800">
-                      Multi-Scale Standardized Precipitation Index (2016–2026)
+                      {t("sb.spi_chart_title")}
                     </span>
                     <p className="text-[10px] text-slate-500">
-                      Synchronized comparison of Meteorological (SPI-1), Agricultural (SPI-3), and Hydrological (SPI-6/12) drought cycles.
+                      {t("sb.spi_chart_sub")}
                     </p>
                   </div>
-                  <span className="text-[10px] font-mono text-slate-500">{chartData.length} pts</span>
+                  <span className="text-[10px] font-mono text-slate-500">{chartData.length} {t("sb.pts")}</span>
                 </div>
 
                 <div className="h-64 w-full">
@@ -708,15 +677,15 @@ export function PermanentSidebar({
                       <Tooltip contentStyle={{ backgroundColor: "#ffffff", borderColor: "#e2e8f0", fontSize: "11px", borderRadius: "8px" }} />
                       <Legend wrapperStyle={{ fontSize: "11px" }} />
                       {/* WMO Drought Reference Thresholds */}
-                      <ReferenceLine y={0} stroke="#94a3b8" strokeWidth={1} label={{ value: "Normal (0)", fill: "#94a3b8", fontSize: 9 }} />
-                      <ReferenceLine y={-1.0} stroke="#f59e0b" strokeDasharray="3 3" label={{ value: "Mod. Drought (-1.0)", fill: "#f59e0b", fontSize: 9 }} />
-                      <ReferenceLine y={-1.5} stroke="#dc2626" strokeDasharray="3 3" label={{ value: "Sev. Drought (-1.5)", fill: "#dc2626", fontSize: 9 }} />
-                      <ReferenceLine y={-2.0} stroke="#7f1d1d" strokeDasharray="3 3" label={{ value: "Extr. Drought (-2.0)", fill: "#7f1d1d", fontSize: 9 }} />
+                      <ReferenceLine y={0} stroke="#94a3b8" strokeWidth={1} label={{ value: t("sb.ref_normal"), fill: "#94a3b8", fontSize: 9 }} />
+                      <ReferenceLine y={-1.0} stroke="#f59e0b" strokeDasharray="3 3" label={{ value: t("sb.ref_mod"), fill: "#f59e0b", fontSize: 9 }} />
+                      <ReferenceLine y={-1.5} stroke="#dc2626" strokeDasharray="3 3" label={{ value: t("sb.ref_sev"), fill: "#dc2626", fontSize: 9 }} />
+                      <ReferenceLine y={-2.0} stroke="#7f1d1d" strokeDasharray="3 3" label={{ value: t("sb.ref_extr"), fill: "#7f1d1d", fontSize: 9 }} />
 
-                      <Line type="monotone" dataKey="spi1" stroke="#06b6d4" strokeWidth={1.2} dot={false} name="SPI-1 (1-Mo)" />
-                      <Line type="monotone" dataKey="spi3" stroke="#2563eb" strokeWidth={2.0} dot={false} name="SPI-3 (3-Mo)" />
-                      <Line type="monotone" dataKey="spi6" stroke="#4f46e5" strokeWidth={1.5} dot={false} name="SPI-6 (6-Mo)" />
-                      <Line type="monotone" dataKey="spi12" stroke="#9333ea" strokeWidth={1.8} dot={false} strokeDasharray="2 2" name="SPI-12 (Annual)" />
+                      <Line type="monotone" dataKey="spi1" stroke="#06b6d4" strokeWidth={1.2} dot={false} name={t("sb.legend_spi1")} />
+                      <Line type="monotone" dataKey="spi3" stroke="#2563eb" strokeWidth={2.0} dot={false} name={t("sb.legend_spi3")} />
+                      <Line type="monotone" dataKey="spi6" stroke="#4f46e5" strokeWidth={1.5} dot={false} name={t("sb.legend_spi6")} />
+                      <Line type="monotone" dataKey="spi12" stroke="#9333ea" strokeWidth={1.8} dot={false} strokeDasharray="2 2" name={t("sb.legend_spi12")} />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
@@ -729,10 +698,10 @@ export function PermanentSidebar({
                 <div className="flex items-center justify-between">
                   <div>
                     <span className="text-xs font-bold text-slate-800">
-                      Annual Climatological Cycle vs 10-Year Normal
+                      {t("sb.clim_chart_title")}
                     </span>
                     <p className="text-[10px] text-slate-500">
-                      Comparing the 12-month expected vegetation greenness baseline against observed values.
+                      {t("sb.clim_chart_sub")}
                     </p>
                   </div>
                 </div>
@@ -745,8 +714,8 @@ export function PermanentSidebar({
                       <YAxis domain={[0, 0.7]} tick={{ fill: "#64748b", fontSize: 10 }} />
                       <Tooltip contentStyle={{ backgroundColor: "#ffffff", borderColor: "#e2e8f0", fontSize: "11px", borderRadius: "8px" }} />
                       <Legend wrapperStyle={{ fontSize: "11px" }} />
-                      <Line type="monotone" dataKey="normal_ndvi" stroke="#94a3b8" strokeWidth={2.5} strokeDasharray="4 4" dot={true} name="10-Yr Normal Baseline (μ)" />
-                      <Line type="monotone" dataKey="observed_ndvi" stroke="#059669" strokeWidth={2.5} dot={{ r: 4, fill: "#059669" }} name="Observed NDVI" />
+                      <Line type="monotone" dataKey="normal_ndvi" stroke="#94a3b8" strokeWidth={2.5} strokeDasharray="4 4" dot={true} name={t("sb.legend_normal_baseline")} />
+                      <Line type="monotone" dataKey="observed_ndvi" stroke="#059669" strokeWidth={2.5} dot={{ r: 4, fill: "#059669" }} name={t("sb.legend_observed_ndvi")} />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
@@ -758,9 +727,9 @@ export function PermanentSidebar({
               <div className="p-3.5 rounded-xl border border-slate-200 bg-white shadow-xs space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-slate-800">
-                    Composite Drought Score (CDI) vs Precipitation
+                    {t("sb.cdi_chart_title")}
                   </span>
-                  <span className="text-[10px] font-mono text-slate-500">{chartData.length} periods</span>
+                  <span className="text-[10px] font-mono text-slate-500">{chartData.length} {t("sb.periods")}</span>
                 </div>
 
                 <div className="h-64 w-full">
@@ -772,9 +741,9 @@ export function PermanentSidebar({
                       <YAxis yAxisId="rain" orientation="right" tick={{ fill: "#3b82f6", fontSize: 9 }} />
                       <Tooltip contentStyle={{ backgroundColor: "#ffffff", borderColor: "#e2e8f0", fontSize: "11px", borderRadius: "8px" }} />
                       <Legend wrapperStyle={{ fontSize: "11px" }} />
-                      <ReferenceLine yAxisId="cdi" y={0.5} stroke="#ef4444" strokeDasharray="3 3" label={{ value: "D2 Severe", fill: "#ef4444", fontSize: 9 }} />
-                      <Bar yAxisId="rain" dataKey="rain" fill="#93c5fd" name="Rain (mm)" opacity={0.7} />
-                      <Line yAxisId="cdi" type="monotone" dataKey="cdi" stroke="#d97706" strokeWidth={2.2} dot={false} name="CDI Score" />
+                      <ReferenceLine yAxisId="cdi" y={0.5} stroke="#ef4444" strokeDasharray="3 3" label={{ value: t("sb.ref_d2"), fill: "#ef4444", fontSize: 9 }} />
+                      <Bar yAxisId="rain" dataKey="rain" fill="#93c5fd" name={t("sb.legend_rain")} opacity={0.7} />
+                      <Line yAxisId="cdi" type="monotone" dataKey="cdi" stroke="#d97706" strokeWidth={2.2} dot={false} name={t("sb.cdi_score")} />
                     </ComposedChart>
                   </ResponsiveContainer>
                 </div>
@@ -788,7 +757,7 @@ export function PermanentSidebar({
           <div className="space-y-4 animate-fadeIn">
             <div className="p-3.5 rounded-xl border border-slate-200 bg-white shadow-xs">
               <div className="text-xs font-bold text-slate-800 mb-2">
-                Tehsil Drought Stress Ranking ({selectedPeriod})
+                {t("sb.rank_title").replace("{p}", selectedPeriod)}
               </div>
               <div className="h-56 w-full">
                 {ranking ? (
@@ -802,7 +771,7 @@ export function PermanentSidebar({
                       <XAxis type="number" domain={[0, 1]} tick={{ fill: "#64748b", fontSize: 10 }} />
                       <YAxis dataKey="tehsil" type="category" tick={{ fill: "#0f172a", fontSize: 10, fontWeight: 600 }} />
                       <Tooltip
-                        formatter={(val: any) => [`${Number(val).toFixed(3)} CDI`, "Average Score"]}
+                        formatter={(val: any) => [`${Number(val).toFixed(3)} CDI`, t("sb.avg_score")]}
                         contentStyle={{ backgroundColor: "#ffffff", borderColor: "#e2e8f0", fontSize: "11px" }}
                       />
                       <Bar dataKey="avg_cdi" radius={[0, 4, 4, 0]}>
@@ -815,7 +784,7 @@ export function PermanentSidebar({
                   </ResponsiveContainer>
                 ) : (
                   <div className="h-full flex items-center justify-center text-xs text-slate-400">
-                    Loading tehsil rankings...
+                    {t("sb.loading_rank")}
                   </div>
                 )}
               </div>
@@ -826,33 +795,33 @@ export function PermanentSidebar({
               <table className="w-full text-[11px] text-left">
                 <thead>
                   <tr className="border-b border-slate-200 text-slate-500">
-                    <th className="py-1.5 font-bold">Tehsil</th>
-                    <th className="py-1.5 font-bold">Villages</th>
-                    <th className="py-1.5 font-bold">Avg CDI</th>
-                    <th className="py-1.5 font-bold">Drought %</th>
-                    <th className="py-1.5 font-bold">D2+</th>
+                    <th className="py-1.5 font-bold">{t("sb.th_tehsil")}</th>
+                    <th className="py-1.5 font-bold">{t("sb.th_villages")}</th>
+                    <th className="py-1.5 font-bold">{t("sb.th_avg_cdi")}</th>
+                    <th className="py-1.5 font-bold">{t("sb.th_drought_pct")}</th>
+                    <th className="py-1.5 font-bold">{t("sb.th_d2plus")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {ranking?.map((t: any) => (
+                  {ranking?.map((r: any) => (
                     <tr
-                      key={t.tehsil}
-                      onClick={() => onSelectTehsil(t.tehsil)}
+                      key={r.tehsil}
+                      onClick={() => onSelectTehsil(r.tehsil)}
                       className={`cursor-pointer hover:bg-amber-50/60 transition-colors ${
-                        selectedTehsil === t.tehsil ? "bg-amber-100/50 font-bold" : ""
+                        selectedTehsil === r.tehsil ? "bg-amber-100/50 font-bold" : ""
                       }`}
                     >
-                      <td className="py-2 text-slate-900 font-semibold">{t.tehsil}</td>
-                      <td className="py-2 font-mono text-slate-600">{t.assessed}/{t.villages}</td>
-                      <td className="py-2 font-mono font-bold text-amber-700">{t.avg_cdi.toFixed(3)}</td>
+                      <td className="py-2 text-slate-900 font-semibold">{r.tehsil}</td>
+                      <td className="py-2 font-mono text-slate-600">{r.assessed}/{r.villages}</td>
+                      <td className="py-2 font-mono font-bold text-amber-700">{r.avg_cdi.toFixed(3)}</td>
                       <td className="py-2">
                         <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                          t.drought_pct > 75 ? "bg-rose-100 text-rose-800" : t.drought_pct > 50 ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-700"
+                          r.drought_pct > 75 ? "bg-rose-100 text-rose-800" : r.drought_pct > 50 ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-700"
                         }`}>
-                          {t.drought_pct.toFixed(0)}%
+                          {r.drought_pct.toFixed(0)}%
                         </span>
                       </td>
-                      <td className="py-2 font-mono text-rose-700 font-bold">{t.d2_plus}</td>
+                      <td className="py-2 font-mono text-rose-700 font-bold">{r.d2_plus}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -868,16 +837,16 @@ export function PermanentSidebar({
             <div className="p-3.5 rounded-xl border border-slate-200 bg-white shadow-xs">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-bold text-slate-800">
-                  CDI Intensity Heatmap Matrix (2016–2026)
+                  {t("sb.heat_title")}
                 </span>
-                <span className="text-[10px] text-slate-500 font-mono">0.0 (pale) → 1.0 (dark red), CDI classes</span>
+                <span className="text-[10px] text-slate-500 font-mono">{t("sb.heat_note")}</span>
               </div>
 
               <div className="overflow-x-auto">
                 <table className="border-separate border-spacing-0.5 text-[10px] w-full">
                   <thead>
                     <tr>
-                      <th className="w-8 text-left text-slate-400 font-semibold">Yr</th>
+                      <th className="w-8 text-left text-slate-400 font-semibold">{t("sb.heat_yr")}</th>
                       {["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"].map((m) => (
                         <th key={m} className="w-6 py-1 text-center font-normal text-slate-400">
                           {m}
@@ -903,7 +872,7 @@ export function PermanentSidebar({
                               key={m}
                               style={{ backgroundColor: bg, color: text }}
                               className="h-5 text-center font-mono text-[9px] rounded-xs font-semibold"
-                              title={`${dateKey}: ${val != null ? val.toFixed(2) : "No data"}`}
+                              title={`${dateKey}: ${val != null ? val.toFixed(2) : t("sb.no_data")}`}
                             >
                               {val != null ? val.toFixed(1) : "—"}
                             </td>
@@ -919,10 +888,10 @@ export function PermanentSidebar({
             {/* 8x8 Correlation Matrix */}
             <div className="p-3.5 rounded-xl border border-slate-200 bg-white shadow-xs">
               <div className="text-xs font-bold text-slate-800 mb-1">
-                Index Pairwise Correlation Matrix
+                {t("sb.corr_title")}
               </div>
               <p className="text-[10px] text-slate-500 mb-2">
-                Calculated across 94,472 Latur observations (2016–2026). Strong negative correlation between VHI/SPI-3 and CDI confirms physical drought synchronization.
+                {t("sb.corr_note")}
               </p>
 
               {(() => {
@@ -936,7 +905,7 @@ export function PermanentSidebar({
                       <table className="border-collapse text-[10px] w-full text-center font-mono">
                         <thead>
                           <tr className="border-b border-slate-200 text-slate-500">
-                            <th className="p-1 text-left">Index</th>
+                            <th className="p-1 text-left">{t("sb.th_index")}</th>
                             {headers.map((h) => (
                               <th key={h} className="p-1 font-semibold">{h}</th>
                             ))}
@@ -979,7 +948,7 @@ export function PermanentSidebar({
                       <table className="border-collapse text-[10px] w-full text-center font-mono">
                         <thead>
                           <tr className="border-b border-slate-200 text-slate-500">
-                            <th className="p-1 text-left">Index</th>
+                            <th className="p-1 text-left">{t("sb.th_index")}</th>
                             {cm.indices.map((idx: string) => (
                               <th key={idx} className="p-1 font-semibold">{idx}</th>
                             ))}

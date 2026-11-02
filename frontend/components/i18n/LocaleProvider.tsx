@@ -1,18 +1,21 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
-import { type Locale, LOCALE_LABEL, t as translate } from "@/lib/i18n";
+import { type Locale, LOCALE_LABEL, t as translate, tf as translateOr } from "@/lib/i18n";
 
 interface Ctx {
   locale: Locale;
   setLocale: (l: Locale) => void;
   t: (key: string) => string;
+  /** For text whose English original lives outside the dictionaries (lib/metrics.ts). */
+  tf: (key: string, fallback: string) => string;
 }
 
 const LocaleCtx = createContext<Ctx>({
   locale: "en",
   setLocale: () => undefined,
   t: (k) => k,
+  tf: (_k, f) => f,
 });
 
 export function LocaleProvider({ children }: { children: React.ReactNode }) {
@@ -31,7 +34,12 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
   }, [locale]);
 
   return (
-    <LocaleCtx.Provider value={{ locale, setLocale, t: (k) => translate(locale, k) }}>
+    <LocaleCtx.Provider value={{
+      locale,
+      setLocale,
+      t: (k) => translate(locale, k),
+      tf: (k, f) => translateOr(locale, k, f),
+    }}>
       {children}
     </LocaleCtx.Provider>
   );

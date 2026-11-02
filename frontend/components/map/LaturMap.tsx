@@ -9,8 +9,10 @@ import { MapLegend } from "./MapLegend";
 import { MapControls } from "./MapChrome";
 import {
   METRICS, binFor, colorFor, formatValue, NO_DATA_COLOR,
-  type ActiveVillage, type MetricName,
+  type ActiveVillage, type Bin, type MetricName,
 } from "@/lib/metrics";
+import { useLocale } from "@/components/i18n/LocaleProvider";
+import { slug } from "@/lib/i18n";
 import {
   activeVillage, loadBaselines, loadDistrict, loadTehsils, loadTimeseries, loadVillages,
   type Baselines, type TimeseriesById, type VillageFeatureProps,
@@ -60,6 +62,10 @@ function VillageLayer(props: {
   const hoverRef = useRef<number | null>(null);
   const live = useRef(props);
   live.current = props;
+  // Leaflet builds tooltips in a closure, so the translators are read through a ref.
+  const { t, tf } = useLocale();
+  const i18n = useRef({ t, tf });
+  i18n.current = { t, tf };
 
   const styleFor = (id: number): L.PathOptions => {
     const { records, metric, tehsil, selectedId } = live.current;
@@ -97,14 +103,16 @@ function VillageLayer(props: {
             const v = spec.value(rec);
             const b = binFor(spec, v);
             const cdiBin = binFor(METRICS.cdi, rec.cdi);
+            const { t: tr, tf: trf } = i18n.current;
+            const binLabel = (bb?: Bin | null) => (bb ? trf(`bin.${slug(bb.label)}`, bb.label) : "");
             return `<div class="vt">
               <div class="vt-name">${esc(rec.village)}</div>
-              <div class="vt-sub">${esc(rec.tehsil)} tehsil · ${esc(rec.period)}</div>
+              <div class="vt-sub">${esc(rec.tehsil)} ${esc(tr("sb.tehsil_word"))} · ${esc(rec.period)}</div>
               <div class="vt-row"><i style="background:${b ? b.color : NO_DATA_COLOR}"></i>
-                <b>${esc(spec.title.split(" (")[0])}</b>
-                <span>${esc(formatValue(spec, v))}${b ? " · " + esc(b.label) : ""}</span></div>
+                <b>${esc(trf(`metric.${spec.id}.title`, spec.title).split(" (")[0])}</b>
+                <span>${esc(formatValue(spec, v))}${b ? " · " + esc(binLabel(b)) : ""}</span></div>
               ${metric !== "cdi" ? `<div class="vt-row"><i style="background:${cdiBin ? cdiBin.color : NO_DATA_COLOR}"></i>
-                <b>CDI</b><span>${rec.cdi != null ? rec.cdi.toFixed(3) + " · " + esc(cdiBin?.label) : "no data"}</span></div>` : ""}
+                <b>CDI</b><span>${rec.cdi != null ? rec.cdi.toFixed(3) + " · " + esc(binLabel(cdiBin)) : esc(tr("sb.no_data"))}</span></div>` : ""}
             </div>`;
           },
           { sticky: false, direction: "top", offset: [0, -6], opacity: 1, className: "village-tip" },
@@ -211,6 +219,7 @@ export default function LaturMap({
   metric = "cdi", tehsil = "All", selectedVillageId = null, currentPeriod,
   onSelectVillage, aoi = null, showSatellite = false, rightInset = 0, onPeriodChange, topLeft, children,
 }: Props) {
+  const { t } = useLocale();
   const [basemapId, setBasemapId] = useState("osm");
   const [villages, setVillages] = useState<FeatureCollection | null>(null);
   const [tehsils, setTehsils] = useState<FeatureCollection | null>(null);
@@ -222,7 +231,7 @@ export default function LaturMap({
   useEffect(() => {
     let alive = true;
     Promise.all([loadVillages(), loadTimeseries(), loadBaselines()])
-      .then(([v, t, b]) => { if (alive) { setVillages(v); setTs(t); setBaselines(b); } })
+      .then(([v, series, b]) => { if (alive) { setVillages(v); setTs(series); setBaselines(b); } })
       .catch((e) => alive && setError(String(e)));
     loadTehsils().then((d) => alive && setTehsils(d)).catch(() => null);
     loadDistrict().then((d) => alive && setDistrict(d)).catch(() => null);
@@ -274,12 +283,12 @@ export default function LaturMap({
     <div className="relative h-full w-full overflow-hidden bg-[#e9e6dc]">
       {!villages && !error && (
         <div className="absolute inset-0 z-[1000] flex items-center justify-center bg-paper/80">
-          <p className="font-mono text-xs text-ink/70">Loading village polygons…</p>
+          <p className="font-mono text-xs text-ink/70">{t("map.loading_polygons")}</p>
         </div>
       )}
       {error && (
         <div className="absolute inset-x-0 top-16 z-[1000] mx-auto w-fit rounded border border-d4/40 bg-paper px-3 py-2 text-xs text-d4 shadow-card">
-          Could not load map data: {error}
+          {t("map.load_error")}: {error}
         </div>
       )}
 
@@ -319,7 +328,7 @@ export default function LaturMap({
       >
         <MapLegend
           spec={spec} counts={legend.counts} noData={legend.noData} total={legend.total}
-          period={currentPeriod} tehsilLabel={tehsil === "All" ? "all tehsils" : tehsil}
+          period={currentPeriod} tehsilLabel={tehsil === "All" ? t("map.all_tehsils_low") : tehsil}
           jumpTo={lastWithData && onPeriodChange ? { period: lastWithData, go: () => onPeriodChange(lastWithData) } : null}
         />
         {children && <div className="pointer-events-auto min-w-0 flex-1">{children}</div>}

@@ -11,6 +11,7 @@ import { StatusRibbon } from "@/components/dashboard/StatusRibbon";
 import { AoiCard } from "@/components/aoi/AoiCard";
 import { useAoi } from "@/components/aoi/useAoi";
 import { codeForCDI } from "@/lib/classify";
+import { useLocale } from "@/components/i18n/LocaleProvider";
 import {
   activeVillage, latestCoveredPeriod, recordMarkers, tehsilNames, loadBaselines, loadTimeseries, loadVillageIndex, loadVillages,
   toVillageProperties, type Baselines, type TimeseriesById, type VillageFeatureProps, type VillagesByTehsil,
@@ -24,6 +25,7 @@ const LaturMap = dynamic(() => import("@/components/map/LaturMap"), {
 });
 
 export default function HomePage() {
+  const { t } = useLocale();
   const [metric, setMetric] = useState<MetricName>("cdi");
   const [tehsil, setTehsil] = useState("All");
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -64,8 +66,8 @@ export default function HomePage() {
     let total = 0, assessed = 0, inDrought = 0, d2plus = 0, sum = 0, hasNdvi = 0, hasRain = 0, hasSpi = 0;
     const KEYS = ["ndvi", "vci", "vhi", "rain", "spi1", "spi3", "spi6", "spi12", "tci", "smi", "lst"] as const;
     const acc: Record<string, { s: number; n: number }> = Object.fromEntries(KEYS.map((k) => [k, { s: 0, n: 0 }]));
-    for (const [t, vs] of Object.entries(vIndex)) {
-      if (tehsil !== "All" && t !== tehsil) continue;
+    for (const [tName, vs] of Object.entries(vIndex)) {
+      if (tehsil !== "All" && tName !== tehsil) continue;
       for (const v of vs) {
         total++;
         const pt = ts[String(v.id)]?.find((x) => x.p === period);
@@ -110,33 +112,33 @@ export default function HomePage() {
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Controls */}
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-ink/15 bg-paper px-4 py-2">
-          <Field label="Tehsil">
-            <select aria-label="Tehsil" value={tehsil} onChange={(e) => { setTehsil(e.target.value); setSelectedId(null); }}
+          <Field label={t("controls.tehsil")}>
+            <select aria-label={t("controls.tehsil")} value={tehsil} onChange={(e) => { setTehsil(e.target.value); setSelectedId(null); }}
               className="cursor-pointer rounded border border-ink/20 bg-paper px-2 py-1.5 text-xs font-medium">
-              {tehsils.map((t) => <option key={t} value={t}>{t === "All" ? "All 10 tehsils" : t}</option>)}
+              {tehsils.map((th) => <option key={th} value={th}>{th === "All" ? t("controls.all_tehsils") : th}</option>)}
             </select>
           </Field>
-          <Field label="Village">
-            <select aria-label="Village" value={selectedId ?? ""} onChange={(e) => (e.target.value ? onPick(Number(e.target.value)) : setSelectedId(null))}
+          <Field label={t("controls.village")}>
+            <select aria-label={t("controls.village")} value={selectedId ?? ""} onChange={(e) => (e.target.value ? onPick(Number(e.target.value)) : setSelectedId(null))}
               className="max-w-[210px] cursor-pointer rounded border border-ink/20 bg-paper px-2 py-1.5 text-xs font-medium">
-              <option value="">{summary ? `Choose from ${summary.total}` : "Loading…"}</option>
-              {villageOptions.map(([t, vs]) => (
-                <optgroup key={t} label={t}>
+              <option value="">{summary ? `${t("controls.choose_from")} ${summary.total}` : t("controls.loading")}</option>
+              {villageOptions.map(([teh, vs]) => (
+                <optgroup key={teh} label={teh}>
                   {vs.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
                 </optgroup>
               ))}
             </select>
           </Field>
-          <Field label="Layer"><LayerSelect value={metric} onChange={setMetric} exclude={["Long-term"]} /></Field>
+          <Field label={t("controls.layer")}><LayerSelect value={metric} onChange={setMetric} exclude={["Long-term"]} /></Field>
           <label className="flex cursor-pointer items-center gap-1.5 text-xs">
             <input type="checkbox" checked={satellite} onChange={(e) => setSatellite(e.target.checked)} className="accent-clay" />
-            Satellite underlay
+            {t("controls.satellite")}
           </label>
           <input ref={fileRef} type="file" accept=".geojson,.json,application/geo+json" className="sr-only"
             onChange={(e) => { const f = e.target.files?.[0]; if (f) aoiState.upload(f); e.target.value = ""; }} />
           <button type="button" onClick={() => fileRef.current?.click()}
             className="rounded border border-teal px-2.5 py-1.5 font-mono text-[11px] font-semibold text-teal hover:bg-teal/10">
-            {aoiState.aoi ? "Replace AOI" : "Upload AOI (GeoJSON)"}
+            {aoiState.aoi ? t("controls.replace_aoi") : t("controls.upload_aoi")}
           </button>
           <div className="ml-auto"><StatusRibbon /></div>
         </div>
@@ -148,19 +150,19 @@ export default function HomePage() {
 
         {/* Headline numbers */}
         <dl className="grid grid-cols-2 gap-px border-b border-ink/15 bg-ink/15 sm:grid-cols-5">
-          <Kpi label="Villages assessed" value={summary ? `${summary.assessed}` : "–"} note={summary ? `of ${summary.total} polygons` : ""} />
-          <Kpi label="In drought · D0–D4" value={summary ? `${summary.inDrought}` : "–"} note={summary ? `${pct(summary.inDrought, summary.assessed)}% of assessed` : ""} />
-          <Kpi label="Severe or worse · D2–D4" value={summary ? `${summary.d2plus}` : "–"} note={summary ? `${pct(summary.d2plus, summary.assessed)}% of assessed` : ""} tone="alert" />
-          <Kpi label="Mean CDI" value={summary?.mean != null ? summary.mean.toFixed(3) : "–"} note={summary?.mean != null ? METRICS.cdi.bins[METRICS.cdi.bins.findIndex((b) => summary.mean! < b.hi)]?.label ?? "" : ""} />
+          <Kpi label={t("kpi.villages_assessed")} value={summary ? `${summary.assessed}` : "–"} note={summary ? t("kpi.of_polygons").replace("{n}", String(summary.total)) : ""} />
+          <Kpi label={`${t("kpi.in_drought")} · D0–D4`} value={summary ? `${summary.inDrought}` : "–"} note={summary ? `${pct(summary.inDrought, summary.assessed)}% ${t("kpi.of_assessed")}` : ""} />
+          <Kpi label={`${t("kpi.severe_plus")} · D2–D4`} value={summary ? `${summary.d2plus}` : "–"} note={summary ? `${pct(summary.d2plus, summary.assessed)}% ${t("kpi.of_assessed")}` : ""} tone="alert" />
+          <Kpi label={t("kpi.mean_cdi")} value={summary?.mean != null ? summary.mean.toFixed(3) : "–"} note={summary?.mean != null ? METRICS.cdi.bins[METRICS.cdi.bins.findIndex((b) => summary.mean! < b.hi)]?.label ?? "" : ""} />
           <div className="col-span-2 bg-paper px-3 py-1.5 sm:col-span-1">
-            <div className="font-mono text-[10px] uppercase tracking-wider text-ink/55">Inputs present · {period}</div>
+            <div className="font-mono text-[10px] uppercase tracking-wider text-ink/55">{t("kpi.inputs_present")} · {period}</div>
             {summary ? (
               <div className="mt-1 space-y-0.5">
                 <Bar label="Sentinel-2" n={summary.hasNdvi} d={summary.total} />
-                <Bar label="CHIRPS rain" n={summary.hasRain} d={summary.total} />
+                <Bar label="CHIRPS" n={summary.hasRain} d={summary.total} />
                 <Bar label="SPI-1" n={summary.hasSpi} d={summary.total} />
               </div>
-            ) : <div className="text-xs">–</div>}
+            ) : <div className="text-xs">{"–"}</div>}
           </div>
         </dl>
 
@@ -172,7 +174,7 @@ export default function HomePage() {
               topLeft={aoiState.result ? (
                 <AoiCard name={aoiState.name} result={aoiState.result} period={period} onClear={aoiState.clear} onSelect={onPick} />
               ) : aoiState.busy ? (
-                <div className="rounded border border-teal/50 bg-paper/95 px-3 py-2 font-mono text-xs text-teal shadow-card">Intersecting AOI with 954 villages…</div>
+                <div className="rounded border border-teal/50 bg-paper/95 px-3 py-2 font-mono text-xs text-teal shadow-card">{t("map.intersecting_aoi")}</div>
               ) : null}
             >
               {periods.length > 0 && (
