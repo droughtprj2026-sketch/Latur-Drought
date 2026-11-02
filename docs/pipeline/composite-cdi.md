@@ -9,21 +9,22 @@ This document details the configuration, weighting theory, and dynamic re-weight
 In accordance with core project rules, **CDI weights, thresholds, and formula version are strictly maintained in `config/composite.yaml`**—never hard-coded into processing scripts.
 
 ```yaml
-version: "2.1.0"
+formula_version: "cdi-v2026.12"
 min_inputs: 1
 
 weights:
-  SPI3: 0.35      # 3-Month Meteorological Precipitation Deficit
-  VCI: 0.30       # Sentinel-2 Vegetation Condition Anomaly
-  NSMI: 0.20      # Sentinel-1 SAR Root-Zone Soil Moisture
-  TCI: 0.15       # Landsat 8/9 Thermal Condition Index
+  SPI:  0.50      # 3-Month Standardized Precipitation Index (CHIRPS)
+  VCI:  0.25      # Sentinel-2 Vegetation Condition Index
+  NDVI: 0.15      # Sentinel-2 Normalized Difference Vegetation Index
+  NSMI: 0.10      # Sentinel-2 SWIR Normalized Soil Moisture Index
 
 thresholds:
-  D0: 0.15        # Abnormally Dry
-  D1: 0.25        # Moderate Drought
-  D2: 0.35        # Severe Drought
-  D3: 0.50        # Extreme Drought
-  D4: 0.70        # Exceptional Drought
+  - { max: 0.20, code: "None", label: "Not in drought" }
+  - { max: 0.35, code: "D0",   label: "Abnormally dry / Mild" }
+  - { max: 0.50, code: "D1",   label: "Moderate drought" }
+  - { max: 0.65, code: "D2",   label: "Severe drought" }
+  - { max: 0.80, code: "D3",   label: "Extreme drought" }
+  - { max: 1.01, code: "D4",   label: "Exceptional drought" }
 ```
 
 ---
@@ -31,24 +32,18 @@ thresholds:
 ## 2. Mathematical Formulations
 
 ### 2.1 Nominal Full-Sensor Formulation
-When all four satellite inputs are valid and unmasked:
+When all four inputs are valid and unmasked:
 
-$$\text{CDI}_{\text{nominal}} = 0.35 \cdot S(\text{SPI3}) + 0.30 \cdot S(\text{VCI}) + 0.20 \cdot S(\text{NSMI}) + 0.15 \cdot S(\text{TCI})$$
+$$\text{CDI}_{\text{nominal}} = 0.50 \cdot S(\text{SPI}) + 0.25 \cdot S(\text{VCI}) + 0.15 \cdot S(\text{NDVI}) + 0.10 \cdot S(\text{NSMI})$$
 
 where $S(I)$ converts each index into a standardized severity score ($0.0 \le S \le 1.0$, where $1.0$ corresponds to exceptional drought):
 
-$$S(\text{SPI3}) = \min \left( 1.0, \max \left( 0.0, \frac{-\text{SPI3} - (-0.5)}{2.5 - (-0.5)} \right) \right)$$
-
-$$S(\text{VCI}) = 1.0 - \left( \frac{\text{VCI}}{100} \right)$$
-
-$$S(\text{NSMI}) = 1.0 - \text{NSMI}$$
-
-$$S(\text{TCI}) = 1.0 - \left( \frac{\text{TCI}}{100} \right)$$
+- **SPI (neg_clip):** $S(\text{SPI}) = \text{clip}(-\text{SPI} / 3,\ 0,\ 1)$
+- **NDVI, VCI, NSMI (robust_z):** Per (village, calendar month) robust standardised anomaly: $z = (x - \text{median}) / (1.4826 \cdot \text{MAD})$; $S = \text{clip}(-z / 3,\ 0,\ 1)$. A normal month ($z \approx 0$) scores near 0 (None/D0); only deficits score.
 
 ### 2.2 Dynamic Component Re-Weighting Under Missing Inputs
 Semi-arid tropical remote sensing faces persistent sensor occlusions:
-- **Monsoon Cloud Cover (June–August):** Optical Sentinel-2 is frequently masked by thick cloud cover.
-- **SAR & Thermal Revisit Stagger:** Sentinel-1 operates on a 6–12 day cycle, and Landsat on a 16-day cycle.
+- **Monsoon Cloud Cover (June–September):** Optical Sentinel-2 is frequently masked by thick cloud cover, so NDVI, VCI and NSMI are unavailable.
 
 When an input indicator is unavailable (unobserved or cloud-masked), it is **dropped** from the summation. The remaining available indicators are dynamically re-weighted such that their operational weights sum to exactly $1.0$:
 

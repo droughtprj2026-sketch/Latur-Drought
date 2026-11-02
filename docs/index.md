@@ -18,8 +18,8 @@ Integrating multi-sensor Earth Observation constellations—including **Copernic
 
 ```mermaid
 graph TD
-    A[Copernicus Sentinel-2 MSI] -->|Optical Reflectance| D[NDVI / EVI / VCI]
-    B[Copernicus Sentinel-1 SAR] -->|Backscatter / Radiative Transfer| E[SMI / NSMI Soil Moisture]
+    A[Copernicus Sentinel-2 MSI] -->|Optical Reflectance| D[NDVI / EVI / VCI / NSMI]
+    B[Copernicus Sentinel-1 SAR] -->|Backscatter| E[SMI Soil Moisture]
     C[Landsat 8/9 TIRS] -->|Thermal Radiance| F[LST / TCI Temperature Condition]
     G[UCSB CHIRPS v2.0] -->|Precipitation Grids| H[SPI-1, SPI-3, SPI-6, SPI-12]
     

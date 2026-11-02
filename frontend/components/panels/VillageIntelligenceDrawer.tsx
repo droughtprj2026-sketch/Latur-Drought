@@ -100,7 +100,7 @@ const COMPONENT_LABELS: Record<string, { name: string; desc: string }> = {
   SPI:  { name: "Rainfall deficit (SPI · CHIRPS)", desc: "Standardized Precipitation Index; the only input that is always available, including through monsoon cloud" },
   VCI:  { name: "Vegetation condition (VCI · Sentinel-2)", desc: "Canopy stress against the village's own range for the calendar month" },
   NDVI: { name: "Vegetation greenness (NDVI · Sentinel-2)", desc: "Anomaly of green biomass against the village's own record" },
-  NSMI: { name: "Soil moisture (NSMI · Sentinel-1)", desc: "Radar soil-moisture proxy, anomaly against the village's own record" },
+  NSMI: { name: "Soil moisture (NSMI · Sentinel-2 SWIR)", desc: "Shortwave infrared moisture proxy (B11-B12)/(B11+B12), anomaly against the village's own record" },
 };
 
 export function VillageIntelligenceDrawer({ village, onClose }: Props) {

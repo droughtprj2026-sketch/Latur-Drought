@@ -84,7 +84,7 @@ def label_of(column: str) -> str:
 
 # Named colour ramps reused across the suite.
 CDI_CMAP = LinearSegmentedColormap.from_list(
-    "cdi_severity", ["#E2DED2", "#F2E26B", "#F6BC63", "#E9822F", "#C23B22", "#6E1423"]
+    "cdi_severity", ["#FFFDE7", "#F2E26B", "#F6BC63", "#E9822F", "#C23B22", "#6E1423"]
 )
 COVERAGE_CMAP = LinearSegmentedColormap.from_list(
     "coverage", ["#F7F7F7", "#D9E8F5", "#8FBFE0", "#3C7FB3", "#17405F"]

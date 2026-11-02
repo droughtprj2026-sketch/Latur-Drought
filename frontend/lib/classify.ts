@@ -13,7 +13,7 @@ export const D_LABELS = [
   "D4 — Exceptional drought",
 ] as const;
 export const D_COLORS = [
-  "#E2DED2", "#F2E26B", "#F6BC63", "#E9822F", "#C23B22", "#6E1423",
+  "#FFFDE7", "#F2E26B", "#F6BC63", "#E9822F", "#C23B22", "#6E1423",
 ] as const;
 
 export const SPI_CODES  = D_CODES;

@@ -12,7 +12,8 @@ This encyclopedia documents every biophysical and meteorological drought index c
 | **EVI** | Enhanced Vegetation Index | Atmospheric & Soil Adjusted Canopy | Sentinel-2 MSI (B2, B4, B8) | $-1.0 \text{ to } +1.0$ |
 | **VCI** | Vegetation Condition Index | Relative Phenological Anomaly | Sentinel-2 MSI Baseline | $0.0 \text{ to } 100.0\%$ |
 | **TCI** | Temperature Condition Index | Thermal Evaporative Stress | Landsat 8/9 TIRS (Band 10) | $0.0 \text{ to } 100.0\%$ |
-| **SMI / NSMI** | Soil Moisture Index (Normalized) | Root-Zone Water Permittivity | Sentinel-1 SAR (VV/VH) | $0.0 \text{ to } 1.0$ |
+| **NSMI** | Normalized Soil Moisture Index | Surface Moisture (SWIR reflectance) | Sentinel-2 MSI (B11, B12) | $0.0 \text{ to } 1.0$ |
+| **SMI** | Soil Moisture Index | Root-Zone Water Permittivity | Sentinel-1 SAR (VV) | $0.0 \text{ to } 100.0\%$ |
 | **VHI** | Vegetation Health Index | Joint Vegetative & Thermal Stress | Dual Optical-Thermal | $0.0 \text{ to } 100.0\%$ |
 | **SPI-1** | 1-Month Standardized Precipitation Index | Flash Meteorological Drought | UCSB CHIRPS v2.0 | $-\infty \text{ to } +\infty$ |
 | **SPI-3** | 3-Month Standardized Precipitation Index | Seasonal Kharif/Rabi Moisture | UCSB CHIRPS v2.0 | $-\infty \text{ to } +\infty$ |
@@ -80,16 +81,21 @@ $$\text{VHI} = \alpha \cdot \text{VCI} + (1 - \alpha) \cdot \text{TCI}$$
 
 where $\alpha = 0.5$ represents equal biophysical weighting between moisture stress and thermal elevation.
 
-### 3.6 Synthetic Aperture Radar Soil Moisture (SMI / NSMI)
-From Sentinel-1 C-band ($5.405\text{ GHz}$) dual-polarization ($\sigma^\circ_{\text{VV}}$, $\sigma^\circ_{\text{VH}}$) radar backscatter, relative surface soil moisture is calculated by normalising backscatter against dry and saturated reference baselines:
+### 3.6 Normalized Soil Moisture Index (NSMI)
+NSMI is a Sentinel-2 shortwave infrared index that exploits the sensitivity of SWIR bands to leaf and soil water content:
+
+$$\text{NSMI} = \frac{\rho_{\text{SWIR1}} - \rho_{\text{SWIR2}}}{\rho_{\text{SWIR1}} + \rho_{\text{SWIR2}}}$$
+
+where $\rho_{\text{SWIR1}}$ = Sentinel-2 Band 11 ($1610\text{ nm}$) and $\rho_{\text{SWIR2}}$ = Sentinel-2 Band 12 ($2190\text{ nm}$). Higher values indicate wetter soil and canopy.
+
+Because NSMI relies on optical Sentinel-2 imagery, it is **unavailable during monsoon cloud cover** (June–September), like NDVI and VCI. During these months, the CDI rests on SPI alone.
+
+### 3.6b Soil Moisture Index from SAR (SMI)
+SMI is derived from Sentinel-1 C-band ($5.405\text{ GHz}$) radar backscatter ($\sigma^\circ_{\text{VV}}$), normalised against dry and saturated baselines:
 
 $$\text{SMI} = \frac{\sigma^\circ_{\text{VV}} - \sigma^\circ_{\text{dry}}}{\sigma^\circ_{\text{wet}} - \sigma^\circ_{\text{dry}}}$$
 
-For cross-index consistency, Normalized Soil Moisture Index ($\text{NSMI}$) is scaled onto $[0.0, 1.0]$:
-
-$$\text{NSMI}_{v, m} = \min \left( 1.0, \max \left( 0.0, \frac{\text{SMI}_{v, m} - \text{SMI}_{\min}(v, m)}{\text{SMI}_{\max}(v, m) - \text{SMI}_{\min}(v, m)} \right) \right)$$
-
-Because SAR microwaves penetrate cloud cover and precipitation, NSMI provides all-weather monitoring during monsoon months (June–August).
+Because SAR microwaves penetrate cloud cover, SMI provides all-weather monitoring. It is used in the opt-in thermal formula (`config/composite_thermal.yaml`) but not in the default `cdi-v2026.12` formula.
 
 ### 3.7 Standardized Precipitation Index (SPI-1, SPI-3, SPI-6, SPI-12)
 Precipitation from UCSB CHIRPS v2.0 ($0.05^\circ$ grid, daily blended satellite-gauge) is aggregated across rolling windows:
@@ -104,11 +110,11 @@ $$A_{k, t} = \sum_{i=0}^{k-1} P_{t - i}$$
 Cumulative precipitation is fitted to a 2-parameter Gamma distribution $g(x; \alpha, \beta)$ and transformed to standard normal $Z \sim \mathcal{N}(0, 1)$.
 
 ### 3.8 Composite Drought Index (CDI)
-CDI integrates meteorological deficit (SPI), vegetation condition (VCI), soil moisture (NSMI), and thermal state (TCI) into a single composite:
+CDI integrates meteorological deficit (SPI), vegetation condition (VCI), canopy greenness (NDVI), and surface moisture (NSMI) into a single composite:
 
-$$\text{CDI}_{\text{nominal}} = w_{\text{SPI3}} \cdot S(\text{SPI3}) + w_{\text{VCI}} \cdot S(\text{VCI}) + w_{\text{NSMI}} \cdot S(\text{NSMI}) + w_{\text{TCI}} \cdot S(\text{TCI})$$
+$$\text{CDI}_{\text{nominal}} = 0.50 \cdot S(\text{SPI}) + 0.25 \cdot S(\text{VCI}) + 0.15 \cdot S(\text{NDVI}) + 0.10 \cdot S(\text{NSMI})$$
 
-where $S(I)$ is the normalized severity score ($0.0 \le S \le 1.0$, where $1.0$ is extreme drought) for index $I$.
+where $S(I)$ is the normalized severity score ($0.0 \le S \le 1.0$, where $1.0$ is extreme drought) for index $I$. See `config/composite.yaml` for the authoritative weights and normalisation methods.
 
 ---
 
@@ -128,12 +134,12 @@ The 11-year seasonal violin plots show the phenological timing of moisture, vege
 
 | Drought Code | Severity Category | CDI Threshold | SPI-3 Threshold | VCI Threshold | Agricultural Impact Description |
 | :---: | :---: | :---: | :---: | :---: | :--- |
-| **None** | Normal / Wet | $< 0.15$ | $> -0.50$ | $\ge 50\%$ | Optimal crop growth; adequate soil moisture. |
-| **D0** | Abnormally Dry | $0.15 \le \text{CDI} < 0.25$ | $-0.80 \le \text{SPI} < -0.50$ | $40\text{--}50\%$ | Minor soil moisture deficit; sowing delays. |
-| **D1** | Moderate Drought | $0.25 \le \text{CDI} < 0.35$ | $-1.20 \le \text{SPI} < -0.80$ | $30\text{--}40\%$ | Visible crop wilting; stunted vegetative growth. |
-| **D2** | Severe Drought | $0.35 \le \text{CDI} < 0.50$ | $-1.60 \le \text{SPI} < -1.20$ | $20\text{--}30\%$ | Significant yield loss; fodder scarcity; water stress. |
-| **D3** | Extreme Drought | $0.50 \le \text{CDI} < 0.70$ | $-2.00 \le \text{SPI} < -1.60$ | $10\text{--}20\%$ | Extensive crop failure; acute livestock distress. |
-| **D4** | Exceptional Drought | $\ge 0.70$ | $\le -2.00$ | $< 10\%$ | Catastrophic crisis; emergency water rationing. |
+| **None** | Normal / Wet | $< 0.20$ | $> -0.50$ | $\ge 60\%$ | Optimal crop growth; adequate soil moisture. |
+| **D0** | Abnormally Dry | $0.20 \le \text{CDI} < 0.35$ | $-0.80 \le \text{SPI} < -0.50$ | $40\text{--}60\%$ | Minor soil moisture deficit; sowing delays. |
+| **D1** | Moderate Drought | $0.35 \le \text{CDI} < 0.50$ | $-1.30 \le \text{SPI} < -0.80$ | $30\text{--}40\%$ | Visible crop wilting; stunted vegetative growth. |
+| **D2** | Severe Drought | $0.50 \le \text{CDI} < 0.65$ | $-1.60 \le \text{SPI} < -1.30$ | $20\text{--}30\%$ | Significant yield loss; fodder scarcity; water stress. |
+| **D3** | Extreme Drought | $0.65 \le \text{CDI} < 0.80$ | $-2.00 \le \text{SPI} < -1.60$ | $10\text{--}20\%$ | Extensive crop failure; acute livestock distress. |
+| **D4** | Exceptional Drought | $\ge 0.80$ | $\le -2.00$ | $< 10\%$ | Catastrophic crisis; emergency water rationing. |
 
 ---
 

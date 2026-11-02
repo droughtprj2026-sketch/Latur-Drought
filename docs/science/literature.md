@@ -18,7 +18,7 @@ The advent of satellite Earth Observation (EO) revolutionized drought assessment
 |  Meteorological Drought   ──►  Rainfall Deficit (CHIRPS v2.0, SPI-1 / SPI-3 / SPI-6)        |
 |         │                                                                                   |
 |         ▼                                                                                   |
-|  Agricultural Drought     ──►  Soil Moisture Depletion (Sentinel-1 SAR NSMI)                |
+|  Agricultural Drought     ──►  Soil Moisture Depletion (Sentinel-2 SWIR NSMI)               |
 |         │                      Canopy Stress & Wilting (Sentinel-2 MSI NDVI, VCI)           |
 |         │                      Thermal Evaporative Stress (Landsat 8/9 LST, TCI)            |
 |         ▼                                                                                   |

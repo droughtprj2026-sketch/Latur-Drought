@@ -11,7 +11,7 @@
 # If fewer than `min_inputs` components are available, the composite
 # for that polygon-period is marked UNAVAILABLE (class = "pending").
 #
-# Monsoon cloud: Sentinel-2 (NDVI, VCI) and often Sentinel-1 (NSMI) are missing in
+# Monsoon cloud: Sentinel-2 (NDVI, VCI, NSMI) are missing in
 # Jun-Sep. CHIRPS rainfall is not, so SPI alone is enough to score a month
 # (min_inputs: 1): the drought class is then decided by rainfall until the optical
 # inputs arrive, and `component_contributions` records that only SPI was used.

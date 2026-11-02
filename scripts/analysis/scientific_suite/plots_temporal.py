@@ -333,7 +333,7 @@ def fig_spi12_episodes(panel: pd.DataFrame) -> pd.DataFrame:
     dates = series.index.to_timestamp()
 
     fig, ax = plt.subplots(figsize=(14.6, 6.2), layout="constrained")
-    ax.axhspan(0.0, 1.0, color="#E2DED2", alpha=0.45)
+    ax.axhspan(0.0, 1.0, color="#FFFDE7", alpha=0.45)
     ax.axhspan(-0.8, 0.0, color="#F2E26B", alpha=0.28)
     ax.axhspan(-1.3, -0.8, color="#F6BC63", alpha=0.35)
     ax.axhspan(-1.6, -1.3, color="#E9822F", alpha=0.38)

@@ -50,7 +50,7 @@ export async function GET(
       monitoring_status: "degraded",
       sentinel2: { latest_period_id: null, status: "no_data" },
       chirps: { latest_period_id: null, status: "no_data" },
-      composite: { formula_version: "cdi-v2026.11" },
+      composite: { formula_version: "cdi-v2026.12" },
       region: { district: "Latur", state: "Maharashtra", centroid_lat: 18.4088, centroid_lon: 76.5604 },
     });
   }
@@ -72,7 +72,7 @@ export async function GET(
     const indices: Record<string, any> = {};
     for (const [k, ys] of Object.entries(have)) {
       indices[k] = {
-        source: k.startsWith("spi") || k === "rain" ? "CHIRPS" : k === "cdi" ? "Composite" : k === "nsmi" ? "Sentinel-1" : "Sentinel-2",
+        source: k.startsWith("spi") || k === "rain" ? "CHIRPS" : k === "cdi" ? "Composite" : k === "nsmi" ? "Sentinel-2 SWIR" : "Sentinel-2",
         years: [...ys].sort(),
       };
     }

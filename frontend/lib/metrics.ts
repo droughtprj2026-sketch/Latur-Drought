@@ -200,7 +200,7 @@ export const METRICS: Record<MetricName, MetricSpec> = {
     title: "Vegetation Health Index", definition: "0.5·VCI + 0.5·TCI (Kogan). Where no land-surface temperature is available it equals VCI. Below 40 means stress.",
     bins: KOGAN_BINS, value: (p) => p.vhi },
   nsmi: { id: "nsmi", label: "Soil moisture (NSMI)", group: "Thermal & soil", cadence: "monthly", unit: "0–1", decimals: 3,
-    title: "Normalized Soil Moisture Index (Sentinel-1)", definition: "Radar backscatter soil moisture proxy (VV). Higher = wetter soil.",
+    title: "Normalized Soil Moisture Index (Sentinel-2 SWIR)", definition: "Sentinel-2 shortwave infrared (B11−B12)/(B11+B12). Higher = wetter soil.",
     bins: NSMI_BINS, value: (p) => p.nsmi },
   tci: { id: "tci", label: "TCI · temperature condition", group: "Thermal & soil", cadence: "monthly", unit: "0–100", decimals: 1,
     title: "Temperature Condition Index", definition: "Where this month's Landsat land-surface temperature sits between the village's coolest and hottest value for the calendar month. Low = hotter than usual = thermal stress.",

@@ -26,9 +26,9 @@
  ┌──────────────────────────────────────────────────────────────┐
  │             GOOGLE EARTH ENGINE CLOUD COMPUTATION            │
  │  • Cloud Masking: SCL scene classification + s2cloudless     │
- │  • Spectral Indices: NDVI, EVI, NDMI, VCI, VHI, PCI          │
+ │  • Spectral Indices: NDVI, EVI, NSMI, VCI, VHI                │
  │  • Gamma Distribution SPI Fitting: SPI-1, 3, 6, 12           │
- │  • Multi-Index CDI Fusion: 0.30·SPI + 0.20·VHI + 0.15·VCI... │
+ │  • Multi-Index CDI Fusion: 0.50·SPI + 0.25·VCI + 0.15·NDVI + 0.10·NSMI │
  │  • Zonal Statistics: reduceRegions() over 954 Village Polygons│
  └──────────────────────────────────────────────────────────────┘
                                │

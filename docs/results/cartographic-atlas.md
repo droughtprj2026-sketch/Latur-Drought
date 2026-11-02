@@ -37,9 +37,9 @@ The multi-year atlases arrange all 11 years (2016 to 2026) alongside the 11-year
 ![Annual Mean NDVI Atlas](../figures/07_spatial_analysis/yearly_mean_atlases/atlas_yearly_mean_ndvi.png)
 <div class="figure-caption">Figure 3.2: 11-Year Annual Mean Normalized Difference Vegetation Index (NDVI) across 954 villages. Shows the sharp contrast between drought years (2018) and high-biomass La Niña seasons (2020–2022).</div>
 
-### 2.3 Synthetic Aperture Radar Root-Zone Soil Moisture (NSMI)
+### 2.3 Surface Soil Moisture (NSMI)
 ![Annual Mean NSMI Atlas](../figures/07_spatial_analysis/yearly_mean_atlases/atlas_yearly_mean_nsmi.png)
-<div class="figure-caption">Figure 3.3: 11-Year Annual Mean Normalized Soil Moisture Index (NSMI) derived from Sentinel-1 C-band SAR backscatter.</div>
+<div class="figure-caption">Figure 3.3: 11-Year Annual Mean Normalized Soil Moisture Index (NSMI) derived from Sentinel-2 SWIR bands (B11, B12).</div>
 
 ### 2.4 Seasonal Meteorological Moisture Balance (SPI-3)
 ![Annual Mean SPI-3 Atlas](../figures/07_spatial_analysis/yearly_mean_atlases/atlas_yearly_mean_spi3.png)

@@ -44,7 +44,7 @@ D_LABELS = [
     "D4 — Exceptional drought",
 ]
 D_COLORS = [
-    "#E2DED2",  # None (pale stone: neutral, deliberately not green and not white)
+    "#FFFDE7",  # None (pale yellow: clearly distinct from no-data grey)
     "#F2E26B",  # D0 straw
     "#F6BC63",  # D1 amber
     "#E9822F",  # D2 orange
