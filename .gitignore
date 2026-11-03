@@ -83,3 +83,4 @@ data/dashboard/
 site/
 output/pytest_temp/
 docs/figures/
+.claude/
