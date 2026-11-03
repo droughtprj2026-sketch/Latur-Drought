@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-01T10:22:28+05:30",
+  "generated_at": "2026-11-03T02:58:20+00:00",
   "monitoring_status": "degraded",
   "sentinel2": {
     "latest_observation_date": "2026-10-15",
@@ -47,16 +47,66 @@
   },
   "synthetic_input": false,
   "pipeline_run": {
-    "started_at": "2026-11-01T10:22:28+05:30",
-    "finished_at": "2026-11-01T10:22:28+05:30",
+    "started_at": "2026-11-03T02:57:54+00:00",
     "ok": true,
-    "ingested": [],
     "steps": [
       {
-        "name": "rescore-history",
+        "name": "formula",
         "status": "ok",
-        "detail": "cdi-v2026.12: whole record re-scored from stored inputs; no new satellite data fetched"
+        "detail": "cdi-v2026.12 (no thermal inputs)"
+      },
+      {
+        "name": "spi-self-check",
+        "status": "ok",
+        "detail": "SPI1 mae=0.0003, SPI3 mae=0.0003, SPI6 mae=0.0002, SPI12 mae=0.0002"
+      },
+      {
+        "name": "targets",
+        "status": "ok",
+        "detail": "['2026-10', '2026-11']"
+      },
+      {
+        "name": "earth-engine",
+        "status": "ok",
+        "detail": "954 village polygons"
+      },
+      {
+        "name": "chirps 2026-10",
+        "status": "skipped",
+        "detail": "month not fully published"
+      },
+      {
+        "name": "thermal 2026-10",
+        "status": "skipped",
+        "detail": "LST/soil moisture not fully published"
+      },
+      {
+        "name": "sentinel2 2026-11",
+        "status": "skipped",
+        "detail": "scenes=0 coverage=0%"
+      },
+      {
+        "name": "chirps 2026-11",
+        "status": "skipped",
+        "detail": "month not fully published"
+      },
+      {
+        "name": "thermal 2026-11",
+        "status": "skipped",
+        "detail": "LST/soil moisture not fully published"
+      },
+      {
+        "name": "rebuild",
+        "status": "skipped",
+        "detail": "no new data"
+      },
+      {
+        "name": "publish-supabase",
+        "status": "ok",
+        "detail": "storage + tables updated"
       }
-    ]
+    ],
+    "ingested": [],
+    "finished_at": "2026-11-03T02:58:20+00:00"
   }
 }
