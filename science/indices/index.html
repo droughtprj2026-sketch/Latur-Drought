@@ -699,10 +699,21 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#36-synthetic-aperture-radar-soil-moisture-smi-nsmi" class="md-nav__link">
+  <a href="#36-normalized-soil-moisture-index-nsmi" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3.6 Synthetic Aperture Radar Soil Moisture (SMI / NSMI)
+        3.6 Normalized Soil Moisture Index (NSMI)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#36b-soil-moisture-index-from-sar-smi" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.6b Soil Moisture Index from SAR (SMI)
       
     </span>
   </a>
@@ -1928,10 +1939,21 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#36-synthetic-aperture-radar-soil-moisture-smi-nsmi" class="md-nav__link">
+  <a href="#36-normalized-soil-moisture-index-nsmi" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3.6 Synthetic Aperture Radar Soil Moisture (SMI / NSMI)
+        3.6 Normalized Soil Moisture Index (NSMI)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#36b-soil-moisture-index-from-sar-smi" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.6b Soil Moisture Index from SAR (SMI)
       
     </span>
   </a>
@@ -2048,11 +2070,18 @@
 <td style="text-align: left;"><span class="arithmatex">\(0.0 \text{ to } 100.0\%\)</span></td>
 </tr>
 <tr>
-<td style="text-align: left;"><strong>SMI / NSMI</strong></td>
-<td style="text-align: left;">Soil Moisture Index (Normalized)</td>
-<td style="text-align: left;">Root-Zone Water Permittivity</td>
-<td style="text-align: left;">Sentinel-1 SAR (VV/VH)</td>
+<td style="text-align: left;"><strong>NSMI</strong></td>
+<td style="text-align: left;">Normalized Soil Moisture Index</td>
+<td style="text-align: left;">Surface Moisture (SWIR reflectance)</td>
+<td style="text-align: left;">Sentinel-2 MSI (B11, B12)</td>
 <td style="text-align: left;"><span class="arithmatex">\(0.0 \text{ to } 1.0\)</span></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>SMI</strong></td>
+<td style="text-align: left;">Soil Moisture Index</td>
+<td style="text-align: left;">Root-Zone Water Permittivity</td>
+<td style="text-align: left;">Sentinel-1 SAR (VV)</td>
+<td style="text-align: left;"><span class="arithmatex">\(0.0 \text{ to } 100.0\%\)</span></td>
 </tr>
 <tr>
 <td style="text-align: left;"><strong>VHI</strong></td>
@@ -2142,12 +2171,15 @@
 <p>Vegetation Health Index integrates vegetative condition (VCI) and thermal evaporative stress (TCI) into a joint biophysical index:</p>
 <div class="arithmatex">\[\text{VHI} = \alpha \cdot \text{VCI} + (1 - \alpha) \cdot \text{TCI}\]</div>
 <p>where <span class="arithmatex">\(\alpha = 0.5\)</span> represents equal biophysical weighting between moisture stress and thermal elevation.</p>
-<h3 id="36-synthetic-aperture-radar-soil-moisture-smi-nsmi">3.6 Synthetic Aperture Radar Soil Moisture (SMI / NSMI)<a class="headerlink" href="#36-synthetic-aperture-radar-soil-moisture-smi-nsmi" title="Permanent link">&para;</a></h3>
-<p>From Sentinel-1 C-band (<span class="arithmatex">\(5.405\text{ GHz}\)</span>) dual-polarization (<span class="arithmatex">\(\sigma^\circ_{\text{VV}}\)</span>, <span class="arithmatex">\(\sigma^\circ_{\text{VH}}\)</span>) radar backscatter, relative surface soil moisture is calculated by normalising backscatter against dry and saturated reference baselines:</p>
+<h3 id="36-normalized-soil-moisture-index-nsmi">3.6 Normalized Soil Moisture Index (NSMI)<a class="headerlink" href="#36-normalized-soil-moisture-index-nsmi" title="Permanent link">&para;</a></h3>
+<p>NSMI is a Sentinel-2 shortwave infrared index that exploits the sensitivity of SWIR bands to leaf and soil water content:</p>
+<div class="arithmatex">\[\text{NSMI} = \frac{\rho_{\text{SWIR1}} - \rho_{\text{SWIR2}}}{\rho_{\text{SWIR1}} + \rho_{\text{SWIR2}}}\]</div>
+<p>where <span class="arithmatex">\(\rho_{\text{SWIR1}}\)</span> = Sentinel-2 Band 11 (<span class="arithmatex">\(1610\text{ nm}\)</span>) and <span class="arithmatex">\(\rho_{\text{SWIR2}}\)</span> = Sentinel-2 Band 12 (<span class="arithmatex">\(2190\text{ nm}\)</span>). Higher values indicate wetter soil and canopy.</p>
+<p>Because NSMI relies on optical Sentinel-2 imagery, it is <strong>unavailable during monsoon cloud cover</strong> (June–September), like NDVI and VCI. During these months, the CDI rests on SPI alone.</p>
+<h3 id="36b-soil-moisture-index-from-sar-smi">3.6b Soil Moisture Index from SAR (SMI)<a class="headerlink" href="#36b-soil-moisture-index-from-sar-smi" title="Permanent link">&para;</a></h3>
+<p>SMI is derived from Sentinel-1 C-band (<span class="arithmatex">\(5.405\text{ GHz}\)</span>) radar backscatter (<span class="arithmatex">\(\sigma^\circ_{\text{VV}}\)</span>), normalised against dry and saturated baselines:</p>
 <div class="arithmatex">\[\text{SMI} = \frac{\sigma^\circ_{\text{VV}} - \sigma^\circ_{\text{dry}}}{\sigma^\circ_{\text{wet}} - \sigma^\circ_{\text{dry}}}\]</div>
-<p>For cross-index consistency, Normalized Soil Moisture Index (<span class="arithmatex">\(\text{NSMI}\)</span>) is scaled onto <span class="arithmatex">\([0.0, 1.0]\)</span>:</p>
-<div class="arithmatex">\[\text{NSMI}_{v, m} = \min \left( 1.0, \max \left( 0.0, \frac{\text{SMI}_{v, m} - \text{SMI}_{\min}(v, m)}{\text{SMI}_{\max}(v, m) - \text{SMI}_{\min}(v, m)} \right) \right)\]</div>
-<p>Because SAR microwaves penetrate cloud cover and precipitation, NSMI provides all-weather monitoring during monsoon months (June–August).</p>
+<p>Because SAR microwaves penetrate cloud cover, SMI provides all-weather monitoring. It is used in the opt-in thermal formula (<code>config/composite_thermal.yaml</code>) but not in the default <code>cdi-v2026.12</code> formula.</p>
 <h3 id="37-standardized-precipitation-index-spi-1-spi-3-spi-6-spi-12">3.7 Standardized Precipitation Index (SPI-1, SPI-3, SPI-6, SPI-12)<a class="headerlink" href="#37-standardized-precipitation-index-spi-1-spi-3-spi-6-spi-12" title="Permanent link">&para;</a></h3>
 <p>Precipitation from UCSB CHIRPS v2.0 (<span class="arithmatex">\(0.05^\circ\)</span> grid, daily blended satellite-gauge) is aggregated across rolling windows:</p>
 <div class="arithmatex">\[A_{k, t} = \sum_{i=0}^{k-1} P_{t - i}\]</div>
@@ -2159,9 +2191,9 @@
 </ul>
 <p>Cumulative precipitation is fitted to a 2-parameter Gamma distribution <span class="arithmatex">\(g(x; \alpha, \beta)\)</span> and transformed to standard normal <span class="arithmatex">\(Z \sim \mathcal{N}(0, 1)\)</span>.</p>
 <h3 id="38-composite-drought-index-cdi">3.8 Composite Drought Index (CDI)<a class="headerlink" href="#38-composite-drought-index-cdi" title="Permanent link">&para;</a></h3>
-<p>CDI integrates meteorological deficit (SPI), vegetation condition (VCI), soil moisture (NSMI), and thermal state (TCI) into a single composite:</p>
-<div class="arithmatex">\[\text{CDI}_{\text{nominal}} = w_{\text{SPI3}} \cdot S(\text{SPI3}) + w_{\text{VCI}} \cdot S(\text{VCI}) + w_{\text{NSMI}} \cdot S(\text{NSMI}) + w_{\text{TCI}} \cdot S(\text{TCI})\]</div>
-<p>where <span class="arithmatex">\(S(I)\)</span> is the normalized severity score (<span class="arithmatex">\(0.0 \le S \le 1.0\)</span>, where <span class="arithmatex">\(1.0\)</span> is extreme drought) for index <span class="arithmatex">\(I\)</span>.</p>
+<p>CDI integrates meteorological deficit (SPI), vegetation condition (VCI), canopy greenness (NDVI), and surface moisture (NSMI) into a single composite:</p>
+<div class="arithmatex">\[\text{CDI}_{\text{nominal}} = 0.50 \cdot S(\text{SPI}) + 0.25 \cdot S(\text{VCI}) + 0.15 \cdot S(\text{NDVI}) + 0.10 \cdot S(\text{NSMI})\]</div>
+<p>where <span class="arithmatex">\(S(I)\)</span> is the normalized severity score (<span class="arithmatex">\(0.0 \le S \le 1.0\)</span>, where <span class="arithmatex">\(1.0\)</span> is extreme drought) for index <span class="arithmatex">\(I\)</span>. See <code>config/composite.yaml</code> for the authoritative weights and normalisation methods.</p>
 <hr />
 <h2 id="4-seasonal-phenological-cycles">4. Seasonal Phenological Cycles<a class="headerlink" href="#4-seasonal-phenological-cycles" title="Permanent link">&para;</a></h2>
 <p>The 11-year seasonal violin plots show the phenological timing of moisture, vegetative vigor, and drought onset:</p>
@@ -2188,39 +2220,39 @@
 <tr>
 <td style="text-align: center;"><strong>None</strong></td>
 <td style="text-align: center;">Normal / Wet</td>
-<td style="text-align: center;"><span class="arithmatex">\(&lt; 0.15\)</span></td>
+<td style="text-align: center;"><span class="arithmatex">\(&lt; 0.20\)</span></td>
 <td style="text-align: center;"><span class="arithmatex">\(&gt; -0.50\)</span></td>
-<td style="text-align: center;"><span class="arithmatex">\(\ge 50\%\)</span></td>
+<td style="text-align: center;"><span class="arithmatex">\(\ge 60\%\)</span></td>
 <td style="text-align: left;">Optimal crop growth; adequate soil moisture.</td>
 </tr>
 <tr>
 <td style="text-align: center;"><strong>D0</strong></td>
 <td style="text-align: center;">Abnormally Dry</td>
-<td style="text-align: center;"><span class="arithmatex">\(0.15 \le \text{CDI} &lt; 0.25\)</span></td>
+<td style="text-align: center;"><span class="arithmatex">\(0.20 \le \text{CDI} &lt; 0.35\)</span></td>
 <td style="text-align: center;"><span class="arithmatex">\(-0.80 \le \text{SPI} &lt; -0.50\)</span></td>
-<td style="text-align: center;"><span class="arithmatex">\(40\text{--}50\%\)</span></td>
+<td style="text-align: center;"><span class="arithmatex">\(40\text{--}60\%\)</span></td>
 <td style="text-align: left;">Minor soil moisture deficit; sowing delays.</td>
 </tr>
 <tr>
 <td style="text-align: center;"><strong>D1</strong></td>
 <td style="text-align: center;">Moderate Drought</td>
-<td style="text-align: center;"><span class="arithmatex">\(0.25 \le \text{CDI} &lt; 0.35\)</span></td>
-<td style="text-align: center;"><span class="arithmatex">\(-1.20 \le \text{SPI} &lt; -0.80\)</span></td>
+<td style="text-align: center;"><span class="arithmatex">\(0.35 \le \text{CDI} &lt; 0.50\)</span></td>
+<td style="text-align: center;"><span class="arithmatex">\(-1.30 \le \text{SPI} &lt; -0.80\)</span></td>
 <td style="text-align: center;"><span class="arithmatex">\(30\text{--}40\%\)</span></td>
 <td style="text-align: left;">Visible crop wilting; stunted vegetative growth.</td>
 </tr>
 <tr>
 <td style="text-align: center;"><strong>D2</strong></td>
 <td style="text-align: center;">Severe Drought</td>
-<td style="text-align: center;"><span class="arithmatex">\(0.35 \le \text{CDI} &lt; 0.50\)</span></td>
-<td style="text-align: center;"><span class="arithmatex">\(-1.60 \le \text{SPI} &lt; -1.20\)</span></td>
+<td style="text-align: center;"><span class="arithmatex">\(0.50 \le \text{CDI} &lt; 0.65\)</span></td>
+<td style="text-align: center;"><span class="arithmatex">\(-1.60 \le \text{SPI} &lt; -1.30\)</span></td>
 <td style="text-align: center;"><span class="arithmatex">\(20\text{--}30\%\)</span></td>
 <td style="text-align: left;">Significant yield loss; fodder scarcity; water stress.</td>
 </tr>
 <tr>
 <td style="text-align: center;"><strong>D3</strong></td>
 <td style="text-align: center;">Extreme Drought</td>
-<td style="text-align: center;"><span class="arithmatex">\(0.50 \le \text{CDI} &lt; 0.70\)</span></td>
+<td style="text-align: center;"><span class="arithmatex">\(0.65 \le \text{CDI} &lt; 0.80\)</span></td>
 <td style="text-align: center;"><span class="arithmatex">\(-2.00 \le \text{SPI} &lt; -1.60\)</span></td>
 <td style="text-align: center;"><span class="arithmatex">\(10\text{--}20\%\)</span></td>
 <td style="text-align: left;">Extensive crop failure; acute livestock distress.</td>
@@ -2228,7 +2260,7 @@
 <tr>
 <td style="text-align: center;"><strong>D4</strong></td>
 <td style="text-align: center;">Exceptional Drought</td>
-<td style="text-align: center;"><span class="arithmatex">\(\ge 0.70\)</span></td>
+<td style="text-align: center;"><span class="arithmatex">\(\ge 0.80\)</span></td>
 <td style="text-align: center;"><span class="arithmatex">\(\le -2.00\)</span></td>
 <td style="text-align: center;"><span class="arithmatex">\(&lt; 10\%\)</span></td>
 <td style="text-align: left;">Catastrophic crisis; emergency water rationing.</td>
