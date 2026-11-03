@@ -28,6 +28,7 @@ Every figure in the scientific suite is backed by an authoritative, machine-read
 | `village_summary.csv`             | 954      | Decadal summary metrics for every individual village     |
 | `village_mean_cdi.csv`            | 954      | 11-year mean Composite Drought Index per village         |
 | `village_trend.csv`               | 954      | Sen's slope and Mann-Kendall p-value for every village    |
+| `village_climatological_baselines.csv` | 954 | All 8 indicator reference baselines per village (NDVI, CDI, EVI, NSMI, SPI-3, VHI, VCI, Rain) |
 +-----------------------------------+----------+----------------------------------------------------------+
 ```
 

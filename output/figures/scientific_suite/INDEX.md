@@ -1,11 +1,11 @@
 # Scientific Visualization Suite — Drought Monitoring Atlas
 
-**Generated:** 2026-11-01T13:25:00  
-**Study Area:** Latur District  
+**Generated:** 2026-11-03  
+**Study Area:** Latur District, Marathwada  
 **Temporal Scope:** 2016-01 to 2026-10  
 **Administrative Resolution:** 954 Villages across 10 Tehsils  
-**Observed Records:** 124,020 village-months (99.2% completeness)  
-**Total Figures & Animations:** 144  
+**Observed Records:** 123,066 village-months (100.0% completeness)  
+**Total Figures & Animations:** 154  
 
 ---
 
@@ -29,8 +29,8 @@
 - [Annual Spatial Progressions (2024)](#annual-spatial-progressions-2024) (6 figures)
 - [Annual Spatial Progressions (2025)](#annual-spatial-progressions-2025) (6 figures)
 - [Annual Spatial Progressions (2026)](#annual-spatial-progressions-2026) (6 figures)
+- [Spatial Patterns & Tehsil Vulnerability Rankings](#spatial-patterns-&-tehsil-vulnerability-rankings) (15 figures)
 - [12-Month Climatological Atlases (Jan–Dec Climatology)](#12-month-climatological-atlases-jan-dec-climatology) (8 figures)
-- [Spatial Patterns & Tehsil Vulnerability Rankings](#spatial-patterns-&-tehsil-vulnerability-rankings) (5 figures)
 - [Yearly Spatial Mean Atlases (2016–2026)](#yearly-spatial-mean-atlases-2016-2026) (8 figures)
 - [PowerPoint Cartographic Animations](#powerpoint-cartographic-animations) (7 figures)
 
@@ -818,6 +818,100 @@
 
 ---
 
+## Spatial Patterns & Tehsil Vulnerability Rankings
+
+### `atlas_all_indices_baseline_comparison.png`
+![atlas_all_indices_baseline_comparison.png](07_spatial_analysis/baselines/atlas_all_indices_baseline_comparison.png)
+
+- **Title:** Atlas All Indices Baseline Comparison
+- **Description:** Scientific publication figure: atlas all indices baseline comparison across 954 villages of Latur district.
+
+### `atlas_kharif_crop_season_baselines.png`
+![atlas_kharif_crop_season_baselines.png](07_spatial_analysis/baselines/atlas_kharif_crop_season_baselines.png)
+
+- **Title:** Atlas Kharif Crop Season Baselines
+- **Description:** Scientific publication figure: atlas kharif crop season baselines across 954 villages of Latur district.
+
+### `map_baseline_cdi.png`
+![map_baseline_cdi.png](07_spatial_analysis/baselines/map_baseline_cdi.png)
+
+- **Title:** Map Baseline Cdi
+- **Description:** Scientific publication figure: map baseline cdi across 954 villages of Latur district.
+
+### `map_baseline_evi.png`
+![map_baseline_evi.png](07_spatial_analysis/baselines/map_baseline_evi.png)
+
+- **Title:** Map Baseline Evi
+- **Description:** Scientific publication figure: map baseline evi across 954 villages of Latur district.
+
+### `map_baseline_ndvi.png`
+![map_baseline_ndvi.png](07_spatial_analysis/baselines/map_baseline_ndvi.png)
+
+- **Title:** Map Baseline Ndvi
+- **Description:** Scientific publication figure: map baseline ndvi across 954 villages of Latur district.
+
+### `map_baseline_nsmi.png`
+![map_baseline_nsmi.png](07_spatial_analysis/baselines/map_baseline_nsmi.png)
+
+- **Title:** Map Baseline Nsmi
+- **Description:** Scientific publication figure: map baseline nsmi across 954 villages of Latur district.
+
+### `map_baseline_rain_mm.png`
+![map_baseline_rain_mm.png](07_spatial_analysis/baselines/map_baseline_rain_mm.png)
+
+- **Title:** Map Baseline Rain Mm
+- **Description:** Scientific publication figure: map baseline rain mm across 954 villages of Latur district.
+
+### `map_baseline_spi1.png`
+![map_baseline_spi1.png](07_spatial_analysis/baselines/map_baseline_spi1.png)
+
+- **Title:** Map Baseline Spi1
+- **Description:** Scientific publication figure: map baseline spi1 across 954 villages of Latur district.
+
+### `map_baseline_vci.png`
+![map_baseline_vci.png](07_spatial_analysis/baselines/map_baseline_vci.png)
+
+- **Title:** Map Baseline Vci
+- **Description:** Scientific publication figure: map baseline vci across 954 villages of Latur district.
+
+### `map_baseline_vhi.png`
+![map_baseline_vhi.png](07_spatial_analysis/baselines/map_baseline_vhi.png)
+
+- **Title:** Map Baseline Vhi
+- **Description:** Scientific publication figure: map baseline vhi across 954 villages of Latur district.
+
+### `s1_village_mean_cdi.png`
+![s1_village_mean_cdi.png](07_spatial_analysis/overview_and_vulnerability/s1_village_mean_cdi.png)
+
+- **Title:** S1 Village Mean Cdi
+- **Description:** Village-level vulnerability ranking and long-term Sen's slope trend map identifying administrative priority zones for water harvesting and agricultural relief.
+
+### `s2_village_spi_ndvi_correlation.png`
+![s2_village_spi_ndvi_correlation.png](07_spatial_analysis/overview_and_vulnerability/s2_village_spi_ndvi_correlation.png)
+
+- **Title:** S2 Village Spi Ndvi Correlation
+- **Description:** Inter-index correlation analysis evaluating the physical coupling and statistical significance between satellite biophysical indices and meteorological rainfall anomalies.
+
+### `s3_village_trend.png`
+![s3_village_trend.png](07_spatial_analysis/overview_and_vulnerability/s3_village_trend.png)
+
+- **Title:** S3 Village Trend
+- **Description:** Village-level vulnerability ranking and long-term Sen's slope trend map identifying administrative priority zones for water harvesting and agricultural relief.
+
+### `s4_annual_drought_atlas.png`
+![s4_annual_drought_atlas.png](07_spatial_analysis/overview_and_vulnerability/s4_annual_drought_atlas.png)
+
+- **Title:** S4 Annual Drought Atlas
+- **Description:** Village-level vulnerability ranking and long-term Sen's slope trend map identifying administrative priority zones for water harvesting and agricultural relief.
+
+### `s5_tehsil_vulnerability_ranking.png`
+![s5_tehsil_vulnerability_ranking.png](07_spatial_analysis/overview_and_vulnerability/s5_tehsil_vulnerability_ranking.png)
+
+- **Title:** S5 Tehsil Vulnerability Ranking
+- **Description:** Village-level vulnerability ranking and long-term Sen's slope trend map identifying administrative priority zones for water harvesting and agricultural relief.
+
+---
+
 ## 12-Month Climatological Atlases (Jan–Dec Climatology)
 
 ### `atlas_monthly_climatology_composite_drought_score.png`
@@ -867,40 +961,6 @@
 
 - **Title:** 12-Month Seasonal Spatial Climatology: VHI (Jan–Dec)
 - **Description:** Twelve-month long-term spatial climatology (January to December) of VHI averaged over the 11-year observational record (2016–2026) across 954 villages. Establishes the baseline seasonal hydrological and vegetative phenology cycle for Latur district.
-
----
-
-## Spatial Patterns & Tehsil Vulnerability Rankings
-
-### `s1_village_mean_cdi.png`
-![s1_village_mean_cdi.png](07_spatial_analysis/overview_and_vulnerability/s1_village_mean_cdi.png)
-
-- **Title:** S1 Village Mean Cdi
-- **Description:** Village-level vulnerability ranking and long-term Sen's slope trend map identifying administrative priority zones for water harvesting and agricultural relief.
-
-### `s2_village_spi_ndvi_correlation.png`
-![s2_village_spi_ndvi_correlation.png](07_spatial_analysis/overview_and_vulnerability/s2_village_spi_ndvi_correlation.png)
-
-- **Title:** S2 Village Spi Ndvi Correlation
-- **Description:** Inter-index correlation analysis evaluating the physical coupling and statistical significance between satellite biophysical indices and meteorological rainfall anomalies.
-
-### `s3_village_trend.png`
-![s3_village_trend.png](07_spatial_analysis/overview_and_vulnerability/s3_village_trend.png)
-
-- **Title:** S3 Village Trend
-- **Description:** Village-level vulnerability ranking and long-term Sen's slope trend map identifying administrative priority zones for water harvesting and agricultural relief.
-
-### `s4_annual_drought_atlas.png`
-![s4_annual_drought_atlas.png](07_spatial_analysis/overview_and_vulnerability/s4_annual_drought_atlas.png)
-
-- **Title:** S4 Annual Drought Atlas
-- **Description:** Village-level vulnerability ranking and long-term Sen's slope trend map identifying administrative priority zones for water harvesting and agricultural relief.
-
-### `s5_tehsil_vulnerability_ranking.png`
-![s5_tehsil_vulnerability_ranking.png](07_spatial_analysis/overview_and_vulnerability/s5_tehsil_vulnerability_ranking.png)
-
-- **Title:** S5 Tehsil Vulnerability Ranking
-- **Description:** Village-level vulnerability ranking and long-term Sen's slope trend map identifying administrative priority zones for water harvesting and agricultural relief.
 
 ---
 
