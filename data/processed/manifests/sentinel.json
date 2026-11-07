@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "source": "sentinel",
-  "updated": "2026-10-31T10:08:26+05:30",
+  "updated": "2026-11-07T02:57:23+00:00",
   "entries": [
     {
       "period_id": "2016-01",
@@ -1746,6 +1746,23 @@
         "note": "village zonal NDVI/EVI/VCI/VHI"
       },
       "notes": ""
+    },
+    {
+      "period_id": "2026-11",
+      "observation_date": "2026-11-15",
+      "processed_at": "2026-11-07T02:57:23+00:00",
+      "status": "success",
+      "outputs": [
+        "output/indices/zonal/village/village_monthly_indices.csv"
+      ],
+      "input_ids": [],
+      "cloud_pct": null,
+      "qc": {
+        "vci_method": "village-level p5-p95 envelope of village NDVI (approximation of pixel-level batch VCI)",
+        "evi": "withheld: historical EVI reference is saturated at 1.0",
+        "s2_scenes": 4
+      },
+      "notes": "scenes=4"
     }
   ]
 }

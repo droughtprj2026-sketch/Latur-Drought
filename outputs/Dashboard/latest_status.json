@@ -1,11 +1,11 @@
 {
-  "generated_at": "2026-11-06T02:57:31+00:00",
+  "generated_at": "2026-11-07T02:58:49+00:00",
   "monitoring_status": "degraded",
   "sentinel2": {
-    "latest_observation_date": "2026-10-15",
-    "latest_period_id": "2026-10",
+    "latest_observation_date": "2026-11-15",
+    "latest_period_id": "2026-11",
     "cloud_percentage": null,
-    "last_successful_update": "2026-10-31T10:08:26+05:30",
+    "last_successful_update": "2026-11-07T02:57:23+00:00",
     "status": "success"
   },
   "chirps": {
@@ -31,11 +31,11 @@
   },
   "thermal": {
     "in_active_formula": false,
-    "months": 0,
-    "first": null,
-    "last": null,
-    "last_lst": null,
-    "last_vv": null,
+    "months": 1,
+    "first": "2026-10",
+    "last": "2026-10",
+    "last_lst": "2026-10",
+    "last_vv": "2026-10",
     "tci_smi_ready": false,
     "lst_source": "LANDSAT/LC08/C02/T1_L2, LANDSAT/LC09/C02/T1_L2",
     "soil_moisture_source": "COPERNICUS/S1_GRD (VV backscatter)"
@@ -47,7 +47,7 @@
   },
   "synthetic_input": false,
   "pipeline_run": {
-    "started_at": "2026-11-06T02:56:57+00:00",
+    "started_at": "2026-11-07T02:55:10+00:00",
     "ok": true,
     "steps": [
       {
@@ -77,13 +77,8 @@
       },
       {
         "name": "thermal 2026-10",
-        "status": "skipped",
-        "detail": "LST/soil moisture not fully published"
-      },
-      {
-        "name": "sentinel2 2026-11",
-        "status": "skipped",
-        "detail": "scenes=0 coverage=0%"
+        "status": "ok",
+        "detail": "LST (Landsat) + VV (Sentinel-1) for 954 villages"
       },
       {
         "name": "chirps 2026-11",
@@ -96,9 +91,14 @@
         "detail": "LST/soil moisture not fully published"
       },
       {
+        "name": "sentinel2 2026-11",
+        "status": "ok",
+        "detail": "scenes=4, scored=951/954"
+      },
+      {
         "name": "rebuild",
-        "status": "skipped",
-        "detail": "no new data"
+        "status": "ok",
+        "detail": "latest scored period 2026-11; zonal_latest.json: ndvi 2026-11, evi 2026-11, nsmi 2026-11, lst 2026-10, vv 2026-10"
       },
       {
         "name": "publish-supabase",
@@ -106,7 +106,9 @@
         "detail": "storage + tables updated"
       }
     ],
-    "ingested": [],
-    "finished_at": "2026-11-06T02:57:31+00:00"
+    "ingested": [
+      "2026-11"
+    ],
+    "finished_at": "2026-11-07T02:58:49+00:00"
   }
 }
