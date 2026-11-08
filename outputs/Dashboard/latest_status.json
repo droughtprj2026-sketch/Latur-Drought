@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-07T02:58:49+00:00",
+  "generated_at": "2026-11-08T02:58:54+00:00",
   "monitoring_status": "degraded",
   "sentinel2": {
     "latest_observation_date": "2026-11-15",
@@ -47,7 +47,7 @@
   },
   "synthetic_input": false,
   "pipeline_run": {
-    "started_at": "2026-11-07T02:55:10+00:00",
+    "started_at": "2026-11-08T02:57:18+00:00",
     "ok": true,
     "steps": [
       {
@@ -91,14 +91,9 @@
         "detail": "LST/soil moisture not fully published"
       },
       {
-        "name": "sentinel2 2026-11",
-        "status": "ok",
-        "detail": "scenes=4, scored=951/954"
-      },
-      {
         "name": "rebuild",
         "status": "ok",
-        "detail": "latest scored period 2026-11; zonal_latest.json: ndvi 2026-11, evi 2026-11, nsmi 2026-11, lst 2026-10, vv 2026-10"
+        "detail": "latest scored period 2026-11; zonal_latest.json: ndvi None, evi None, nsmi None, lst 2026-10, vv 2026-10"
       },
       {
         "name": "publish-supabase",
@@ -106,9 +101,7 @@
         "detail": "storage + tables updated"
       }
     ],
-    "ingested": [
-      "2026-11"
-    ],
-    "finished_at": "2026-11-07T02:58:49+00:00"
+    "ingested": [],
+    "finished_at": "2026-11-08T02:58:54+00:00"
   }
 }
