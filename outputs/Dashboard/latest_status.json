@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-12T02:59:20+00:00",
+  "generated_at": "2026-11-13T02:56:39+00:00",
   "monitoring_status": "degraded",
   "sentinel2": {
     "latest_observation_date": "2026-11-15",
@@ -47,7 +47,7 @@
   },
   "synthetic_input": false,
   "pipeline_run": {
-    "started_at": "2026-11-12T02:57:16+00:00",
+    "started_at": "2026-11-13T02:54:46+00:00",
     "ok": true,
     "steps": [
       {
@@ -102,6 +102,6 @@
       }
     ],
     "ingested": [],
-    "finished_at": "2026-11-12T02:59:20+00:00"
+    "finished_at": "2026-11-13T02:56:39+00:00"
   }
 }
